@@ -66,21 +66,25 @@ echo
 cat << 'WARN'
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║  ⚠ KOSTEN-WARNUNG — diese Bicep-Module deployen Production-Tier-Resources:   ║
+║  KOSTEN-INFO — Default ist jetzt SPIKE-TIER (costTier=spike in bicepparam):  ║
 ║                                                                              ║
-║    Front Door Premium         ≈ 280 €/Monat                                  ║
-║    Container Apps (2 Apps)    ≈ 120 €/Monat                                  ║
-║    Cosmos DB (Zone-redundant) ≈ 200 €/Monat                                  ║
-║    Storage RA-GRS             ≈   5 €/Monat                                  ║
-║    Key Vault Premium          ≈   5 €/Monat                                  ║
-║    Log Analytics + AppInsight ≈  40 €/Monat                                  ║
+║    Front Door Standard        ≈  35 €/Monat   (Premium war: 280 €)           ║
+║    Container Apps (scale→0)   ≈  15 €/Monat   (Prod war:   120 €)            ║
+║    Cosmos DB Serverless       ≈  15 €/Monat   (Prod-multi: 200 €)            ║
+║    Storage LRS                ≈   3 €/Monat   (RA-GRS war:   5 €)            ║
+║    Key Vault Standard         ≈   1 €/Monat   (Premium war:  5 €)            ║
+║    Log Analytics 30d (1GB/d)  ≈  10 €/Monat   (Prod-90d:    40 €)            ║
 ║    ───────────────────────────────────────                                   ║
-║    Mindest-Sockel ohne LLM    ≈ 650 €/Monat                                  ║
+║    Spike-Sockel ohne LLM      ≈  79 €/Monat                                  ║
+║    Prod-Sockel ohne LLM       ≈ 650 €/Monat   (flippen via costTier='prod')  ║
 ║                                                                              ║
 ║  Bei "READY?"-Prompt unten:                                                  ║
-║    yes       → echtes Deploy mit voller Production-Tier-Sockel               ║
-║    spike     → Skript abbrechen → ich bau Spike-Tier-Modul auf ~80 €/Monat   ║
-║    no / Strg+C → Abbrechen, kein Deploy                                      ║
+║    yes       → Deploy Spike-Tier (~80 €/Monat).                              ║
+║    no / Strg+C → Abbrechen, kein Deploy.                                     ║
+║                                                                              ║
+║  ⚠ HINWEIS zu den nächsten zwei Prompts (Backend-Image, Frontend-Image):     ║
+║      Drücke einfach ENTER, um das Microsoft-Demo-Image zu nehmen.            ║
+║      NICHT die Subscription-ID eintippen — die wird woanders gebraucht.      ║
 ║                                                                              ║
 ║  Du kannst jederzeit Strg+C drücken. Das What-if ist KEIN Deploy.            ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -148,9 +152,12 @@ echo
 # -----------------------------------------------------------------------------
 # 4. Bicep what-if
 # -----------------------------------------------------------------------------
-read -r -p "Backend-Image (Default = $DEFAULT_BACKEND_IMG): " BACKEND_IMG
+echo
+echo "→ Container-Images. Drück einfach ENTER für die Microsoft-Demo-Images (Phase-2 Spike)."
+echo "  Die echten AEGIRA-Images kommen später aus dem CI-Build."
+read -r -p "Backend-Image  [ENTER für $DEFAULT_BACKEND_IMG]: " BACKEND_IMG
 BACKEND_IMG=${BACKEND_IMG:-$DEFAULT_BACKEND_IMG}
-read -r -p "Frontend-Image (Default = $DEFAULT_FRONTEND_IMG): " FRONTEND_IMG
+read -r -p "Frontend-Image [ENTER für $DEFAULT_FRONTEND_IMG]: " FRONTEND_IMG
 FRONTEND_IMG=${FRONTEND_IMG:-$DEFAULT_FRONTEND_IMG}
 
 export USER_MI_ID
@@ -167,14 +174,10 @@ az deployment sub what-if \
   --no-pretty-print | head -100
 echo
 
-read -r -p "READY? Bicep wirklich deployen? (yes/spike/no) " GO
+read -r -p "READY? Bicep wirklich deployen? (yes/no) " GO
 case "$GO" in
-  yes)
-    echo "→ Deploye Production-Tier."
-    ;;
-  spike)
-    echo "→ Abgebrochen. Spike-Tier kommt im nächsten PR. Schreib ‚spike-tier bauen' im Chat."
-    exit 0
+  yes|YES|y|Y)
+    echo "→ Deploye Spike-Tier (~80 €/Monat). Tier-Flip auf Prod via prod.bicepparam → costTier='prod'."
     ;;
   *)
     echo "Abbruch."

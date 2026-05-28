@@ -1,6 +1,11 @@
 // =============================================================================
 // Production parameters
 // Domain: aegira.ai
+//
+// NOTE: This file defaults to SPIKE-TIER cost defaults (~80 €/Mo).
+// To flip to Prod-Tier (~650 €/Mo), search for "Spike-Tier" comments below
+// and toggle the values. The deploy script (_deploy-azure.sh) shows the
+// active tier in its READY?-prompt.
 // =============================================================================
 
 using '../main.bicep'
@@ -10,6 +15,12 @@ param primaryLocation = 'swedencentral'
 param secondaryLocation = 'westeurope'
 param resourcePrefix = 'aegira'
 param customDomain = 'aegira.ai'
+
+// Cost tier — toggle ONLY when revenue + traffic justify Prod-Tier.
+// Spike-Tier (~80 €/Mo)  = serverless Cosmos, FD Standard, scale-to-zero CAE.
+// Prod-Tier  (~650 €/Mo) = provisioned Cosmos multi-region, FD Premium WAF,
+//                          zone-redundant CAE, RA-GRS storage, 90d retention.
+param costTier = 'spike'
 
 param backendApiImage = readEnvironmentVariable('BACKEND_API_IMAGE', 'acr-aegira.azurecr.io/planner-api:latest')
 param frontendImage   = readEnvironmentVariable('FRONTEND_IMAGE',  'acr-aegira.azurecr.io/planner-frontend:latest')

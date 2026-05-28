@@ -69,14 +69,24 @@ param entraAppId string
 @description('Allowed geographies for WAF geo-filter. Default EU + UK + CH + USA.')
 param allowedCountries array = [ 'DE','AT','BE','BG','CY','CZ','DK','EE','ES','FI','FR','GR','HR','HU','IE','IT','LT','LU','LV','MT','NL','PL','PT','RO','SE','SI','SK','GB','CH','US' ]
 
+@description('Cost tier flag. Spike = serverless Cosmos, FD Standard, scale-to-zero (~80 €/Mo). Prod = provisioned multi-region, FD Premium with managed WAF rules (~650 €/Mo).')
+@allowed([ 'spike', 'prod' ])
+param costTier string = 'spike'
+
+var isProd = costTier == 'prod'
+
 // -----------------------------------------------------------------------------
 // Resource Groups
 // -----------------------------------------------------------------------------
 
 var rgShared      = '${resourcePrefix}-shared-${environment}'
 var rgPlanner     = '${resourcePrefix}-planner-${environment}'
-var rgFoundry     = '${resourcePrefix}-foundry-${environment}'
 var rgObservability = '${resourcePrefix}-observability-${environment}'
+
+// NOTE: rgFoundry intentionally NOT declared here — Foundry has special
+// provisioning requirements (model deployments, capacity reservations).
+// Provision separately. Naming convention would be:
+//   ${resourcePrefix}-foundry-${environment}
 
 resource rgSharedRes 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: rgShared
@@ -96,9 +106,6 @@ resource rgObservabilityRes 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   tags: tags
 }
 
-// rgFoundry intentionally NOT created here — Foundry has special provisioning
-// requirements (model deployments, capacity reservations). Provision separately.
-
 // -----------------------------------------------------------------------------
 // Modules
 // -----------------------------------------------------------------------------
@@ -111,6 +118,8 @@ module observability 'modules/observability.bicep' = {
     tags: tags
     workspaceName: 'log-${resourcePrefix}-${environment}'
     appInsightsName: 'appi-${resourcePrefix}-planner-${environment}'
+    retentionInDays: isProd ? 90 : 30
+    dailyQuotaGb: isProd ? 0 : 1
   }
 }
 
@@ -134,6 +143,7 @@ module keyvault 'modules/keyvault.bicep' = {
     keyVaultName: 'kv-${resourcePrefix}-shared-${environment}'
     privateEndpointSubnetId: networking.outputs.privateEndpointSubnetId
     userAssignedMiPrincipalId: reference(userAssignedMiId, '2024-11-30').principalId
+    skuName: isProd ? 'premium' : 'standard'
   }
 }
 
@@ -149,8 +159,9 @@ module cosmos 'modules/cosmos.bicep' = {
     cmkKeyUri: keyvault.outputs.cosmosCmkKeyUri
     userAssignedMiId: userAssignedMiId
     privateEndpointSubnetId: networking.outputs.privateEndpointSubnetId
+    costTier: costTier
   }
-  dependsOn: [ keyvault ]
+  // Implicit dependency on keyvault via cmkKeyUri output reference.
 }
 
 module storage 'modules/storage.bicep' = {
@@ -163,8 +174,9 @@ module storage 'modules/storage.bicep' = {
     cmkKeyUri: keyvault.outputs.storageCmkKeyUri
     userAssignedMiId: userAssignedMiId
     privateEndpointSubnetId: networking.outputs.privateEndpointSubnetId
+    skuName: isProd ? 'Standard_RAGRS' : 'Standard_LRS'
   }
-  dependsOn: [ keyvault ]
+  // Implicit dependency on keyvault via cmkKeyUri output reference.
 }
 
 module containerAppsEnv 'modules/containerAppsEnv.bicep' = {
@@ -177,6 +189,8 @@ module containerAppsEnv 'modules/containerAppsEnv.bicep' = {
     infrastructureSubnetId: networking.outputs.containerAppsSubnetId
     logsWorkspaceCustomerId: observability.outputs.workspaceCustomerId
     logsWorkspaceSharedKey: observability.outputs.workspaceSharedKey
+    zoneRedundant: isProd
+    includeDedicatedProfile: isProd
   }
 }
 
@@ -194,8 +208,9 @@ module backendApi 'modules/containerApp.bicep' = {
     ingressExternal: false
     cpu: '1.0'
     memory: '2Gi'
-    minReplicas: 2
-    maxReplicas: 10
+    // Spike-Tier: scale-to-zero. Prod-Tier value was minReplicas: 2, maxReplicas: 10.
+    minReplicas: 0
+    maxReplicas: 3
     envVars: [
       { name: 'APP_ENV', value: environment }
       { name: 'COSMOS_ENDPOINT', value: cosmos.outputs.endpoint }
@@ -212,7 +227,7 @@ module backendApi 'modules/containerApp.bicep' = {
       { name: 'LOG_LEVEL', value: 'info' }
     ]
   }
-  dependsOn: [ cosmos, storage, observability ]
+  // Implicit dependencies via env-var output references (cosmos, storage, observability).
 }
 
 module frontend 'modules/containerApp.bicep' = {
@@ -229,8 +244,9 @@ module frontend 'modules/containerApp.bicep' = {
     ingressExternal: false
     cpu: '0.75'
     memory: '1.5Gi'
-    minReplicas: 2
-    maxReplicas: 10
+    // Spike-Tier: scale-to-zero. Prod-Tier value was minReplicas: 2, maxReplicas: 10.
+    minReplicas: 0
+    maxReplicas: 3
     envVars: [
       { name: 'NEXT_PUBLIC_APP_URL', value: 'https://app.${customDomain}' }
       { name: 'NEXT_PUBLIC_API_URL', value: 'https://api.${customDomain}' }
@@ -255,6 +271,7 @@ module frontDoor 'modules/frontDoor.bicep' = {
     frontendFqdn: frontend.outputs.fqdn
     allowedCountries: allowedCountries
     wafMode: environment == 'prod' ? 'Prevention' : 'Detection'
+    skuName: isProd ? 'Premium_AzureFrontDoor' : 'Standard_AzureFrontDoor'
   }
 }
 
@@ -269,3 +286,4 @@ output storageAccountName string = storage.outputs.accountName
 output keyVaultUri string = keyvault.outputs.uri
 output frontDoorDnsTarget string = frontDoor.outputs.endpointHostName
 output appInsightsConnectionString string = observability.outputs.appInsightsConnectionString
+output deployedCostTier string = costTier

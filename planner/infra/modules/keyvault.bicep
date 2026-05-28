@@ -1,11 +1,15 @@
 // =============================================================================
-// modules/keyvault.bicep — Key Vault Premium + CMK keys + Private Endpoint
+// modules/keyvault.bicep — Key Vault + CMK keys + Private Endpoint
 //
 // Creates:
-//   - Key Vault Premium
-//   - Two CMK keys (cosmos, storage)
+//   - Key Vault (SKU configurable: standard or premium)
+//   - Two CMK keys (cosmos, storage) — RSA-4096 software-protected
 //   - Private Endpoint
 //   - RBAC for the User-Assigned MI (Key Vault Secrets User)
+//
+// Spike-Tier (current): SKU=standard, software-protected keys.
+// Prod-Tier (future):   SKU=premium, optionally HSM-protected keys.
+//   Cost delta ≈ 5 €/Mo (Premium base) → ~1 €/Mo (Standard base).
 //
 // Per docs/06 §9.
 // =============================================================================
@@ -23,6 +27,10 @@ param userAssignedMiPrincipalId string
 @maxValue(90)
 param softDeleteRetentionDays int = 90
 
+@description('Key Vault SKU. Spike-Tier = standard, Prod-Tier = premium.')
+@allowed([ 'standard', 'premium' ])
+param skuName string = 'standard'
+
 // -----------------------------------------------------------------------------
 // Key Vault
 // -----------------------------------------------------------------------------
@@ -36,7 +44,7 @@ resource kv 'Microsoft.KeyVault/vaults@2024-12-01-preview' = {
     enablePurgeProtection: true
     enableSoftDelete: true
     softDeleteRetentionInDays: softDeleteRetentionDays
-    sku: { family: 'A', name: 'premium' }
+    sku: { family: 'A', name: skuName }
     tenantId: tenant().tenantId
     publicNetworkAccess: 'Disabled'
     networkAcls: {
@@ -63,7 +71,7 @@ resource cosmosCmkKey 'Microsoft.KeyVault/vaults/keys@2024-12-01-preview' = {
       lifetimeActions: [
         {
           trigger: { timeBeforeExpiry: 'P30D' }
-          action: { type: 'Rotate' }
+          action: { type: 'rotate' }
         }
       ]
     }
@@ -83,7 +91,7 @@ resource storageCmkKey 'Microsoft.KeyVault/vaults/keys@2024-12-01-preview' = {
       lifetimeActions: [
         {
           trigger: { timeBeforeExpiry: 'P30D' }
-          action: { type: 'Rotate' }
+          action: { type: 'rotate' }
         }
       ]
     }

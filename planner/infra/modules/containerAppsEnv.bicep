@@ -1,5 +1,9 @@
 // =============================================================================
 // modules/containerAppsEnv.bicep — Container Apps Environment
+//
+// Spike-Tier (current): zoneRedundant=false, Consumption-only workload profile.
+// Prod-Tier (future):   zoneRedundant=true, additional D4 dedicated profile.
+//   Cost delta ≈ 120 €/Mo → ≈ 25 €/Mo (Consumption-only + scale-to-zero).
 // =============================================================================
 
 param location string
@@ -9,6 +13,21 @@ param infrastructureSubnetId string
 param logsWorkspaceCustomerId string
 @secure()
 param logsWorkspaceSharedKey string
+
+@description('Zone redundancy. Spike-Tier = false, Prod-Tier = true.')
+param zoneRedundant bool = false
+
+@description('Add dedicated D4 workload profile. Spike-Tier = false, Prod-Tier = true.')
+param includeDedicatedProfile bool = false
+
+var workloadProfilesConsumptionOnly = [
+  { name: 'Consumption', workloadProfileType: 'Consumption' }
+]
+
+var workloadProfilesWithDedicated = [
+  { name: 'Consumption', workloadProfileType: 'Consumption' }
+  { name: 'D4', workloadProfileType: 'D4', minimumCount: 0, maximumCount: 5 }
+]
 
 resource cae 'Microsoft.App/managedEnvironments@2025-01-01' = {
   name: envName
@@ -26,19 +45,8 @@ resource cae 'Microsoft.App/managedEnvironments@2025-01-01' = {
         sharedKey: logsWorkspaceSharedKey
       }
     }
-    zoneRedundant: true
-    workloadProfiles: [
-      {
-        name: 'Consumption'
-        workloadProfileType: 'Consumption'
-      }
-      {
-        name: 'D4'
-        workloadProfileType: 'D4'
-        minimumCount: 0
-        maximumCount: 5
-      }
-    ]
+    zoneRedundant: zoneRedundant
+    workloadProfiles: includeDedicatedProfile ? workloadProfilesWithDedicated : workloadProfilesConsumptionOnly
   }
 }
 

@@ -6,10 +6,20 @@
 //   plans      PK=/projectId
 //   sessions   PK=/projectId
 //   audit      PK=/tenantIdAndMonth
+//
+// Spike-Tier (current): EnableServerless capability, single-region,
+//   no zone-redundancy, Periodic backups, no provisioned throughput.
+//   Pay-per-request only — fits early-stage usage where the planner sees
+//   a few thousand RU/s peaks per day, not constant load.
+// Prod-Tier (future): provisioned throughput (1200 RU/s shared) with
+//   isZoneRedundant + secondary read region + Continuous30Days backups
+//   + enableAutomaticFailover. Cost delta ≈ 200 €/Mo → ≈ 15 €/Mo on Spike
+//   for the planner's expected request rate.
 // =============================================================================
 
 param location string
-param secondaryLocation string
+@description('Secondary location — only used when costTier == "prod" (multi-region read).')
+param secondaryLocation string = ''
 param tags object
 param accountName string
 param databaseName string
@@ -20,11 +30,17 @@ param privateEndpointSubnetId string
 @description('Default consistency level. "Session" recommended for SaaS workloads.')
 param consistencyLevel string = 'Session'
 
-@description('Shared throughput for the database (RU/s).')
+@description('Shared throughput for the database (RU/s). Only honored on Prod-Tier — Serverless ignores it.')
 param sharedThroughput int = 1200
 
+@description('Cost tier flag. Spike = serverless single-region, Prod = provisioned multi-region.')
+@allowed([ 'spike', 'prod' ])
+param costTier string = 'spike'
+
+var isProd = costTier == 'prod'
+
 // -----------------------------------------------------------------------------
-// Cosmos Account (CMK + multi-region read)
+// Cosmos Account (CMK + region topology controlled by costTier)
 // -----------------------------------------------------------------------------
 
 resource cosmos 'Microsoft.DocumentDB/databaseAccounts@2024-12-01-preview' = {
@@ -43,22 +59,31 @@ resource cosmos 'Microsoft.DocumentDB/databaseAccounts@2024-12-01-preview' = {
       maxIntervalInSeconds: 5
       maxStalenessPrefix: 100
     }
-    locations: [
+    locations: isProd ? [
       { locationName: location, failoverPriority: 0, isZoneRedundant: true }
       { locationName: secondaryLocation, failoverPriority: 1, isZoneRedundant: false }
+    ] : [
+      { locationName: location, failoverPriority: 0, isZoneRedundant: false }
     ]
-    enableAutomaticFailover: true
+    enableAutomaticFailover: isProd
     enableMultipleWriteLocations: false
     publicNetworkAccess: 'Disabled'
-    backupPolicy: {
+    backupPolicy: isProd ? {
       type: 'Continuous'
       continuousModeProperties: { tier: 'Continuous30Days' }
+    } : {
+      type: 'Periodic'
+      periodicModeProperties: {
+        backupIntervalInMinutes: 1440
+        backupRetentionIntervalInHours: 168
+        backupStorageRedundancy: 'Local'
+      }
     }
     keyVaultKeyUri: cmkKeyUri
     defaultIdentity: 'UserAssignedIdentity=${userAssignedMiId}'
     minimalTlsVersion: 'Tls12'
     disableLocalAuth: true
-    capabilities: []
+    capabilities: isProd ? [] : [ { name: 'EnableServerless' } ]
   }
 }
 
@@ -71,7 +96,8 @@ resource db 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-12-01-previ
   name: databaseName
   properties: {
     resource: { id: databaseName }
-    options: { throughput: sharedThroughput }
+    // Serverless does not accept throughput allocation on the database — pay-per-request only.
+    options: isProd ? { throughput: sharedThroughput } : {}
   }
 }
 

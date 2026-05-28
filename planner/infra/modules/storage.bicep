@@ -15,8 +15,9 @@ param cmkKeyUri string
 param userAssignedMiId string
 param privateEndpointSubnetId string
 
-@description('Storage SKU. Standard_RAGRS = read-access geo-redundant for DR.')
-param skuName string = 'Standard_RAGRS'
+@description('Storage SKU. Spike-Tier = Standard_LRS (local-redundant, ~5 €/Mo). Prod-Tier = Standard_RAGRS (geo-redundant for DR, ~25 €/Mo).')
+@allowed([ 'Standard_LRS', 'Standard_ZRS', 'Standard_GRS', 'Standard_RAGRS' ])
+param skuName string = 'Standard_LRS'
 
 // -----------------------------------------------------------------------------
 // Account
@@ -41,7 +42,7 @@ resource sa 'Microsoft.Storage/storageAccounts@2024-01-01' = {
     accessTier: 'Hot'
     encryption: {
       keySource: 'Microsoft.Keyvault'
-      keyvaultproperties: { keyVaultUri: substring(cmkKeyUri, 0, indexOf(cmkKeyUri, '/keys/')), keyname: 'storage-cmk' }
+      keyvaultproperties: { keyvaulturi: substring(cmkKeyUri, 0, indexOf(cmkKeyUri, '/keys/')), keyname: 'storage-cmk' }
       identity: { userAssignedIdentity: userAssignedMiId }
       services: {
         blob: { enabled: true, keyType: 'Account' }

@@ -7,10 +7,10 @@ param tags object
 param workspaceName string
 param appInsightsName string
 
-@description('Retention days for Log Analytics (Hot tier).')
+@description('Retention days for Log Analytics (Hot tier). Spike-Tier = 30, Prod-Tier = 90.')
 @minValue(30)
 @maxValue(730)
-param retentionInDays int = 90
+param retentionInDays int = 30
 
 @description('Daily quota in GB for cost control. 0 = unlimited.')
 param dailyQuotaGb int = 0

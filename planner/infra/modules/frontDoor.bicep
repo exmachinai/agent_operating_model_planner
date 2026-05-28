@@ -1,11 +1,15 @@
 // =============================================================================
-// modules/frontDoor.bicep — Azure Front Door Premium + WAF + Custom Domains
+// modules/frontDoor.bicep — Azure Front Door + WAF + Custom Domains
 //
 // Routes:
 //   app.<customDomain>  → frontendFqdn (Container App)
 //   api.<customDomain>  → backendApiFqdn (Container App)
 //
-// WAF: OWASP Core Rule Set 3.2 + Bot Manager + Geo-filter + Rate limit.
+// Spike-Tier (current): Standard_AzureFrontDoor SKU, custom-rules-only WAF
+//   (Geo-allow + Geo-deny + RateLimit). No managed rule sets (Premium-only).
+// Prod-Tier (future):   Premium_AzureFrontDoor SKU, managedRuleSets with
+//   Microsoft_DefaultRuleSet 2.1 + Microsoft_BotManagerRuleSet 1.0 (Block).
+//   Cost delta ≈ 280 €/Mo → ≈ 35 €/Mo (~245 € savings).
 // =============================================================================
 
 param location string = 'global'
@@ -17,6 +21,10 @@ param frontendFqdn string
 param allowedCountries array
 param wafMode string = 'Prevention'
 
+@description('SKU tier. Spike-Tier = Standard_AzureFrontDoor, Prod-Tier = Premium_AzureFrontDoor.')
+@allowed([ 'Standard_AzureFrontDoor', 'Premium_AzureFrontDoor' ])
+param skuName string = 'Standard_AzureFrontDoor'
+
 // -----------------------------------------------------------------------------
 // Profile
 // -----------------------------------------------------------------------------
@@ -25,7 +33,7 @@ resource profile 'Microsoft.Cdn/profiles@2024-09-01' = {
   name: profileName
   location: location
   tags: tags
-  sku: { name: 'Premium_AzureFrontDoor' }
+  sku: { name: skuName }
   properties: {
     originResponseTimeoutSeconds: 60
   }
@@ -178,7 +186,8 @@ resource waf 'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2024-02-
   name: 'waf${replace(profileName, '-', '')}'
   location: 'global'
   tags: tags
-  sku: { name: 'Premium_AzureFrontDoor' }
+  // WAF SKU must match the Front Door profile SKU.
+  sku: { name: skuName }
   properties: {
     policySettings: {
       enabledState: 'Enabled'
@@ -188,20 +197,8 @@ resource waf 'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2024-02-
       customBlockResponseBody: base64('Refused by AEGIRA WAF.')
       redirectUrl: 'https://app.${customDomain}/blocked'
     }
-    managedRules: {
-      managedRuleSets: [
-        {
-          ruleSetType: 'Microsoft_DefaultRuleSet'
-          ruleSetVersion: '2.1'
-          ruleSetAction: 'Block'
-        }
-        {
-          ruleSetType: 'Microsoft_BotManagerRuleSet'
-          ruleSetVersion: '1.0'
-          ruleSetAction: 'Block'
-        }
-      ]
-    }
+    // Spike-Tier: no managedRuleSets — Standard SKU does not support them.
+    // Prod-Tier (Premium) re-enables Microsoft_DefaultRuleSet 2.1 + Bot Manager.
     customRules: {
       rules: [
         {

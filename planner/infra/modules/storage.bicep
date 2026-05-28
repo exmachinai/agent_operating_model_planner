@@ -1,0 +1,172 @@
+// =============================================================================
+// modules/storage.bicep — Storage Account + Blob containers + CMK + Lifecycle
+//
+// Containers per docs/06 §8.2.
+// =============================================================================
+
+param location string
+param tags object
+
+@minLength(3)
+@maxLength(24)
+param storageAccountName string
+
+param cmkKeyUri string
+param userAssignedMiId string
+param privateEndpointSubnetId string
+
+@description('Storage SKU. Standard_RAGRS = read-access geo-redundant for DR.')
+param skuName string = 'Standard_RAGRS'
+
+// -----------------------------------------------------------------------------
+// Account
+// -----------------------------------------------------------------------------
+
+resource sa 'Microsoft.Storage/storageAccounts@2024-01-01' = {
+  name: storageAccountName
+  location: location
+  tags: tags
+  sku: { name: skuName }
+  kind: 'StorageV2'
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: { '${userAssignedMiId}': {} }
+  }
+  properties: {
+    minimumTlsVersion: 'TLS1_2'
+    allowBlobPublicAccess: false
+    allowSharedKeyAccess: false
+    publicNetworkAccess: 'Disabled'
+    supportsHttpsTrafficOnly: true
+    accessTier: 'Hot'
+    encryption: {
+      keySource: 'Microsoft.Keyvault'
+      keyvaultproperties: { keyVaultUri: substring(cmkKeyUri, 0, indexOf(cmkKeyUri, '/keys/')), keyname: 'storage-cmk' }
+      identity: { userAssignedIdentity: userAssignedMiId }
+      services: {
+        blob: { enabled: true, keyType: 'Account' }
+        file: { enabled: true, keyType: 'Account' }
+        queue: { enabled: true, keyType: 'Account' }
+        table: { enabled: true, keyType: 'Account' }
+      }
+    }
+    networkAcls: {
+      defaultAction: 'Deny'
+      bypass: 'AzureServices'
+    }
+  }
+}
+
+resource blobs 'Microsoft.Storage/storageAccounts/blobServices@2024-01-01' = {
+  parent: sa
+  name: 'default'
+  properties: {
+    deleteRetentionPolicy: { enabled: true, days: 30 }
+    containerDeleteRetentionPolicy: { enabled: true, days: 30 }
+    isVersioningEnabled: true
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Containers (private — Signed URL only)
+// -----------------------------------------------------------------------------
+
+var containers = [
+  'plans-yaml'
+  'harness-zips'
+  'excel-exports'
+  'audit-cold'
+  'static-assets'
+]
+
+resource containerResources 'Microsoft.Storage/storageAccounts/blobServices/containers@2024-01-01' = [for c in containers: {
+  parent: blobs
+  name: c
+  properties: {
+    publicAccess: 'None'
+  }
+}]
+
+// -----------------------------------------------------------------------------
+// Lifecycle policy
+//   - plans-yaml: Hot → Cool after 90d, Archive after 365d.
+//   - harness-zips: Hot → Cool after 30d.
+//   - audit-cold: Cool → Archive after 7 years (then app-level deletion trigger).
+// -----------------------------------------------------------------------------
+
+resource lifecycle 'Microsoft.Storage/storageAccounts/managementPolicies@2024-01-01' = {
+  parent: sa
+  name: 'default'
+  properties: {
+    policy: {
+      rules: [
+        {
+          name: 'plans-yaml-tiering'
+          enabled: true
+          type: 'Lifecycle'
+          definition: {
+            filters: { blobTypes: [ 'blockBlob' ], prefixMatch: [ 'plans-yaml/' ] }
+            actions: {
+              baseBlob: {
+                tierToCool: { daysAfterModificationGreaterThan: 90 }
+                tierToArchive: { daysAfterModificationGreaterThan: 365 }
+              }
+            }
+          }
+        }
+        {
+          name: 'harness-zips-tiering'
+          enabled: true
+          type: 'Lifecycle'
+          definition: {
+            filters: { blobTypes: [ 'blockBlob' ], prefixMatch: [ 'harness-zips/' ] }
+            actions: {
+              baseBlob: { tierToCool: { daysAfterModificationGreaterThan: 30 } }
+            }
+          }
+        }
+        {
+          name: 'audit-cold-archive'
+          enabled: true
+          type: 'Lifecycle'
+          definition: {
+            filters: { blobTypes: [ 'blockBlob' ], prefixMatch: [ 'audit-cold/' ] }
+            actions: {
+              baseBlob: { tierToArchive: { daysAfterModificationGreaterThan: 90 } }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Private Endpoint (blob)
+// -----------------------------------------------------------------------------
+
+resource pe 'Microsoft.Network/privateEndpoints@2024-05-01' = {
+  name: 'pe-${storageAccountName}-blob'
+  location: location
+  tags: tags
+  properties: {
+    subnet: { id: privateEndpointSubnetId }
+    privateLinkServiceConnections: [
+      {
+        name: 'plsc-${storageAccountName}-blob'
+        properties: {
+          privateLinkServiceId: sa.id
+          groupIds: [ 'blob' ]
+        }
+      }
+    ]
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Outputs
+// -----------------------------------------------------------------------------
+
+output storageAccountId string = sa.id
+output accountName string = sa.name
+output blobEndpoint string = sa.properties.primaryEndpoints.blob

@@ -1,0 +1,271 @@
+// =============================================================================
+// AEGIRA Planner — Azure Infrastructure (main.bicep)
+//
+// Deploys the full Planner App stack to one region.
+//
+// Topology:
+//   - Resource group(s) created via az CLI prior to this template (see deploy.sh).
+//   - This template deploys at SUBSCRIPTION scope and creates the RGs.
+//
+// Modules used (in order):
+//   1. observability    (Log Analytics + App Insights)
+//   2. networking       (VNet + Subnets + NSGs)
+//   3. keyvault         (Key Vault + Soft-delete + Purge-protection)
+//   4. cosmos           (Cosmos DB account + containers + CMK)
+//   5. storage          (Storage account + containers + CMK)
+//   6. containerAppsEnv (Container Apps Environment)
+//   7. containerApp     (parameterized — Backend API + Frontend)
+//   8. frontDoor        (Front Door Premium + WAF + custom domains)
+//
+// Per AEGIRA docs/06_azure-configuration-guide.md.
+// =============================================================================
+
+targetScope = 'subscription'
+
+// -----------------------------------------------------------------------------
+// Parameters
+// -----------------------------------------------------------------------------
+
+@description('Environment short name (prod / staging / dev).')
+@allowed([ 'prod', 'staging', 'dev' ])
+param environment string
+
+@description('Primary Azure region. Sweden Central recommended.')
+param primaryLocation string = 'swedencentral'
+
+@description('Secondary region for DR. West Europe recommended.')
+param secondaryLocation string = 'westeurope'
+
+@description('Resource name prefix. Combined with environment for uniqueness.')
+param resourcePrefix string = 'aegira'
+
+@description('Custom domain for the application. e.g. aegira.ai')
+param customDomain string = 'aegira.ai'
+
+@description('Tags applied to all resources.')
+param tags object = {
+  app: 'aegira-planner'
+  owner: 'exmachinAI'
+  costcenter: 'AEGIRA-PLATFORM'
+  managed_by: 'bicep'
+  compliance: 'EU-AI-Act'
+}
+
+@description('Container image tag for the backend-api app.')
+param backendApiImage string
+
+@description('Container image tag for the frontend app.')
+param frontendImage string
+
+@description('User-assigned Managed Identity for all workloads. Created externally.')
+param userAssignedMiId string
+
+@description('Entra ID Tenant ID.')
+param entraTenantId string
+
+@description('Entra App ID for the Planner App.')
+param entraAppId string
+
+@description('Allowed geographies for WAF geo-filter. Default EU + UK + CH + USA.')
+param allowedCountries array = [ 'DE','AT','BE','BG','CY','CZ','DK','EE','ES','FI','FR','GR','HR','HU','IE','IT','LT','LU','LV','MT','NL','PL','PT','RO','SE','SI','SK','GB','CH','US' ]
+
+// -----------------------------------------------------------------------------
+// Resource Groups
+// -----------------------------------------------------------------------------
+
+var rgShared      = '${resourcePrefix}-shared-${environment}'
+var rgPlanner     = '${resourcePrefix}-planner-${environment}'
+var rgFoundry     = '${resourcePrefix}-foundry-${environment}'
+var rgObservability = '${resourcePrefix}-observability-${environment}'
+
+resource rgSharedRes 'Microsoft.Resources/resourceGroups@2024-03-01' = {
+  name: rgShared
+  location: primaryLocation
+  tags: tags
+}
+
+resource rgPlannerRes 'Microsoft.Resources/resourceGroups@2024-03-01' = {
+  name: rgPlanner
+  location: primaryLocation
+  tags: tags
+}
+
+resource rgObservabilityRes 'Microsoft.Resources/resourceGroups@2024-03-01' = {
+  name: rgObservability
+  location: primaryLocation
+  tags: tags
+}
+
+// rgFoundry intentionally NOT created here — Foundry has special provisioning
+// requirements (model deployments, capacity reservations). Provision separately.
+
+// -----------------------------------------------------------------------------
+// Modules
+// -----------------------------------------------------------------------------
+
+module observability 'modules/observability.bicep' = {
+  name: 'observability-${environment}'
+  scope: rgObservabilityRes
+  params: {
+    location: primaryLocation
+    tags: tags
+    workspaceName: 'log-${resourcePrefix}-${environment}'
+    appInsightsName: 'appi-${resourcePrefix}-planner-${environment}'
+  }
+}
+
+module networking 'modules/networking.bicep' = {
+  name: 'networking-${environment}'
+  scope: rgPlannerRes
+  params: {
+    location: primaryLocation
+    tags: tags
+    vnetName: 'vnet-${resourcePrefix}-${environment}'
+    vnetCidr: '10.50.0.0/16'
+  }
+}
+
+module keyvault 'modules/keyvault.bicep' = {
+  name: 'keyvault-${environment}'
+  scope: rgSharedRes
+  params: {
+    location: primaryLocation
+    tags: tags
+    keyVaultName: 'kv-${resourcePrefix}-shared-${environment}'
+    privateEndpointSubnetId: networking.outputs.privateEndpointSubnetId
+    userAssignedMiPrincipalId: reference(userAssignedMiId, '2024-11-30').principalId
+  }
+}
+
+module cosmos 'modules/cosmos.bicep' = {
+  name: 'cosmos-${environment}'
+  scope: rgPlannerRes
+  params: {
+    location: primaryLocation
+    secondaryLocation: secondaryLocation
+    tags: tags
+    accountName: toLower('cosmos-${resourcePrefix}-planner-${environment}')
+    databaseName: 'planner'
+    cmkKeyUri: keyvault.outputs.cosmosCmkKeyUri
+    userAssignedMiId: userAssignedMiId
+    privateEndpointSubnetId: networking.outputs.privateEndpointSubnetId
+  }
+  dependsOn: [ keyvault ]
+}
+
+module storage 'modules/storage.bicep' = {
+  name: 'storage-${environment}'
+  scope: rgPlannerRes
+  params: {
+    location: primaryLocation
+    tags: tags
+    storageAccountName: toLower('${resourcePrefix}st${environment}plan${uniqueString(rgPlannerRes.id)}')
+    cmkKeyUri: keyvault.outputs.storageCmkKeyUri
+    userAssignedMiId: userAssignedMiId
+    privateEndpointSubnetId: networking.outputs.privateEndpointSubnetId
+  }
+  dependsOn: [ keyvault ]
+}
+
+module containerAppsEnv 'modules/containerAppsEnv.bicep' = {
+  name: 'cae-${environment}'
+  scope: rgPlannerRes
+  params: {
+    location: primaryLocation
+    tags: tags
+    envName: 'cae-${resourcePrefix}-planner-${environment}'
+    infrastructureSubnetId: networking.outputs.containerAppsSubnetId
+    logsWorkspaceCustomerId: observability.outputs.workspaceCustomerId
+    logsWorkspaceSharedKey: observability.outputs.workspaceSharedKey
+  }
+}
+
+module backendApi 'modules/containerApp.bicep' = {
+  name: 'ca-api-${environment}'
+  scope: rgPlannerRes
+  params: {
+    location: primaryLocation
+    tags: tags
+    appName: 'ca-${resourcePrefix}-planner-api'
+    environmentId: containerAppsEnv.outputs.environmentId
+    userAssignedMiId: userAssignedMiId
+    containerImage: backendApiImage
+    targetPort: 8000
+    ingressExternal: false
+    cpu: '1.0'
+    memory: '2Gi'
+    minReplicas: 2
+    maxReplicas: 10
+    envVars: [
+      { name: 'APP_ENV', value: environment }
+      { name: 'COSMOS_ENDPOINT', value: cosmos.outputs.endpoint }
+      { name: 'COSMOS_DATABASE', value: 'planner' }
+      { name: 'STORAGE_ACCOUNT_NAME', value: storage.outputs.accountName }
+      { name: 'APPINSIGHTS_CONNECTION_STRING', value: observability.outputs.appInsightsConnectionString }
+      { name: 'ENTRA_TENANT_ID', value: entraTenantId }
+      { name: 'ENTRA_APP_ID', value: entraAppId }
+      { name: 'ENTRA_AUDIENCE', value: 'https://app.${customDomain}' }
+      { name: 'SESSION_IDLE_TIMEOUT_WORKSPACE_SEC', value: '900' }
+      { name: 'SESSION_IDLE_TIMEOUT_ADMIN_SEC', value: '300' }
+      { name: 'SESSION_HARD_LOCK_BACKGROUND_SEC', value: '1800' }
+      { name: 'MAX_TOKENS_PER_RUN', value: '1000000' }
+      { name: 'LOG_LEVEL', value: 'info' }
+    ]
+  }
+  dependsOn: [ cosmos, storage, observability ]
+}
+
+module frontend 'modules/containerApp.bicep' = {
+  name: 'ca-fe-${environment}'
+  scope: rgPlannerRes
+  params: {
+    location: primaryLocation
+    tags: tags
+    appName: 'ca-${resourcePrefix}-planner-frontend'
+    environmentId: containerAppsEnv.outputs.environmentId
+    userAssignedMiId: userAssignedMiId
+    containerImage: frontendImage
+    targetPort: 3000
+    ingressExternal: false
+    cpu: '0.75'
+    memory: '1.5Gi'
+    minReplicas: 2
+    maxReplicas: 10
+    envVars: [
+      { name: 'NEXT_PUBLIC_APP_URL', value: 'https://app.${customDomain}' }
+      { name: 'NEXT_PUBLIC_API_URL', value: 'https://api.${customDomain}' }
+      { name: 'NEXT_PUBLIC_ENTRA_TENANT_ID', value: entraTenantId }
+      { name: 'NEXT_PUBLIC_ENTRA_APP_ID', value: entraAppId }
+      { name: 'NEXT_PUBLIC_APP_ENV', value: environment }
+      { name: 'NEXT_PUBLIC_LOCK_IDLE_WORKSPACE_SEC', value: '900' }
+      { name: 'NEXT_PUBLIC_LOCK_IDLE_ADMIN_SEC', value: '300' }
+    ]
+  }
+}
+
+module frontDoor 'modules/frontDoor.bicep' = {
+  name: 'fd-${environment}'
+  scope: rgSharedRes
+  params: {
+    location: 'global'
+    tags: tags
+    profileName: 'fd-${resourcePrefix}-${environment}'
+    customDomain: customDomain
+    backendApiFqdn: backendApi.outputs.fqdn
+    frontendFqdn: frontend.outputs.fqdn
+    allowedCountries: allowedCountries
+    wafMode: environment == 'prod' ? 'Prevention' : 'Detection'
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Outputs
+// -----------------------------------------------------------------------------
+
+output appPublicUrl string = 'https://app.${customDomain}'
+output apiPublicUrl string = 'https://api.${customDomain}'
+output cosmosEndpoint string = cosmos.outputs.endpoint
+output storageAccountName string = storage.outputs.accountName
+output keyVaultUri string = keyvault.outputs.uri
+output frontDoorDnsTarget string = frontDoor.outputs.endpointHostName
+output appInsightsConnectionString string = observability.outputs.appInsightsConnectionString

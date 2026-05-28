@@ -26,10 +26,10 @@ Insgesamt **4 Records** im Bytecamp-Control-Panel anlegen. Werte aus dem Azure-D
 
 | # | Record-Typ | Host (relativ zu aegira.ai) | Ziel | TTL | Zweck |
 |---|---|---|---|---|---|
-| **1** | `CNAME` | `zgpm` | `<fd-endpoint>.azurefd.net.` | 3600 | Frontend (App) |
-| **2** | `CNAME` | `api.zgpm` | `<fd-endpoint>.azurefd.net.` | 3600 | Backend (API) |
-| **3** | `TXT` | `_dnsauth.zgpm` | `<validation-token-frontend>` | 3600 | Domain-Verification (Azure Front Door) |
-| **4** | `TXT` | `_dnsauth.api.zgpm` | `<validation-token-api>` | 3600 | Domain-Verification (Azure Front Door) |
+| **1** | `CNAME` | `zgpm` | `<fd-endpoint>.azurefd.net.` | `1H` | Frontend (App) |
+| **2** | `CNAME` | `api.zgpm` | `<fd-endpoint>.azurefd.net.` | `1H` | Backend (API) |
+| **3** | `TXT` | `_dnsauth.zgpm` | `<validation-token-frontend>` | `1H` | Domain-Verification (Azure Front Door) |
+| **4** | `TXT` | `_dnsauth.api.zgpm` | `<validation-token-api>` | `1H` | Domain-Verification (Azure Front Door) |
 
 **Validation-Tokens** werden von Front Door beim Hinzufügen der Custom-Domain ausgegeben — sie sehen aus wie `_d2b4c1f8eb...`. Beide Tokens unterscheiden sich pro Custom-Domain.
 
@@ -79,7 +79,7 @@ az afd custom-domain show \
 | Type | `CNAME` |
 | Name / Host | `zgpm` |
 | Value / Ziel | `fd-aegira-prod-<hash>.b01.azurefd.net.` *(trailing dot beachten!)* |
-| TTL | `3600` (1 Stunde) |
+| TTL | `1H` (1 Stunde) |
 | Priorität | leer |
 
 → Speichern.
@@ -91,7 +91,7 @@ az afd custom-domain show \
 | Type | `CNAME` |
 | Name / Host | `api.zgpm` |
 | Value / Ziel | `fd-aegira-prod-<hash>.b01.azurefd.net.` |
-| TTL | `3600` |
+| TTL | `1H` |
 
 → Speichern.
 
@@ -102,7 +102,7 @@ az afd custom-domain show \
 | Type | `TXT` |
 | Name / Host | `_dnsauth.zgpm` |
 | Value | `<validation-token vom Front-Door>` *(in Anführungszeichen falls Bytecamp das verlangt)* |
-| TTL | `3600` |
+| TTL | `1H` |
 
 ### 3.5 Record 4 — TXT für API-Validation
 
@@ -111,7 +111,7 @@ az afd custom-domain show \
 | Type | `TXT` |
 | Name / Host | `_dnsauth.api.zgpm` |
 | Value | `<validation-token-2 vom Front-Door>` |
-| TTL | `3600` |
+| TTL | `1H` |
 
 ---
 

@@ -30,8 +30,10 @@ ENV="prod"
 PRIMARY="swedencentral"
 SECONDARY="westeurope"
 DOMAIN="aegira.ai"
-WORK_DIR="$HOME/Code/aegira-aomp-update-$(ls -t $HOME/Code/ 2>/dev/null | grep aegira-aomp | head -1)/repo"
-INFRA_DIR="$WORK_DIR/planner/infra"
+
+# Detect newest geklontes Repo unter ~/Code/aegira-aomp-*/repo
+WORK_DIR=$(ls -td "$HOME/Code"/aegira-aomp-*/repo 2>/dev/null | head -1 || true)
+INFRA_DIR="${WORK_DIR:-/nonexistent}/planner/infra"
 
 # Placeholder-Images für Phase-2 (Microsoft sample)
 DEFAULT_BACKEND_IMG="mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
@@ -46,15 +48,44 @@ command -v bicep >/dev/null || az bicep install >/dev/null
 
 if [ ! -d "$INFRA_DIR" ]; then
   echo "FEHLER: $INFRA_DIR nicht gefunden."
-  echo "Dieses Skript erwartet, dass _push-update.sh oder _push-to-github.sh"
-  echo "vorher gelaufen ist und ~/Code/aegira-aomp-* mit dem geklonten Repo existiert."
+  echo "Dieses Skript erwartet, dass _push-update.sh vorher gelaufen ist und"
+  echo "~/Code/aegira-aomp-*/repo mit den aktuellsten Bicep-Files existiert."
   echo
-  echo "Setze \$WORK_DIR manuell falls dein Layout anders ist."
+  echo "Quick-Fix: führe '_push-update.sh' nochmal aus, dann das hier."
+  echo "Oder setze WORK_DIR manuell:"
+  echo "  WORK_DIR=/pfad/zum/repo bash _deploy-azure.sh"
   exit 1
 fi
 
 echo "→ Infra-Pfad: $INFRA_DIR"
 echo
+
+# -----------------------------------------------------------------------------
+# 0a. KOSTEN-WARNUNG
+# -----------------------------------------------------------------------------
+cat << 'WARN'
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  ⚠ KOSTEN-WARNUNG — diese Bicep-Module deployen Production-Tier-Resources:   ║
+║                                                                              ║
+║    Front Door Premium         ≈ 280 €/Monat                                  ║
+║    Container Apps (2 Apps)    ≈ 120 €/Monat                                  ║
+║    Cosmos DB (Zone-redundant) ≈ 200 €/Monat                                  ║
+║    Storage RA-GRS             ≈   5 €/Monat                                  ║
+║    Key Vault Premium          ≈   5 €/Monat                                  ║
+║    Log Analytics + AppInsight ≈  40 €/Monat                                  ║
+║    ───────────────────────────────────────                                   ║
+║    Mindest-Sockel ohne LLM    ≈ 650 €/Monat                                  ║
+║                                                                              ║
+║  Bei "READY?"-Prompt unten:                                                  ║
+║    yes       → echtes Deploy mit voller Production-Tier-Sockel               ║
+║    spike     → Skript abbrechen → ich bau Spike-Tier-Modul auf ~80 €/Monat   ║
+║    no / Strg+C → Abbrechen, kein Deploy                                      ║
+║                                                                              ║
+║  Du kannst jederzeit Strg+C drücken. Das What-if ist KEIN Deploy.            ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+WARN
 
 # -----------------------------------------------------------------------------
 # 1. Subscription wählen
@@ -136,11 +167,20 @@ az deployment sub what-if \
   --no-pretty-print | head -100
 echo
 
-read -r -p "READY? Bicep wirklich deployen? (yes/no) " GO
-if [ "$GO" != "yes" ]; then
-  echo "Abbruch."
-  exit 0
-fi
+read -r -p "READY? Bicep wirklich deployen? (yes/spike/no) " GO
+case "$GO" in
+  yes)
+    echo "→ Deploye Production-Tier."
+    ;;
+  spike)
+    echo "→ Abgebrochen. Spike-Tier kommt im nächsten PR. Schreib ‚spike-tier bauen' im Chat."
+    exit 0
+    ;;
+  *)
+    echo "Abbruch."
+    exit 0
+    ;;
+esac
 
 # -----------------------------------------------------------------------------
 # 5. Bicep deploy

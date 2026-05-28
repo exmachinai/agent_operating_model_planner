@@ -29,8 +29,8 @@
 |---|---|---|
 | `aegira.ai` | Marketing-Website, Redirect zu `www.aegira.ai` | Statisch (Azure Static Web Apps oder Vercel) |
 | `www.aegira.ai` | Marketing-Website (canonical) | Static Web Apps |
-| **`app.aegira.ai`** | **Planner-App-Frontend** | Container Apps Ingress |
-| `api.aegira.ai` | Planner-App-Backend-API | Container Apps Ingress |
+| **`zgpm.aegira.ai`** | **Planner-App-Frontend** | Container Apps Ingress |
+| `api.zgpm.aegira.ai` | Planner-App-Backend-API | Container Apps Ingress |
 | `auth.aegira.ai` | Entra-ID-Custom-Domain | Entra ID (B2C optional) |
 | `docs.aegira.ai` | Öffentliche Doku, Status | Static Web Apps |
 | `status.aegira.ai` | Status-Page | Statuspage.io oder eigene Page |
@@ -128,7 +128,7 @@ az ad domain verify --domain "auth.aegira.ai"
 az ad app create \
   --display-name "AEGIRA Planner App" \
   --sign-in-audience AzureADMultipleOrgs \
-  --web-redirect-uris "https://app.aegira.ai/auth/callback" \
+  --web-redirect-uris "https://zgpm.aegira.ai/auth/callback" \
   --required-resource-accesses '@manifest.json'
 
 PLANNER_APP_ID=$(az ad app list --display-name "AEGIRA Planner App" --query "[0].appId" -o tsv)
@@ -461,8 +461,8 @@ Routes:
 
 | Route | Frontend | Backend |
 |---|---|---|
-| `app.aegira.ai/*` | `app-aegira-ai` | Container App `ca-aegira-planner-frontend` (Next.js SSR) |
-| `api.aegira.ai/*` | `api-aegira-ai` | Container App `ca-aegira-planner-api` |
+| `zgpm.aegira.ai/*` | `app-aegira-ai` | Container App `ca-aegira-planner-frontend` (Next.js SSR) |
+| `api.zgpm.aegira.ai/*` | `api-aegira-ai` | Container App `ca-aegira-planner-api` |
 | `docs.aegira.ai/*` | `docs-aegira-ai` | Static Web App `swa-aegira-docs` |
 | `cdn.aegira.ai/*` | `cdn-aegira-ai` | Storage `static-assets` |
 
@@ -473,7 +473,7 @@ az network front-door waf-policy create \
   --name wafAegiraPlanner \
   --resource-group rg-aegira-shared-prod \
   --mode Prevention \
-  --redirect-url "https://app.aegira.ai/blocked" \
+  --redirect-url "https://zgpm.aegira.ai/blocked" \
   --custom-block-response-status-code 429 \
   --sku Premium_AzureFrontDoor
 ```
@@ -565,7 +565,7 @@ Instrumentation-Key wird im Backend-Container als App Setting injiziert.
 
 ## 14. Lock Screen
 
-> **Pflicht-Feature.** Bindend für alle Pages unter `app.aegira.ai/(workspace)/*` und `app.aegira.ai/(tenant-admin)/*`.
+> **Pflicht-Feature.** Bindend für alle Pages unter `zgpm.aegira.ai/(workspace)/*` und `zgpm.aegira.ai/(tenant-admin)/*`.
 
 ### 14.1 Zweck
 
@@ -702,7 +702,7 @@ STORAGE_CONTAINER_HARNESS=harness-zips
 ENTRA_TENANT_ID=<tenant-id>
 ENTRA_APP_ID=<planner-app-id>
 ENTRA_APP_SECRET=@Microsoft.KeyVault(...)
-ENTRA_AUDIENCE=https://app.aegira.ai
+ENTRA_AUDIENCE=https://zgpm.aegira.ai
 
 # App-Behavior
 MAX_TOKENS_PER_RUN=1000000
@@ -719,8 +719,8 @@ LOG_LEVEL=info
 ### 15.2 Frontend Container App (Next.js)
 
 ```ini
-NEXT_PUBLIC_APP_URL=https://app.aegira.ai
-NEXT_PUBLIC_API_URL=https://api.aegira.ai
+NEXT_PUBLIC_APP_URL=https://zgpm.aegira.ai
+NEXT_PUBLIC_API_URL=https://api.zgpm.aegira.ai
 NEXT_PUBLIC_ENTRA_TENANT_ID=<tenant-id>
 NEXT_PUBLIC_ENTRA_APP_ID=<planner-app-id>
 NEXT_PUBLIC_BUILD_VERSION=<git-sha>
@@ -782,7 +782,7 @@ az deployment sub create \
 6. **Approval-Gate** (GitHub Environments) für Prod.
 7. **Bicep Deploy**.
 8. **Rainbow-Deploy** auf Container Apps (20% Traffic → 50% → 100%, mit Auto-Rollback bei P95 > 500ms).
-9. **Smoke-Tests** gegen `https://app.aegira.ai/health` und `https://api.aegira.ai/health`.
+9. **Smoke-Tests** gegen `https://zgpm.aegira.ai/health` und `https://api.zgpm.aegira.ai/health`.
 10. **Notification** zu Slack `#aegira-deploys`.
 
 OIDC-Auth für GitHub-Actions zu Azure — keine Long-Lived-Secrets.
@@ -797,7 +797,7 @@ OIDC-Auth für GitHub-Actions zu Azure — keine Long-Lived-Secrets.
 - [ ] Key-Vault Purge-Protection aktiv.
 - [ ] Soft-Delete auf Cosmos, Storage, Key Vault.
 - [ ] HSTS aktiv + Preload-Submission.
-- [ ] CSP-Header strikt (`default-src 'self'`; `script-src 'self' 'wasm-unsafe-eval'`; `img-src 'self' data: https://cdn.aegira.ai`; `connect-src 'self' https://api.aegira.ai wss://api.aegira.ai`).
+- [ ] CSP-Header strikt (`default-src 'self'`; `script-src 'self' 'wasm-unsafe-eval'`; `img-src 'self' data: https://cdn.aegira.ai`; `connect-src 'self' https://api.zgpm.aegira.ai wss://api.zgpm.aegira.ai`).
 - [ ] Subresource-Integrity für externe Skripte.
 - [ ] Cookie-Flags: `Secure; HttpOnly; SameSite=Strict`.
 - [ ] Cross-Tenant-Isolation Penetration-Test.
@@ -844,7 +844,7 @@ DR-Test halbjährlich.
 
 | Symptom | Vermutung | Lösung |
 |---|---|---|
-| `app.aegira.ai` 502 | Container App down | Front-Door-Backend-Health-Check + `az containerapp revision list` |
+| `zgpm.aegira.ai` 502 | Container App down | Front-Door-Backend-Health-Check + `az containerapp revision list` |
 | Foundry 429 | Quota | Scale-Units erhöhen, kurzfristig Bedrock-Fallback |
 | Cosmos 429 | RU-Throttling | Container auf dedicated RU/s umstellen |
 | Entra-Login schlägt fehl | Conditional-Access | Sign-In Logs in Entra prüfen |

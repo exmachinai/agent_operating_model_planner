@@ -1,0 +1,18 @@
+projektrisikoliste:
+  - id: R01
+    titel: "Token-Kosten skalieren nicht"
+    beschreibung: "Multi-Agent-Setup verbraucht 4–15× Tokens vs Single-Agent (Anthropic-Lehre)."
+    eintrittswahrscheinlichkeit: "mittel"
+    auswirkung: "hoch"
+    ampel: "gelb"
+    mitigation: "Token-Budget-Hook plus Tiered-Models plus Per-Run-Cap in .env."
+    betroffene_meilensteine: [M02]
+
+  - id: R12
+    titel: "BfDI-Genehmigung für DTIA fehlt"
+    beschreibung: "Datenschutz-Folgenabschätzung muss bei BfDI-Referat 47 eingereicht werden."
+    eintrittswahrscheinlichkeit: "hoch"
+    auswirkung: "hoch"
+    ampel: "rot"
+    mitigation: "Termin abgestimmt, Konsultation in Aktivität A12."
+    betroffene_meilensteine: [M03]

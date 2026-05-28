@@ -1,0 +1,27 @@
+# Aktivitäten zu M01 — Persona-Validierung abgeschlossen
+A01:
+  beschreibung: "Persona-Interviews mit 5 Zielkunden durchführen"
+  verantwortlich: R02
+  aufwand_mt: 3.0
+  required_skills:
+    - interview-template
+    - persona-synthesizer
+  required_mcps: []
+
+A02:
+  beschreibung: "Persona-Synthese-Dokument verfassen"
+  verantwortlich: R02
+  aufwand_mt: 2.0
+  required_skills:
+    - persona-synthesizer
+    - markdown-writer
+  required_mcps: []
+
+A03:
+  beschreibung: "Stakeholder-Review der Personas einholen"
+  verantwortlich: R01
+  aufwand_mt: 1.0
+  required_skills: []
+  required_mcps: []
+
+meilenstein_risikoliste: []

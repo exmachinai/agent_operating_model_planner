@@ -1,0 +1,26 @@
+project: "Beispiel-Projekt — AGP Launch DE"
+planausgabedatum: "2026-05-28"
+kontrolliert_durch: "<HITL-PM Name>"
+compiled_by: "aegira-planner@0.2.0"
+project_nature: "technical"
+target_platform: "azure"
+discovery_timestamp: "2026-05-28T10:30:00Z"
+discovery_quelle: "HITL-PM (initial setup)"
+
+phases:
+  - id: PH1
+    name: "Discovery"
+  - id: PH2
+    name: "Design"
+  - id: PH3
+    name: "Build"
+  - id: PH4
+    name: "Hardening"
+
+ergebnispfade:
+  - code: P
+    name: "Personen"
+  - code: S
+    name: "Systeme"
+  - code: O
+    name: "Organisation"

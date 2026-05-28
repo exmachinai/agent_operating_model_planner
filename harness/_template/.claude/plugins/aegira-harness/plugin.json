@@ -1,0 +1,52 @@
+{
+  "$schema": "https://schema.claude.ai/cowork-plugin.json",
+  "name": "aegira-harness",
+  "version": "1.0.0",
+  "description": "AEGIRA Agent-Operating-Model Harness — runtime for ZGPM-compliant project plans.",
+  "author": "exmachinAI GmbH",
+  "license": "Apache-2.0",
+  "category": "agent-orchestration",
+  "icon": "agp.svg",
+  "commands_path": "../../.claude/commands/",
+  "agents_path": "../../.claude/agents/",
+  "skills_path": "../../.claude/skills/",
+  "hooks_path": "../../.claude/hooks/",
+  "mcp_dependencies": [
+    {
+      "name": "github-pat",
+      "required": false,
+      "fallback": "manual git push"
+    }
+  ],
+  "first_run_walkthrough": [
+    {
+      "step": "intro",
+      "text": "Willkommen — der Harness führt deinen ZGPM-Plan in Claude Code aus. Cowork installiert und supportet."
+    },
+    {
+      "step": "check_claude_code",
+      "text": "Prüfe Claude-Code-Installation. Falls fehlt: leitet zur Installation."
+    },
+    {
+      "step": "auth",
+      "text": "Anthropic-Auth: claude auth login ODER ANTHROPIC_API_KEY."
+    },
+    {
+      "step": "mcp_setup",
+      "text": "Optional: GitHub-PAT-MCP verbinden. Token wird sicher in Cowork-Vault gespeichert."
+    },
+    {
+      "step": "platform_discovery",
+      "text": "Pflicht-Frage: Was ist die Projekt-Natur? Welche Zielplattform?"
+    },
+    {
+      "step": "validate_plan",
+      "text": "ZGPM-Konsistenz-Check via /validate-plan."
+    },
+    {
+      "step": "ready",
+      "text": "Alles grün. /run-harness startet den Run."
+    }
+  ],
+  "supports_offline_help": true
+}

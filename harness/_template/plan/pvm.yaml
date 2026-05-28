@@ -1,0 +1,25 @@
+ressourcen:
+  - id: R01
+    name: "<HITL-PM Name>"
+    rolle: "HITL-PM"
+    typ: "human"
+  - id: R02
+    name: "milestone-executor-agent"
+    typ: "agent"
+  - id: R03
+    name: "reviewer-agent"
+    typ: "agent"
+
+matrix:
+  M01:
+    R01: "L"
+    R02: "A"
+    R03: "F"
+  M02:
+    R01: "E"
+    R02: "A"
+    R03: "F"
+  M03:
+    R01: "L"
+    R02: "A"
+    R03: "F"

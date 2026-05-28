@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.claude.ai/claude-settings.json",
+  "model": "claude-sonnet-4-6",
+  "thinking_budget": "high",
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)"
+    ]
+  },
+  "mcp_servers": {
+    "github-pat": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${MCP_BASE}/github-pat-mcp-server/dist/index.js"],
+      "env": {
+        "GITHUB_TOKEN": "${env:GITHUB_TOKEN}",
+        "GITHUB_DEFAULT_OWNER": "${env:GITHUB_DEFAULT_OWNER:-exmachinai}",
+        "GITHUB_PROTECTED_PATHS": "${env:GITHUB_PROTECTED_PATHS:-00_CLAUDE_KNOWLEDGE_ARCHITECTURE/**}"
+      },
+      "description": "GitHub via Fine-Grained PAT. Disable plugin:engineering:github when this is active."
+    }
+  },
+  "hooks": {
+    "pre_tool_use": [
+      ".claude/hooks/pre-tool/constitution-guard.json",
+      ".claude/hooks/pre-tool/token-budget.json"
+    ],
+    "post_tool_use": [
+      ".claude/hooks/post-tool/audit-log.json"
+    ],
+    "stop": [
+      ".claude/hooks/stop/stop-on-red.json"
+    ]
+  },
+  "subagents_path": ".claude/agents/",
+  "skills_path": ".claude/skills/",
+  "commands_path": ".claude/commands/",
+  "memory_path": "memory/",
+  "state_path": ".harness/",
+  "log_level": "info"
+}

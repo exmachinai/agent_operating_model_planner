@@ -1,0 +1,13 @@
+{
+  "schema_version": "2.0.0-claude-native",
+  "plan_hash": "sha256:placeholder-will-be-computed-by-compiler",
+  "planausgabedatum": "2026-05-28T10:30:00Z",
+  "kontrolliert_durch": "<HITL-PM Name>",
+  "compiled_by": "aegira-planner@0.2.0",
+  "compiled_at": "2026-05-28T10:32:11Z",
+  "runtime_requirements": {
+    "claude_code": ">=0.8",
+    "cowork": ">=0.4",
+    "anthropic_api": "required"
+  }
+}

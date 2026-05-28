@@ -1,0 +1,179 @@
+/* =============================================================================
+ * AEGIRA Design Tokens — kanonisch
+ *
+ * Single source of truth for the Planner App. Derived from BRAND.md.
+ * Do NOT add ad-hoc colors here. To extend, update BRAND.md first.
+ * ============================================================================= */
+
+:root {
+  /* ---------- Brand ---------- */
+  --c-navy: #1E2761;
+  --c-navy-dark: #0B143E;
+  --c-gold: #E6B32F;
+  --c-white: #FFFFFF;
+  --c-vellum: #FCFAF6;
+  --c-ice: #CADCFC;
+
+  /* ---------- UI semantics ---------- */
+  --c-ink: #0E1735;
+  --c-steel: #5B6B85;
+  --c-gray: #8A93A6;
+  --c-green: #5A9367;
+  --c-amber: #E8A33A;
+  --c-red: #C3423F;
+
+  /* ---------- Surfaces ---------- */
+  --c-bg: var(--c-vellum);
+  --c-surface: var(--c-white);
+  --c-accent: var(--c-gold);
+  --c-primary: var(--c-navy);
+  --c-text: var(--c-ink);
+  --c-text-muted: var(--c-steel);
+  --c-text-caption: var(--c-gray);
+  --c-border: rgba(30, 39, 97, 0.12);
+  --c-border-strong: var(--c-navy);
+  --c-focus: var(--c-gold);
+
+  /* ---------- Typography ---------- */
+  --font-display: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+
+  --fs-h1: 30px;
+  --lh-h1: 38px;
+  --fs-h2: 22px;
+  --lh-h2: 30px;
+  --fs-h3: 16px;
+  --lh-h3: 22px;
+  --fs-body: 14px;
+  --lh-body: 20px;
+  --fs-caption: 12px;
+  --lh-caption: 18px;
+  --fs-mono: 13px;
+  --lh-mono: 20px;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* ---------- Spacing (8-pt grid) ---------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+  --sp-24: 96px;
+
+  /* ---------- Radius — small, sovereign-look ---------- */
+  --r-sm: 2px;
+  --r-md: 4px;
+  --r-lg: 8px;
+  --r-pill: 9999px;
+
+  /* ---------- Shadows — sparingly ---------- */
+  --sh-0: none;
+  --sh-1: 0 1px 2px rgba(11, 20, 62, 0.04), 0 1px 1px rgba(11, 20, 62, 0.06);
+  --sh-2: 0 8px 24px rgba(11, 20, 62, 0.08), 0 2px 4px rgba(11, 20, 62, 0.06);
+
+  /* ---------- Motion ---------- */
+  --t-fast: 120ms;
+  --t-base: 200ms;
+  --t-slow: 320ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* ---------- Layout ---------- */
+  --content-max: 880px;
+  --nav-height: 56px;
+  --side-nav-width: 240px;
+  --side-nav-collapsed: 56px;
+}
+
+[data-theme="dark"] {
+  --c-bg: var(--c-navy-dark);
+  --c-surface: var(--c-navy);
+  --c-text: var(--c-vellum);
+  --c-text-muted: #BAC2D4;
+  --c-text-caption: #8A93A6;
+  --c-border: rgba(202, 220, 252, 0.16);
+  --c-border-strong: var(--c-vellum);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 1ms;
+    --t-base: 1ms;
+    --t-slow: 1ms;
+  }
+}
+
+/* ---------- Base ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-regular);
+  color: var(--c-text);
+  background-color: var(--c-bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: var(--fw-bold);
+  color: var(--c-ink);
+  margin: 0;
+}
+
+h1 {
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  letter-spacing: -0.01em;
+}
+h2 {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-semibold);
+}
+h3 {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-semibold);
+}
+
+code,
+pre,
+kbd {
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
+}
+
+/* Focus-Ring — Pflicht für A11y. Gold passt zur Sovereign-Palette. */
+*:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* Sovereign-Hairline pattern — Editorial border */
+.aegira-hairline {
+  border: 1px solid var(--c-border);
+}
+.aegira-hairline-strong {
+  border: 1px solid var(--c-border-strong);
+}

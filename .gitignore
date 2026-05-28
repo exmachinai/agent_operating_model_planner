@@ -1,0 +1,62 @@
+# ---------- Node / TypeScript ----------
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.npm/
+.pnpm-store/
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---------- Secrets / Env ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+.azure/
+.token
+
+# ---------- IDE / OS ----------
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---------- Generated Harness Artifacts ----------
+.harness/
+harness/_generated/
+*.harness.zip
+
+# ---------- AEGIRA-Constitution-Zone-Guard ----------
+_AEGIRA_REPO_READONLY/
+00_CLAUDE_KNOWLEDGE_ARCHITECTURE/
+10_USER_FILES/
+
+# ---------- Dropbox/Mac noise ----------
+.dropbox
+.dropbox.cache
+desktop.ini
+
+# ---------- Cowork session leftovers ----------
+.cowork/
+
+# ---------- Build outputs ----------
+mcp/github-pat-mcp-server/dist/
+mcp/github-pat-mcp-server/node_modules/
+
+# ---------- Legacy ZGPM-Originalfiles (nicht ins Repo, bleiben in Dropbox) ----------
+ZGPM/
+agentic_project_planning_chatverlauf.md

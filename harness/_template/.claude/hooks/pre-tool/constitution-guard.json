@@ -1,0 +1,11 @@
+{
+  "$schema": "https://schema.claude.ai/hook.json",
+  "name": "constitution-guard",
+  "trigger": "before_each_tool",
+  "tool_pattern": "github_write_file|github_update_issue|github_create_pull_request|Write|Edit",
+  "condition_js": "(input.path && (input.path.includes('00_CLAUDE_KNOWLEDGE_ARCHITECTURE') || input.path.includes('_AEGIRA_REPO_READONLY'))) && !input.acknowledge_protected_path",
+  "action": "halt",
+  "message": "Refused by Constitution-Safety-Guard. Target path matches a Zone-2 (Knowledge-Architecture) pattern. To proceed, pass acknowledge_protected_path=true plus protected_path_reason='<HITL-PM ticket ref>'. Or choose a different target.",
+  "require_hitl_ack": true,
+  "log_to": ".harness/${run_id}/audit/constitution-guard.jsonl"
+}

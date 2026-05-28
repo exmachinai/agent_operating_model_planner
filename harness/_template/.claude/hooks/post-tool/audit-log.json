@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.claude.ai/hook.json",
+  "name": "audit-log",
+  "trigger": "after_each_tool",
+  "tool_pattern": ".*",
+  "action": "log",
+  "log_to": ".harness/${run_id}/audit/tool-calls.jsonl",
+  "log_format": {
+    "timestamp": "${now_iso}",
+    "tool_name": "${tool.name}",
+    "input_keys": "${tool.input_keys}",
+    "result_status": "${tool.result_status}",
+    "duration_ms": "${tool.duration_ms}",
+    "tokens_in": "${tool.tokens_in}",
+    "tokens_out": "${tool.tokens_out}"
+  },
+  "exclude_input_for_tools": ["github_read_file"],
+  "redact_keys": ["GITHUB_TOKEN", "ANTHROPIC_API_KEY", "password", "secret"]
+}

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://schema.claude.ai/hook.json",
+  "name": "stop-on-red",
+  "trigger": "after_each_tool",
+  "tool_pattern": "skill:zgpm-rules-engine|skill:risk-traffic-light|skill:plan-evaluator",
+  "condition_js": "JSON.stringify(result).match(/(\"ampel\":\\s*\"rot\")|(\"status\":\\s*\"HARD_FAIL\")|(\"gesamt\":\\s*\"rot\")/i)",
+  "action": "halt",
+  "message": "Rote Risikoampel oder HARD_FAIL detected. Run paused. HITL-PM-Approval required before continuing. Use /risk-view to inspect.",
+  "require_hitl_ack": true,
+  "log_to": ".harness/${run_id}/audit/stop-on-red.jsonl"
+}

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schema.claude.ai/hook.json",
+  "name": "token-budget",
+  "trigger": "before_each_tool",
+  "condition_js": "(session.tokens_used || 0) > parseInt(env.MAX_TOKENS_PER_RUN || '1000000')",
+  "action": "halt",
+  "message": "Token budget exceeded. session.tokens_used > MAX_TOKENS_PER_RUN (default 1000000). HITL-PM approval required to continue. To raise the cap, edit .env::MAX_TOKENS_PER_RUN.",
+  "require_hitl_ack": true,
+  "log_to": ".harness/${run_id}/audit/token-budget.jsonl"
+}

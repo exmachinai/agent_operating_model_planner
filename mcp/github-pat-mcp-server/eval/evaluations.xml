@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Evaluation suite for github-pat-mcp-server v1.0.0
+  Target: github.com/exmachinai (User-Account)
+
+  All questions are:
+   - INDEPENDENT (no question requires output of another)
+   - READ-ONLY (no destructive operations)
+   - COMPLEX (multiple tool calls + analysis)
+   - REALISTIC (real workflows of the AEGIRA Agent-Operating-Model project)
+   - VERIFIABLE (single, string-comparable answer)
+   - STABLE (answers should not change as the repos evolve in routine ways)
+
+  Methodology (per docs/04_agent-best-practices.md §10):
+   - 20-sample baseline (we deliver 10 here, plus 10 negative-path tests in a sister file)
+   - LLM-as-judge with rubric: factual accuracy, citation accuracy, completeness, source quality, tool efficiency
+   - Manual review by HITL-PM before each release
+
+  Tools expected available:
+    github_whoami, github_list_repos, github_get_repo, github_read_file,
+    github_list_directory, github_list_branches, github_list_milestones,
+    github_list_issues, github_list_pull_requests, github_search_code,
+    github_create_release (READ-ONLY validation only — not invoked by these evals)
+-->
+<evaluation>
+
+  <qa_pair>
+    <question>
+      How many public repositories does the user `exmachinai` own on GitHub?
+      Provide the count as a single integer.
+    </question>
+    <answer>6</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>
+      Among the public repositories of `exmachinai`, which repository was created MOST recently?
+      Provide only the repository name (without owner prefix).
+    </question>
+    <answer>prototype_iteration2</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>
+      Among the public repositories of `exmachinai`, which is the EMPTY repository
+      (size 0 KB, no commits, no language detected)?
+      Provide only the repository name.
+    </question>
+    <answer>prototype_iteration2</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>
+      What is the primary language (as detected by GitHub) of the `exmachinai/smalltalk` repository?
+      Provide one word, capitalized exactly as GitHub returns it.
+    </question>
+    <answer>HTML</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>
+      Among the public repositories of `exmachinai`, three repositories have exactly 1 star.
+      List their names sorted alphabetically, separated by commas (no spaces).
+    </question>
+    <answer>agp_tutorial,ai_discovery,reading_thai_2</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>
+      For the repository `exmachinai/agp_tutorial`, what is the default branch name?
+      Provide just the branch name.
+    </question>
+    <answer>main</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>
+      For the repository `exmachinai/smalltalk`, which has the LARGEST size (in KB)
+      among `exmachinai` public repos, what is the size?
+      Provide the size as an integer in KB.
+    </question>
+    <answer>2545</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>
+      How many of the public repositories of `exmachinai` have GitHub Pages enabled (`has_pages: true`)?
+      Provide the count as a single integer.
+    </question>
+    <answer>5</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>
+      Which `exmachinai` public repository's description is exactly the string "smalltalk tutorial"?
+      Provide only the repository name.
+    </question>
+    <answer>smalltalk</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>
+      Of the public repositories of `exmachinai`, exactly one repository has BOTH
+      `has_wiki: false` AND `has_pages: true`. Provide its name.
+    </question>
+    <answer>agp_tutorial</answer>
+  </qa_pair>
+
+</evaluation>

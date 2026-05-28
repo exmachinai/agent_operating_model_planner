@@ -1,0 +1,31 @@
+# Meilensteinplan (MSP) — Beispiel
+meilensteine:
+  - id: M01
+    code: P1
+    text: "Persona-Validierung abgeschlossen"
+    phase: PH1
+    ergebnispfad: P
+    geplant: "2026-06-15"
+    vorgaenger: []
+    risiko: "gruen"
+    status: "offen"
+
+  - id: M02
+    code: S1
+    text: "API-Architektur freigegeben"
+    phase: PH2
+    ergebnispfad: S
+    geplant: "2026-07-20"
+    vorgaenger: ["M01"]
+    risiko: "gelb"
+    status: "offen"
+
+  - id: M03
+    code: O1
+    text: "Datenschutzkonzept abgeschlossen"
+    phase: PH4
+    ergebnispfad: O
+    geplant: "2026-08-15"
+    vorgaenger: ["M02"]
+    risiko: "rot"
+    status: "offen"

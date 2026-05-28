@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+.env
+.env.local
+.env.*.local
+*.tsbuildinfo
+.DS_Store
+api/.venv/
+api/__pycache__/
+api/**/__pycache__/
+api/.pytest_cache/

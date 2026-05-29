@@ -9,12 +9,16 @@ param environmentId string
 param userAssignedMiId string
 param containerImage string
 param targetPort int
-param ingressExternal bool = false
+@description('External ingress. Spike-Tier = true (FD Standard kann nur public reachen), Prod-Tier = false (internal über FD Premium + Private Link).')
+param ingressExternal bool = true
 param cpu string = '1.0'
 param memory string = '2Gi'
 param minReplicas int = 2
 param maxReplicas int = 10
 param envVars array = []
+
+@description('Login-Server der Azure Container Registry, von der gepullt wird. Leer = öffentliches Image (z.B. mcr.microsoft.com).')
+param acrLoginServer string = ''
 
 resource app 'Microsoft.App/containerApps@2025-01-01' = {
   name: appName
@@ -40,6 +44,12 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = {
         }
       }
       activeRevisionsMode: 'Multiple'  // for rainbow-deploy
+      registries: empty(acrLoginServer) ? [] : [
+        {
+          server: acrLoginServer
+          identity: userAssignedMiId
+        }
+      ]
     }
     template: {
       containers: [

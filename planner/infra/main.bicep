@@ -134,6 +134,20 @@ module networking 'modules/networking.bicep' = {
   }
 }
 
+module acr 'modules/acr.bicep' = {
+  name: 'acr-${environment}'
+  scope: rgSharedRes
+  params: {
+    location: primaryLocation
+    tags: tags
+    // ACR names: 5-50 chars, lowercase alphanumeric, globally unique.
+    // 'aegira' (6) + 'acr' (3) + 'prod' (4) + 8-char hash = 21 chars.
+    acrName: toLower('${resourcePrefix}acr${environment}${substring(uniqueString(rgSharedRes.id), 0, 8)}')
+    userAssignedMiPrincipalId: reference(userAssignedMiId, '2024-11-30').principalId
+    skuName: isProd ? 'Premium' : 'Basic'
+  }
+}
+
 module keyvault 'modules/keyvault.bicep' = {
   name: 'keyvault-${environment}'
   scope: rgSharedRes
@@ -289,3 +303,5 @@ output keyVaultUri string = keyvault.outputs.uri
 output frontDoorDnsTarget string = frontDoor.outputs.endpointHostName
 output appInsightsConnectionString string = observability.outputs.appInsightsConnectionString
 output deployedCostTier string = costTier
+output acrLoginServer string = acr.outputs.loginServer
+output acrName string = acr.outputs.acrName

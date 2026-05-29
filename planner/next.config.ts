@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Standalone output produziert eine schlanke .next/standalone/ folder
+  // ohne node_modules — ideal für Docker-Multi-Stage-Builds.
+  output: "standalone",
   experimental: {
     typedRoutes: true,
   },

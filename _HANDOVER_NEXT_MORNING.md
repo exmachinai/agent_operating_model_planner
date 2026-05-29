@@ -1,7 +1,38 @@
 # Handover — AEGIRA Planner Azure Deploy
 
-**Letzter Stand: 28.05.2026, ~21:20 Uhr**
-**Weitermachen: 29.05.2026, morgens**
+**Letzter Stand: 29.05.2026, ~14:40 Uhr (Spike-Tier live, 502-Placeholder)**
+**Weitermachen: jederzeit — keine Eile, kein Druck**
+
+## TL;DR — Stand jetzt
+
+✓ Spike-Tier-Stack komplett deployed (Front Door, Cosmos Serverless, Storage LRS, KV Standard, CAE, 2× Container Apps, Observability)
+✓ Bytecamp DNS: 4 Records propagiert weltweit
+✓ Azure Front Door: beide Domains validiert + Managed Certs (Let's Encrypt) provisioniert
+✓ `https://zgpm.aegira.ai` antwortet mit HTTP/2 + TLS (502 — Demo-Image ohne /health-Endpoint, das ist OK für Spike)
+✓ Budget-Alert 150€/Mo @ 80% gesetzt
+
+## Was als nächstes (drei Optionen, eine wählen)
+
+### Option A — Lock-Screen-Demo lokal anschauen (5 Min, motivierend)
+```bash
+cd planner && npm install && npm run dev
+```
+Browser zu http://localhost:3000 → drei Buttons → „Sitzung sperren" zeigt den LockScreen.
+
+### Option B — Phase 3: echte AEGIRA Container-Images bauen (2–4 Std)
+- ACR anlegen (Bicep-Erweiterung +30 Zeilen)
+- FastAPI-Backend (`/health`, `/ready`, Port 8000)
+- Next.js-Frontend prod-build (`/health`, `/ready`, Port 3000)
+- `az containerapp update --image …` × 2
+- 502 verschwindet, echte Demo-UI live auf zgpm.aegira.ai
+
+### Option C — strategisch Pause, API-Design vorziehen
+Statt direkt zu coden: erst ein sauberes API-Design (OpenAPI-Spec, Endpoint-Liste, Auth-Flow). Dann ist Phase 3 nur noch Codegen + Glue.
+
+## Restliche offene Punkte
+- Task #30: Fine-Grained PAT für github-pat-mcp-server (User-Aktion, jederzeit)
+- 29 Dependabot-Vulnerabilities (Next.js RC + transitive Deps) — sammelt sich, irgendwann mal aufräumen
+- Cosmos-Daten-Modell (per docs/02 schon spezifiziert, fehlt nur die Implementierung)
 
 ---
 

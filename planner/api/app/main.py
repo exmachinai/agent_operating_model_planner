@@ -16,7 +16,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .config import Settings, get_settings
-from .routers import health, projects, sessions, hitl
+from .db import cosmos
+from .routers import health, projects, interview, sessions, hitl
 
 logger = logging.getLogger("aegira.planner.api")
 logging.basicConfig(
@@ -30,8 +31,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Startup/shutdown: warmup Cosmos client, validate Entra config."""
     settings = get_settings()
     logger.info("starting AEGIRA Planner API (env=%s)", settings.app_env)
-    # Cosmos client warmup happens lazily in db.cosmos.get_client()
+    # Cosmos client warmup happens lazily in db.cosmos.get_container()
     yield
+    await cosmos.close()
     logger.info("shutting down")
 
 
@@ -59,13 +61,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "https://docs.aegira.ai",
         ] + (["http://localhost:3000"] if settings.app_env != "prod" else []),
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
 
     # Routers — order matters for OpenAPI grouping.
     app.include_router(health.router, tags=["health"])
     app.include_router(projects.router, prefix="/v1/projects", tags=["projects"])
+    app.include_router(interview.router, prefix="/v1/projects", tags=["interview"])
     app.include_router(sessions.router, prefix="/v1/sessions", tags=["sessions"])
     app.include_router(hitl.router, prefix="/v1", tags=["hitl"])
 

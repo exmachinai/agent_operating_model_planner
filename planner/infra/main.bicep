@@ -207,6 +207,8 @@ module containerAppsEnv 'modules/containerAppsEnv.bicep' = {
     logsWorkspaceSharedKey: observability.outputs.workspaceSharedKey
     zoneRedundant: isProd
     includeDedicatedProfile: isProd
+    // Spike: internal=false (FD Standard reicht). Prod: internal=true (mit FD Premium + Private Link).
+    internal: isProd
   }
 }
 
@@ -221,7 +223,9 @@ module backendApi 'modules/containerApp.bicep' = {
     userAssignedMiId: userAssignedMiId
     containerImage: backendApiImage
     targetPort: 8000
-    ingressExternal: false
+    // Spike: external (FD Standard reicht). Prod: internal (FD Premium + Private Link).
+    ingressExternal: !isProd
+    acrLoginServer: acr.outputs.loginServer
     cpu: '1.0'
     memory: '2Gi'
     // Spike-Tier: scale-to-zero. Prod-Tier value was minReplicas: 2, maxReplicas: 10.
@@ -257,7 +261,9 @@ module frontend 'modules/containerApp.bicep' = {
     userAssignedMiId: userAssignedMiId
     containerImage: frontendImage
     targetPort: 3000
-    ingressExternal: false
+    // Spike: external (FD Standard reicht). Prod: internal (FD Premium + Private Link).
+    ingressExternal: !isProd
+    acrLoginServer: acr.outputs.loginServer
     cpu: '0.75'
     memory: '1.5Gi'
     // Spike-Tier: scale-to-zero. Prod-Tier value was minReplicas: 2, maxReplicas: 10.

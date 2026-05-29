@@ -170,7 +170,9 @@ module storage 'modules/storage.bicep' = {
   params: {
     location: primaryLocation
     tags: tags
-    storageAccountName: toLower('${resourcePrefix}st${environment}plan${uniqueString(rgPlannerRes.id)}')
+    // Storage account names: 3–24 chars, lowercase alphanumeric only.
+    // 'aegira' (6) + 'st' (2) + 'prod' (4) + 12-char hash = 24 exactly.
+    storageAccountName: toLower('${resourcePrefix}st${environment}${substring(uniqueString(rgPlannerRes.id), 0, 12)}')
     cmkKeyUri: keyvault.outputs.storageCmkKeyUri
     userAssignedMiId: userAssignedMiId
     privateEndpointSubnetId: networking.outputs.privateEndpointSubnetId
@@ -219,7 +221,7 @@ module backendApi 'modules/containerApp.bicep' = {
       { name: 'APPINSIGHTS_CONNECTION_STRING', value: observability.outputs.appInsightsConnectionString }
       { name: 'ENTRA_TENANT_ID', value: entraTenantId }
       { name: 'ENTRA_APP_ID', value: entraAppId }
-      { name: 'ENTRA_AUDIENCE', value: 'https://app.${customDomain}' }
+      { name: 'ENTRA_AUDIENCE', value: 'https://zgpm.${customDomain}' }
       { name: 'SESSION_IDLE_TIMEOUT_WORKSPACE_SEC', value: '900' }
       { name: 'SESSION_IDLE_TIMEOUT_ADMIN_SEC', value: '300' }
       { name: 'SESSION_HARD_LOCK_BACKGROUND_SEC', value: '1800' }
@@ -248,8 +250,8 @@ module frontend 'modules/containerApp.bicep' = {
     minReplicas: 0
     maxReplicas: 3
     envVars: [
-      { name: 'NEXT_PUBLIC_APP_URL', value: 'https://app.${customDomain}' }
-      { name: 'NEXT_PUBLIC_API_URL', value: 'https://api.${customDomain}' }
+      { name: 'NEXT_PUBLIC_APP_URL', value: 'https://zgpm.${customDomain}' }
+      { name: 'NEXT_PUBLIC_API_URL', value: 'https://api.zgpm.${customDomain}' }
       { name: 'NEXT_PUBLIC_ENTRA_TENANT_ID', value: entraTenantId }
       { name: 'NEXT_PUBLIC_ENTRA_APP_ID', value: entraAppId }
       { name: 'NEXT_PUBLIC_APP_ENV', value: environment }
@@ -279,8 +281,8 @@ module frontDoor 'modules/frontDoor.bicep' = {
 // Outputs
 // -----------------------------------------------------------------------------
 
-output appPublicUrl string = 'https://app.${customDomain}'
-output apiPublicUrl string = 'https://api.${customDomain}'
+output appPublicUrl string = 'https://zgpm.${customDomain}'
+output apiPublicUrl string = 'https://api.zgpm.${customDomain}'
 output cosmosEndpoint string = cosmos.outputs.endpoint
 output storageAccountName string = storage.outputs.accountName
 output keyVaultUri string = keyvault.outputs.uri

@@ -120,7 +120,7 @@ resource cdApp 'Microsoft.Cdn/profiles/customDomains@2024-09-01' = {
   parent: profile
   name: 'cd-app'
   properties: {
-    hostName: 'app.${customDomain}'
+    hostName: 'zgpm.${customDomain}'
     tlsSettings: {
       certificateType: 'ManagedCertificate'
       minimumTlsVersion: 'TLS12'
@@ -132,7 +132,7 @@ resource cdApi 'Microsoft.Cdn/profiles/customDomains@2024-09-01' = {
   parent: profile
   name: 'cd-api'
   properties: {
-    hostName: 'api.${customDomain}'
+    hostName: 'api.zgpm.${customDomain}'
     tlsSettings: {
       certificateType: 'ManagedCertificate'
       minimumTlsVersion: 'TLS12'
@@ -195,7 +195,7 @@ resource waf 'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2024-02-
       requestBodyCheck: 'Enabled'
       customBlockResponseStatusCode: 429
       customBlockResponseBody: base64('Refused by AEGIRA WAF.')
-      redirectUrl: 'https://app.${customDomain}/blocked'
+      redirectUrl: 'https://zgpm.${customDomain}/blocked'
     }
     // Spike-Tier: no managedRuleSets — Standard SKU does not support them.
     // Prod-Tier (Premium) re-enables Microsoft_DefaultRuleSet 2.1 + Bot Manager.

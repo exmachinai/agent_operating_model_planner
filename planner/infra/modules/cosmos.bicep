@@ -43,7 +43,7 @@ var isProd = costTier == 'prod'
 // Cosmos Account (CMK + region topology controlled by costTier)
 // -----------------------------------------------------------------------------
 
-resource cosmos 'Microsoft.DocumentDB/databaseAccounts@2024-12-01-preview' = {
+resource cosmos 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
   name: accountName
   location: location
   tags: tags
@@ -91,7 +91,7 @@ resource cosmos 'Microsoft.DocumentDB/databaseAccounts@2024-12-01-preview' = {
 // SQL DB + Containers
 // -----------------------------------------------------------------------------
 
-resource db 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-12-01-preview' = {
+resource db 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-05-15' = {
   parent: cosmos
   name: databaseName
   properties: {
@@ -101,7 +101,7 @@ resource db 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-12-01-previ
   }
 }
 
-resource projectsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-12-01-preview' = {
+resource projectsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = {
   parent: db
   name: 'projects'
   properties: {
@@ -118,7 +118,7 @@ resource projectsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/c
   }
 }
 
-resource plansContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-12-01-preview' = {
+resource plansContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = {
   parent: db
   name: 'plans'
   properties: {
@@ -129,7 +129,7 @@ resource plansContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/cont
   }
 }
 
-resource sessionsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-12-01-preview' = {
+resource sessionsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = {
   parent: db
   name: 'sessions'
   properties: {
@@ -141,7 +141,7 @@ resource sessionsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/c
   }
 }
 
-resource auditContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-12-01-preview' = {
+resource auditContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = {
   parent: db
   name: 'audit'
   properties: {

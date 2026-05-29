@@ -201,22 +201,13 @@ resource waf 'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2024-02-
     // Prod-Tier (Premium) re-enables Microsoft_DefaultRuleSet 2.1 + Bot Manager.
     customRules: {
       rules: [
+        // Geo-Block: AFD Standard limits matchValue to ≤10 entries per condition.
+        // For 30 allowed countries we split into 3 chunks combined via AND on
+        // negated GeoMatch — logic: "block IF country in NONE of the chunks".
+        // Prod-Tier (Premium WAF) supports >10 values per match — simpler rule.
         {
-          name: 'GeoAllow'
+          name: 'GeoBlockNotAllowed'
           priority: 100
-          ruleType: 'MatchRule'
-          action: 'Allow'
-          matchConditions: [
-            {
-              matchVariable: 'RemoteAddr'
-              operator: 'GeoMatch'
-              matchValue: allowedCountries
-            }
-          ]
-        }
-        {
-          name: 'GeoDenyDefault'
-          priority: 200
           ruleType: 'MatchRule'
           action: 'Block'
           matchConditions: [
@@ -224,13 +215,25 @@ resource waf 'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2024-02-
               matchVariable: 'RemoteAddr'
               operator: 'GeoMatch'
               negateCondition: true
-              matchValue: allowedCountries
+              matchValue: take(allowedCountries, 10)
+            }
+            {
+              matchVariable: 'RemoteAddr'
+              operator: 'GeoMatch'
+              negateCondition: true
+              matchValue: take(skip(allowedCountries, 10), 10)
+            }
+            {
+              matchVariable: 'RemoteAddr'
+              operator: 'GeoMatch'
+              negateCondition: true
+              matchValue: skip(allowedCountries, 20)
             }
           ]
         }
         {
           name: 'RateLimitPerIp'
-          priority: 300
+          priority: 200
           ruleType: 'RateLimitRule'
           rateLimitDurationInMinutes: 1
           rateLimitThreshold: 100

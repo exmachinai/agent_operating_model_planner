@@ -43,7 +43,9 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = {
           allowCredentials: true
         }
       }
-      activeRevisionsMode: 'Multiple'  // for rainbow-deploy
+      // Spike-Tier: 'Single' — neue Revision ersetzt alte sofort, alte sterben weg.
+      // Prod-Tier (zukünftig): 'Multiple' für Rainbow-Deploys mit Traffic-Splitting.
+      activeRevisionsMode: 'Single'
       registries: empty(acrLoginServer) ? [] : [
         {
           server: acrLoginServer
@@ -62,14 +64,26 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = {
             {
               type: 'Liveness'
               httpGet: { path: '/health', port: targetPort }
-              initialDelaySeconds: 10
+              initialDelaySeconds: 30
               periodSeconds: 30
+              timeoutSeconds: 5
+              failureThreshold: 5
             }
             {
               type: 'Readiness'
               httpGet: { path: '/ready', port: targetPort }
+              initialDelaySeconds: 10
+              periodSeconds: 10
+              timeoutSeconds: 5
+              failureThreshold: 5
+            }
+            {
+              type: 'Startup'
+              httpGet: { path: '/health', port: targetPort }
               initialDelaySeconds: 5
               periodSeconds: 10
+              timeoutSeconds: 5
+              failureThreshold: 12  // 12 × 10 = 120 Sek totaler Startup-Budget
             }
           ]
         }

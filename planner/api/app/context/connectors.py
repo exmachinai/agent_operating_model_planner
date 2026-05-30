@@ -65,8 +65,10 @@ _REGISTRY: dict[CloudProvider, dict] = {
     "dropbox": {
         "label": "Dropbox",
         "scopes": ["files.metadata.read", "files.content.read"],
-        "required_env": ["DROPBOX_APP_KEY", "DROPBOX_APP_SECRET"],
-        "note": "Benötigt eine Dropbox-App (App Console) mit Scoped Access.",
+        # App-Key/-Secret + ein Refresh-Token (oder direktes Access-Token) der
+        # Scoped App. Ohne Token kann nicht gelesen werden — ehrlicher Blocker.
+        "required_env": ["DROPBOX_APP_KEY", "DROPBOX_APP_SECRET", "DROPBOX_REFRESH_TOKEN"],
+        "note": "Benötigt eine Dropbox-App (App Console) mit Scoped Access + Refresh-Token.",
     },
     "azure-blob": {
         "label": "Azure Blob Storage",
@@ -121,14 +123,101 @@ class NotConfiguredError(RuntimeError):
         )
 
 
+class DropboxConnector:
+    """Echter Dropbox-Connector (Scoped App, Refresh-Token-Flow).
+
+    Liest Ordner-Metadaten und Datei-Inhalte über die Dropbox HTTP-API. Der
+    Inhalt wird ephemer verarbeitet (gleicher Pfad wie der Upload) — nur der
+    Nachweis (Name + Hash) bleibt. Tokens werden nicht persistiert; das
+    kurzlebige Access-Token wird je Aufruf aus dem Refresh-Token geholt.
+    """
+
+    provider: CloudProvider = "dropbox"
+    _API = "https://api.dropboxapi.com"
+    _CONTENT = "https://content.dropboxapi.com"
+
+    def __init__(self, app_key: str, app_secret: str, refresh_token: str) -> None:
+        self._app_key = app_key
+        self._app_secret = app_secret
+        self._refresh_token = refresh_token
+
+    async def _access_token(self) -> str:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(
+                f"{self._API}/oauth2/token",
+                data={
+                    "grant_type": "refresh_token",
+                    "refresh_token": self._refresh_token,
+                },
+                auth=(self._app_key, self._app_secret),
+            )
+            resp.raise_for_status()
+            return resp.json()["access_token"]
+
+    async def list_files(self, mount_uri: str) -> list[dict]:
+        """Listet Dateien (nicht-rekursiv) in einem Ordner; `mount_uri` ist der Pfad."""
+        import httpx
+
+        token = await self._access_token()
+        path = "" if mount_uri in ("", "/") else mount_uri.rstrip("/")
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{self._API}/2/files/list_folder",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"path": path, "recursive": False},
+            )
+            resp.raise_for_status()
+            entries = resp.json().get("entries", [])
+        return [
+            {
+                "name": e["name"],
+                "path": e.get("path_lower", ""),
+                "size": e.get("size", 0),
+            }
+            for e in entries
+            if e.get(".tag") == "file"
+        ]
+
+    async def fetch(self, file_uri: str) -> bytes:
+        """Lädt den Inhalt einer Datei (ephemer — nur für die Schärfung)."""
+        import json as _json
+
+        import httpx
+
+        token = await self._access_token()
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(
+                f"{self._CONTENT}/2/files/download",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Dropbox-API-Arg": _json.dumps({"path": file_uri}),
+                },
+            )
+            resp.raise_for_status()
+            return resp.content
+
+
+_CONNECTOR_FACTORIES = {
+    "dropbox": lambda: DropboxConnector(
+        os.environ["DROPBOX_APP_KEY"],
+        os.environ["DROPBOX_APP_SECRET"],
+        os.environ["DROPBOX_REFRESH_TOKEN"],
+    ),
+}
+
+
 def get_connector(provider: CloudProvider) -> CloudConnector:
     """Liefert einen einsatzbereiten Connector — oder hebt NotConfiguredError.
 
-    Bis die OAuth-App-Registrierungen und Secrets vorliegen, ist kein Anbieter
-    einsatzbereit. Diese Funktion ist der zentrale Punkt, an dem Phase B die
-    echten Connector-Klassen einhängt.
+    Vorgabe (Handover WP-5): **nur Dropbox** ist real implementiert. Die übrigen
+    Anbieter bleiben bewusst blockiert, bis ihre App-Registrierungen vorliegen.
     """
     info = provider_info(provider)
     if info.status == "blocked":
         raise NotConfiguredError(provider, info.missing_env)
-    raise NotConfiguredError(provider, [])  # Implementierung folgt (Phase B).
+    factory = _CONNECTOR_FACTORIES.get(provider)
+    if factory is None:
+        raise NotConfiguredError(provider, [])  # bewusst blockiert (SharePoint/OneDrive/Blob).
+    return factory()

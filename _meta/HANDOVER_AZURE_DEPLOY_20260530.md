@@ -1,10 +1,22 @@
 # HANDOVER → Claude Code (neue Session) — Produktiv-Deploy zgpm.aegira.ai
 
-**Repo:** `50_APPS/20_AGENT_OPERATING_MODEL_PLANNER` (Zone 3) · **Stand:** 2026-05-30 (rev. 2)
+**Repo:** `50_APPS/20_AGENT_OPERATING_MODEL_PLANNER` (Zone 3) · **Stand:** 2026-05-30 (rev. 3)
 
 > Diese Datei in einer **neuen Claude-Code-Session mit Azure-Zugang** öffnen und
 > abarbeiten. Die Build-/Web-Session hatte **kein** `az`/Docker/Azure-Netz — daher
 > konnte nicht deployt werden. Code, Tests und User Guide sind fertig.
+
+## Quickstart (für die neue Session, in dieser Reihenfolge)
+
+```text
+1) PR #22 nach grünem CI mergen  → main enthält Lockscreen + Deploy-Workflow.
+2) az login  &&  az account set --subscription <SUB_ID>
+3) Erst-Provisionierung (einmalig, interaktiv):   ./_deploy-azure.sh
+   ODER Updates push-button:  GitHub → Actions → "Deploy (prod)" → Run workflow
+4) Frontend-Image MIT echter API-URL bauen (s. §3, sonst localhost:8000!).
+5) DNS/Front-Door prüfen, bis https://zgpm.aegira.ai → 200 (§4 Diagnose).
+6) Akzeptanz abhaken (§5).
+```
 
 ## Aktueller Lieferstand (vor dem Deploy)
 

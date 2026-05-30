@@ -24,6 +24,7 @@
 "use client";
 
 import * as React from "react";
+import { SIGNET_WHITE_DATA_URI } from "../lib/brand-logo";
 
 export interface LockScreenProps {
   /** Displayed when locked. Must be true to render the overlay. */
@@ -161,7 +162,7 @@ export function LockScreen(props: LockScreenProps): React.ReactElement | null {
         <div style={styles.brandRow}>
           {/* Signet */}
           <img
-            src="/logos/aegira-signet-white.svg"
+            src={SIGNET_WHITE_DATA_URI}
             alt=""
             width={36}
             height={36}

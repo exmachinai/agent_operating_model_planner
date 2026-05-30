@@ -9,6 +9,7 @@ import * as React from "react";
 import Link from "next/link";
 import { HelpButton } from "./HelpDrawer";
 import type { HelpTopic } from "../lib/help";
+import { AOMP_LOGO_NAVY_DATA_URI } from "../lib/brand-logo";
 
 export function PageShell({
   subtitle,
@@ -23,19 +24,19 @@ export function PageShell({
   return (
     <main style={pageStyle}>
       <header style={headerStyle}>
-        <Link href="/" style={brandRowStyle}>
-          <img
-            src="/logos/aegira-signet-navy.svg"
-            alt=""
-            width={36}
-            height={36}
-            aria-hidden
-          />
-          <div>
-            <div style={brandTextStyle}>AEGIRA</div>
-            <div style={brandTaglineStyle}>Planner · {subtitle}</div>
-          </div>
-        </Link>
+        <div style={brandRowStyle}>
+          <Link href="/" aria-label="AEGIRA — Agent Operating Model Planner · Start">
+            <img
+              src={AOMP_LOGO_NAVY_DATA_URI}
+              alt="AEGIRA — Agent Operating Model Planner"
+              style={logoStyle}
+            />
+          </Link>
+          <span style={sectionDividerStyle} aria-hidden>
+            ·
+          </span>
+          <span style={brandTaglineStyle}>{subtitle}</span>
+        </div>
         {helpTopic && <HelpButton topic={helpTopic} />}
       </header>
       {children}
@@ -65,18 +66,21 @@ const brandRowStyle: React.CSSProperties = {
   textDecoration: "none",
 };
 
-const brandTextStyle: React.CSSProperties = {
-  fontFamily: "var(--font-display)",
-  fontWeight: 700,
-  fontSize: 20,
-  letterSpacing: "0.08em",
-  color: "var(--c-navy)",
+const logoStyle: React.CSSProperties = {
+  height: 46,
+  width: "auto",
+  display: "block",
+};
+
+const sectionDividerStyle: React.CSSProperties = {
+  color: "var(--c-ice)",
+  fontSize: 18,
+  lineHeight: 1,
 };
 
 const brandTaglineStyle: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: 12,
   letterSpacing: "0.16em",
   textTransform: "uppercase",
-  color: "var(--c-gray)",
-  marginTop: 2,
+  color: "var(--c-steel)",
 };

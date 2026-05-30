@@ -189,38 +189,39 @@ export default function Interview(): React.ReactElement {
           <span style={sectionLabel}>Kontext-Quellen (optional)</span>
           {!done ? (
             <>
-              <input
-                ref={fileRef}
-                type="file"
-                accept={ACCEPT}
-                multiple
-                style={{ display: "none" }}
-                onChange={(e) => void onUpload(e.target.files)}
-              />
-              <input
-                ref={folderRef}
-                type="file"
-                multiple
-                style={{ display: "none" }}
-                onChange={(e) => void onUploadFolder(e.target.files)}
-              />
-              <button
-                type="button"
-                style={ctxAddBtn}
-                disabled={uploading || sources.length >= 20}
-                onClick={() => fileRef.current?.click()}
+              {/* v0.4.4 — NATIVE Label-Inputs statt JS-`.click()`: ein <label> öffnet den
+                  Datei-/Ordner-Dialog per Browser-Eigenmechanik. Robust gegen Sicherheits-
+                  Extensions/Policies, die skriptgesteuerte input.click()-Aufrufe blocken.
+                  Disabled-Verhalten kommt nativ vom `disabled`-Attribut am Input. */}
+              <label
+                style={{ ...ctxLabelBtn, ...(uploading || sources.length >= 20 ? ctxLabelBtnDisabled : {}) }}
+                title="Einzelne Dateien hochladen"
               >
                 {uploading ? "Lädt…" : "+ Datei hinzufügen"}
-              </button>
-              <button
-                type="button"
-                style={ctxAddBtn}
-                disabled={uploading || sources.length >= 20}
-                onClick={() => folderRef.current?.click()}
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept={ACCEPT}
+                  multiple
+                  style={{ display: "none" }}
+                  disabled={uploading || sources.length >= 20}
+                  onChange={(e) => void onUpload(e.target.files)}
+                />
+              </label>
+              <label
+                style={{ ...ctxLabelBtn, ...(uploading || sources.length >= 20 ? ctxLabelBtnDisabled : {}) }}
                 title="Eine ganze lokale Ordnerstruktur einlesen (ohne Dropbox)"
               >
                 + Lokaler Ordner
-              </button>
+                <input
+                  ref={folderRef}
+                  type="file"
+                  multiple
+                  style={{ display: "none" }}
+                  disabled={uploading || sources.length >= 20}
+                  onChange={(e) => void onUploadFolder(e.target.files)}
+                />
+              </label>
             </>
           ) : (
             <span style={ctxFrozenStyle}>eingefroren (Gate 1) ✓</span>
@@ -393,6 +394,17 @@ const ctxAddBtn: React.CSSProperties = {
   fontSize: 13,
   fontWeight: 600,
   cursor: "pointer",
+};
+
+// v0.4.4 — Label-Variante des Add-Buttons (umschließt einen versteckten File-Input).
+const ctxLabelBtn: React.CSSProperties = {
+  ...ctxAddBtn,
+  display: "inline-flex",
+  alignItems: "center",
+};
+const ctxLabelBtnDisabled: React.CSSProperties = {
+  opacity: 0.5,
+  cursor: "default",
 };
 
 const ctxFrozenStyle: React.CSSProperties = {

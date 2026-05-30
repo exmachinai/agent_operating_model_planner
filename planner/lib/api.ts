@@ -285,7 +285,8 @@ export type HarnessStatus = "draft" | "compiled";
 export type StagePattern =
   | "chain" | "section" | "route" | "vote" | "evaluator-optimizer";
 export type ReviseKind =
-  | "sequence" | "parallel" | "skill" | "agent" | "layout" | "stage-pattern";
+  | "sequence" | "parallel" | "skill" | "agent" | "layout" | "stage-pattern" | "model-strategy";
+export type ModelStrategy = "balanced" | "economy" | "premium";
 
 // v0.4 — Subagent-Katalog (Tool-Typ + Risk, Modell-Tiering).
 export type ToolType = "data" | "action" | "orchestration";
@@ -393,6 +394,7 @@ export interface ReviseCommand {
   stages?: Record<string, number>;
   stage?: number;
   pattern?: StagePattern;
+  strategy?: ModelStrategy;
 }
 
 const API_BASE =

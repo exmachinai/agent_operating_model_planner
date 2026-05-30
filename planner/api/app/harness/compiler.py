@@ -440,6 +440,22 @@ def apply_command(graph: HarnessGraph, cmd: ReviseCommand) -> HarnessGraph:
             else n.model_copy(deep=True)
             for n in graph.nodes
         ]
+    elif cmd.command == "model-strategy":
+        # v0.4.3 — globale Modell-Tier-Strategie auf alle Agenten anwenden.
+        # HITL-Knoten (menschlicher Checkpoint) behalten „human".
+        if cmd.strategy is None:
+            raise ValueError("model-strategy braucht strategy.")
+        opus, sonnet = "claude-opus-4-8", "claude-sonnet-4-6"
+        for a in agents:
+            if a.kind == "hitl" or a.model == "human":
+                continue
+            if cmd.strategy == "economy":
+                a.model = sonnet
+            elif cmd.strategy == "premium":
+                a.model = opus
+            else:  # balanced: Orchestrator = Opus, Rest = Sonnet
+                a.model = opus if a.kind == "orchestrator" else sonnet
+        nodes = [n.model_copy(deep=True) for n in graph.nodes]
     else:  # pragma: no cover — durch Literal abgesichert
         raise ValueError(f"Unbekanntes Kommando: {cmd.command}")
 

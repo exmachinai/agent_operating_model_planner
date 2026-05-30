@@ -173,52 +173,39 @@ export default function HarnessPage(): React.ReactElement {
       <div style={sectionLabel}>Orchestrierungs-Canvas</div>
       <HarnessCanvas id={id} graph={graph} frozen={frozen} onChange={reload} />
 
-      {/* Preflight-Graph (kompakte Lane-Ansicht) */}
-      <div style={sectionLabel}>Preflight — Agenten-Graph</div>
-      <div style={graphStyle}>
-        {KIND_ORDER.map((kind) => {
-          const nodes = byKind(kind);
-          if (nodes.length === 0) return null;
-          return (
-            <div key={kind} style={laneStyle}>
-              <div style={laneHeadStyle}>{KIND_LABEL[kind]}</div>
-              {nodes.map((n) => (
-                <div
-                  key={n.id}
-                  style={{
-                    ...nodeStyle,
-                    borderColor: KIND_COLOR[kind],
-                    boxShadow: n.hitl ? "0 0 0 2px var(--c-green) inset" : "none",
-                  }}
-                  title={n.depends_on.length ? `← ${n.depends_on.join(", ")}` : "Start"}
-                >
-                  <span style={{ ...nodeDot, backgroundColor: KIND_COLOR[kind] }} />
-                  {n.label}
-                </div>
-              ))}
-            </div>
-          );
-        })}
-      </div>
-      {!frozen ? (
-        <div style={{ ...cmdRowStyle, marginBottom: "var(--sp-6)" }}>
-          <span style={metaStyle}>Worker anordnen:</span>
-          <Button
-            variant="secondary"
-            disabled={busy}
-            onClick={() => run(() => api.reviseHarness(id, { command: "parallel" }))}
-          >
-            Parallel
-          </Button>
-          <Button
-            variant="secondary"
-            disabled={busy}
-            onClick={() => run(() => api.reviseHarness(id, { command: "sequence" }))}
-          >
-            Sequenziell
-          </Button>
+      {/* v0.4.3 — Architektur-Check (read-only). Die Agenten werden NICHT erneut
+          gelistet (das macht die Orchestrierungs-Canvas oben editierbar); hier nur
+          Klassen-Legende + Worker-Anordnung + die Best-Practice-Befunde. */}
+      <div style={sectionLabel}>Architektur-Check (Preflight, docs/04)</div>
+      <div style={{ ...cardStyle, marginBottom: graph.findings.length > 0 ? "var(--sp-3)" : "var(--sp-6)" }}>
+        <p style={{ ...metaStyle, marginTop: 0 }}>
+          Read-only-Validierung der Agenten-Topologie gegen die Best-Practice-Anti-Muster.
+          Agenten bearbeitest du oben in der <strong>Orchestrierungs-Canvas</strong> bzw. unten in den Agenten-Karten.
+        </p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--sp-3)", margin: "var(--sp-2) 0" }}>
+          {KIND_ORDER.map((kind) => {
+            const n = byKind(kind).length;
+            if (n === 0) return null;
+            return (
+              <span key={kind} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                <span style={{ ...nodeDot, backgroundColor: KIND_COLOR[kind] }} />
+                {KIND_LABEL[kind]} · {n}
+              </span>
+            );
+          })}
         </div>
-      ) : null}
+        {!frozen ? (
+          <div style={cmdRowStyle}>
+            <span style={metaStyle}>Worker anordnen:</span>
+            <Button variant="secondary" disabled={busy} onClick={() => run(() => api.reviseHarness(id, { command: "parallel" }))}>
+              Parallel
+            </Button>
+            <Button variant="secondary" disabled={busy} onClick={() => run(() => api.reviseHarness(id, { command: "sequence" }))}>
+              Sequenziell
+            </Button>
+          </div>
+        ) : null}
+      </div>
 
       {/* Befunde / Anti-Muster */}
       {graph.findings.length > 0 ? (

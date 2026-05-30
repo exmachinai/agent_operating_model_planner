@@ -48,7 +48,7 @@ async def get_interview(project_id: str) -> InterviewState:
     project = await _load_project(project_id)
     transcript = _TRANSCRIPTS.setdefault(project_id, [])
     if not transcript:
-        opening, _ = interview_engine.next_turn(
+        opening, _ = await interview_engine.next_turn(
             project, transcript, context_store.combined(project_id)
         )
         transcript.append(opening)
@@ -73,7 +73,7 @@ async def interview_turn(
 
     transcript = _TRANSCRIPTS.setdefault(project_id, [])
     transcript.append(InterviewMessage(role="user", content=req.message))
-    assistant_msg, done = interview_engine.next_turn(
+    assistant_msg, done = await interview_engine.next_turn(
         project, transcript, context_store.combined(project_id)
     )
     transcript.append(assistant_msg)

@@ -243,6 +243,51 @@ def _build_nodes(agents: list[AgentSpec], parallel: bool = True) -> list[Harness
     return nodes
 
 
+def _default_stage(kind: str) -> int:
+    return {"orchestrator": 0, "router": 0, "worker": 1, "evaluator": 2, "hitl": 3}.get(kind, 1)
+
+
+def _build_nodes_from_layout(
+    agents: list[AgentSpec], stages_map: dict[str, int]
+) -> list[HarnessNode]:
+    """Baut den Graph aus einer Drag&Drop-Stage-Zuordnung (Canvas, v0.4).
+
+    Gleiche Stage = parallel (Sectioning); Stage-Reihenfolge = sequenziell. Muster
+    je Stage aus den Knotenarten abgeleitet; depends_on aus der Vorgänger-Stage.
+    """
+    by_stage: dict[int, list[AgentSpec]] = {}
+    for a in agents:
+        s = stages_map.get(a.id, _default_stage(a.kind))
+        by_stage.setdefault(s, []).append(a)
+
+    nodes: list[HarnessNode] = []
+    prev_ids: list[str] = []
+    for s in sorted(by_stage):
+        group = by_stage[s]
+        kinds = {a.kind for a in group}
+        if "evaluator" in kinds:
+            pattern = "evaluator-optimizer"
+        elif "router" in kinds:
+            pattern = "route"
+        elif len(group) > 1:
+            pattern = "section"
+        else:
+            pattern = "chain"
+        cur_ids: list[str] = []
+        for a in group:
+            nid = f"n_{a.name}"
+            nodes.append(
+                HarnessNode(
+                    id=nid, label=a.role, kind=a.kind, agent_id=a.id,
+                    hitl=(a.kind == "hitl"), depends_on=list(prev_ids),
+                    stage=s, pattern=pattern,
+                )
+            )
+            cur_ids.append(nid)
+        prev_ids = cur_ids
+    return nodes
+
+
 def _hitl_points(plan: Plan) -> list[str]:
     """Feste HITL-Punkte (docs/04): Meilenstein, rotes Risiko, neuer Skill, Budget."""
     points = [f"{m.id} {m.name} — Meilenstein-Freigabe (HITL-PM)" for m in plan.milestones]
@@ -381,6 +426,20 @@ def apply_command(graph: HarnessGraph, cmd: ReviseCommand) -> HarnessGraph:
         nodes = [n.model_copy(deep=True) for n in graph.nodes]
     elif cmd.command == "agent":
         agents, nodes = _apply_agent_op(graph, agents, cmd)
+    elif cmd.command == "layout":
+        # v0.4 — Drag&Drop: Stage je Agent ({agent_id: stage}). Muster pro Stage
+        # wird aus den Knotenarten abgeleitet; depends_on aus Stage-Reihenfolge.
+        if not cmd.stages:
+            raise ValueError("layout-Kommando braucht stages {agent_id: stage}.")
+        nodes = _build_nodes_from_layout(agents, cmd.stages)
+    elif cmd.command == "stage-pattern":
+        if cmd.stage is None or cmd.pattern is None:
+            raise ValueError("stage-pattern braucht stage und pattern.")
+        nodes = [
+            n.model_copy(update={"pattern": cmd.pattern}) if n.stage == cmd.stage
+            else n.model_copy(deep=True)
+            for n in graph.nodes
+        ]
     else:  # pragma: no cover — durch Literal abgesichert
         raise ValueError(f"Unbekanntes Kommando: {cmd.command}")
 

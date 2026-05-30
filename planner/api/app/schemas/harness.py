@@ -30,7 +30,8 @@ StagePattern = Literal["chain", "section", "route", "vote", "evaluator-optimizer
 HarnessStatus = Literal["draft", "compiled"]
 
 # Revisions-Kommandos (Schritt 8, Kommandofeld). `agent` deckt Agent-CRUD ab.
-ReviseKind = Literal["sequence", "parallel", "skill", "agent"]
+# v0.4: `layout` (Drag&Drop-Stages) + `stage-pattern` (Muster einer Stage setzen).
+ReviseKind = Literal["sequence", "parallel", "skill", "agent", "layout", "stage-pattern"]
 
 # Schweregrad eines Compiler-/Reviewer-Befunds (gleiche Skala wie der Plan-Reviewer).
 FindingSeverity = Literal["info", "warn", "fail"]
@@ -197,6 +198,11 @@ class ReviseCommand(BaseModel):
     op: Literal["add", "update", "delete"] | None = None
     agent: AgentSpec | None = None
     note: str | None = Field(default=None, max_length=2000)
+    # v0.4 — Canvas: `layout` setzt Stage je Agent ({agent_id: stage}); `stage-pattern`
+    # setzt das Muster einer Stage (`stage` + `pattern`).
+    stages: dict[str, int] | None = None
+    stage: int | None = None
+    pattern: StagePattern | None = None
 
 
 # Max. Revisionen je Harness — verhindert Endlos-Loops (docs/04 Evaluator-Optimizer).

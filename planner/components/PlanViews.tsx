@@ -141,7 +141,9 @@ export function RaciMatrix({ plan }: { plan: Plan }): React.ReactElement {
             const codes = m.responsibilities.map((x) => x.code);
             const aOk = codes.filter((c) => c === "A").length >= 1;
             const flOk = codes.filter((c) => c === "F" || c === "L").length === 1;
-            const ok = aOk && flOk;
+            // ZGPM-Regel (docs/01): "e" (entscheidet mit) nie ohne "E" (entscheidet).
+            const eOk = !codes.includes("e") || codes.includes("E");
+            const ok = aOk && flOk && eOk;
             return (
               <tr key={m.id}>
                 <td style={{ ...matrixTdStyle, textAlign: "left", whiteSpace: "nowrap" }}>
@@ -165,8 +167,8 @@ export function RaciMatrix({ plan }: { plan: Plan }): React.ReactElement {
                   style={matrixTdStyle}
                   title={
                     ok
-                      ? "≥1 A und genau ein F/L"
-                      : `${aOk ? "" : "kein A. "}${flOk ? "" : "F/L nicht genau 1."}`
+                      ? "≥1 A · genau ein F/L · 'e' nie ohne 'E'"
+                      : `${aOk ? "" : "kein A. "}${flOk ? "" : "F/L nicht genau 1. "}${eOk ? "" : "'e' ohne 'E'."}`
                   }
                 >
                   {ok ? (
@@ -182,7 +184,7 @@ export function RaciMatrix({ plan }: { plan: Plan }): React.ReactElement {
       </table>
       <p style={legendStyle}>
         Konsistenzregeln (docs/01): pro Meilenstein mindestens ein <strong>A</strong>,
-        genau ein <strong>F/L</strong>. ⚠ markiert eine Abweichung.
+        genau ein <strong>F/L</strong>, „e" nie ohne „E". ⚠ markiert eine Abweichung.
       </p>
     </div>
   );

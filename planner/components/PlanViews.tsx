@@ -184,7 +184,7 @@ export function RaciMatrix({ plan }: { plan: Plan }): React.ReactElement {
       </table>
       <p style={legendStyle}>
         Konsistenzregeln (docs/01): pro Meilenstein mindestens ein <strong>A</strong>,
-        genau ein <strong>F/L</strong>, „e" nie ohne „E". ⚠ markiert eine Abweichung.
+        genau ein <strong>F/L</strong>, „e“ nie ohne „E“. ⚠ markiert eine Abweichung.
       </p>
     </div>
   );
@@ -258,6 +258,62 @@ function heatBg(amp: RiskAmpel): string {
   if (amp === "rot") return "rgba(195, 66, 63, 0.16)";
   if (amp === "gelb") return "rgba(214, 158, 46, 0.16)";
   return "rgba(56, 142, 60, 0.12)";
+}
+
+// ---------------------------------------------------------------------------
+// Auslastung je Agent (Summe Aufwand PT)
+// ---------------------------------------------------------------------------
+
+export function UtilizationBars({ plan }: { plan: Plan }): React.ReactElement {
+  // Aufwand wird der ausführenden Rolle (PVM-Code "A") je Aktivität zugerechnet;
+  // hat eine Aktivität kein "A", fällt der Aufwand auf die erste Verantwortliche.
+  const byRole = new Map<string, number>();
+  for (const r of plan.pvm_roles) byRole.set(r, 0);
+  for (const m of plan.milestones) {
+    for (const a of m.activities) {
+      const doer =
+        a.responsibilities.find((x) => x.code === "A")?.role ??
+        a.responsibilities[0]?.role;
+      if (!doer) continue;
+      byRole.set(doer, (byRole.get(doer) ?? 0) + a.effort_pt);
+    }
+  }
+  const rows = [...byRole.entries()]
+    .filter(([, pt]) => pt > 0)
+    .sort((x, y) => y[1] - x[1]);
+  const max = Math.max(1, ...rows.map(([, pt]) => pt));
+  const total = rows.reduce((s, [, pt]) => s + pt, 0);
+
+  if (rows.length === 0) return <p style={mutedStyle}>Keine Aufwände zugeordnet.</p>;
+
+  return (
+    <div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-1)" }}>
+        {rows.map(([role, pt]) => (
+          <div key={role} style={tokenRowStyle}>
+            <span style={tokenLabelStyle}>{role}</span>
+            <span style={tokenBarOuter}>
+              <span
+                style={{
+                  ...tokenBarInner,
+                  width: `${(pt / max) * 100}%`,
+                  backgroundColor: "var(--c-navy)",
+                }}
+              />
+            </span>
+            <span style={tokenNumStyle}>{pt} PT</span>
+            <span style={{ ...tokenNumStyle, color: "var(--c-text-muted)" }}>
+              {Math.round((pt / total) * 100)}%
+            </span>
+          </div>
+        ))}
+      </div>
+      <p style={legendStyle}>
+        Aufwand je ausführender Rolle (PVM-Code „A“). Summe {total} PT über{" "}
+        {rows.length} Agenten — zeigt Engpässe auf einen Blick.
+      </p>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------

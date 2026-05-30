@@ -19,6 +19,7 @@ import {
   RaciMatrix,
   RiskHeatmap,
   TokenLiveCounter,
+  UtilizationBars,
 } from "../../../../components/PlanViews";
 import {
   api,
@@ -278,6 +279,12 @@ export default function PlanPage(): React.ReactElement {
             {totalTokens.toLocaleString("de-DE")} Token gesamt.
           </div>
         </div>
+      </div>
+
+      {/* Auslastung je Agent */}
+      <div style={sectionLabel}>Auslastung je Agent (Aufwand PT)</div>
+      <div style={{ ...cardStyle, marginBottom: "var(--sp-4)" }}>
+        <UtilizationBars plan={plan} />
       </div>
 
       {plan.evidence_sources.length > 0 ? (

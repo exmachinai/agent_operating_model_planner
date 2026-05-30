@@ -314,12 +314,14 @@ export default function PlanPage(): React.ReactElement {
 
       {error ? <p style={errorStyle}>{error}</p> : null}
 
+      {/* v0.4.1 — „Neu generieren (v2)" entfernt: Der Composer ist deterministisch,
+          ein Re-Run lieferte einen byte-identischen Plan mit höherer Versionsnummer
+          (kein neuer Input, keine Steuerung). Kommt zurück, sobald der LLM-/Foundry-
+          Pfad steht und v2 ein genuin anderer, besserer Plan ist. Inline-Edits am
+          Plan erzeugen weiterhin über den Revisions-Pfad (revise) neue Versionen. */}
       <div style={actionsStyle}>
         <Button variant="secondary" onClick={() => router.push("/")}>
           Zur Übersicht
-        </Button>
-        <Button variant="secondary" onClick={generate} disabled={busy}>
-          {busy ? "…" : "Neu generieren (v" + (plan.version + 1) + ")"}
         </Button>
         <Button
           variant="accent"

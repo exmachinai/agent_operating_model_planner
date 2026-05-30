@@ -36,6 +36,9 @@ param primaryLocation string = 'germanywestcentral'
 @description('Secondary region for DR (nur Prod-Tier). Germany North hält die DR ebenfalls in Deutschland; bei Prod-Tier-Aktivierung Service-/Cosmos-Multi-Region-Verfügbarkeit prüfen.')
 param secondaryLocation string = 'germanynorth'
 
+@description('Region der geteilten RG (aegira-shared): bestehende ACR/MI/Front Door liegen historisch in Sweden und sind residenz-irrelevant (Images/Identity/global). Kundendaten liegen in primaryLocation = Frankfurt.')
+param sharedLocation string = 'swedencentral'
+
 @description('Resource name prefix. Combined with environment for uniqueness.')
 param resourcePrefix string = 'aegira'
 
@@ -90,7 +93,9 @@ var rgObservability = '${resourcePrefix}-observability-${environment}'
 
 resource rgSharedRes 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: rgShared
-  location: primaryLocation
+  // Bleibt in der bestehenden Region (Sweden): enthält ACR/MI/Front Door, alle
+  // residenz-irrelevant. Kundendaten (Cosmos/Storage) liegen in primaryLocation.
+  location: sharedLocation
   tags: tags
 }
 
@@ -138,7 +143,8 @@ module acr 'modules/acr.bicep' = {
   name: 'acr-${environment}'
   scope: rgSharedRes
   params: {
-    location: primaryLocation
+    // ACR bleibt in Sweden (Images sind residenz-irrelevant; Apps in Frankfurt ziehen cross-region).
+    location: sharedLocation
     tags: tags
     // ACR names: 5-50 chars, lowercase alphanumeric, globally unique.
     // 'aegira' (6) + 'acr' (3) + 'prod' (4) + 8-char hash = 21 chars.

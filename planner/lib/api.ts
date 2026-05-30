@@ -280,6 +280,9 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
+    // Immer frische Daten — verhindert stale Listen/Status (z. B. nach Löschungen
+    // oder einer Region-Migration) durch Browser-/Next-Caching.
+    cache: "no-store",
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });

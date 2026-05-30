@@ -76,6 +76,8 @@ export interface Project {
   guardrails_cleared_at: string | null;
   gate2_approved_at: string | null;
   approved_plan_version: number | null;
+  gate3_approved_at: string | null;
+  harness_zip_sha256: string | null;
   context_sources: ContextSource[];
 }
 
@@ -264,6 +266,76 @@ export interface PlanRevisionRequest {
   note?: string;
 }
 
+// --- Schritt 8/9: Harness (BAUEN + Export, Gate 3) -------------------------
+
+export type HarnessNodeKind = "orchestrator" | "worker" | "evaluator" | "hitl";
+export type HarnessStatus = "draft" | "compiled";
+export type ReviseKind = "sequence" | "parallel" | "skill" | "agent";
+
+export interface AgentSpec {
+  id: string;
+  role: string;
+  name: string;
+  kind: HarnessNodeKind;
+  mission: string;
+  tasks: string[];
+  skills: string[];
+  tools: string[];
+  hitl: boolean;
+  model: string;
+}
+
+export interface HarnessNode {
+  id: string;
+  label: string;
+  kind: HarnessNodeKind;
+  agent_id: string | null;
+  hitl: boolean;
+  depends_on: string[];
+}
+
+export interface ArtifactRef {
+  path: string;
+  kind: string;
+  sha256: string;
+  size_bytes: number;
+}
+
+export interface HarnessFinding {
+  severity: "info" | "warn" | "fail";
+  rule: string;
+  message: string;
+}
+
+export interface HarnessGraph {
+  id: string;
+  projectId: string;
+  plan_version: number;
+  plan_hash: string;
+  status: HarnessStatus;
+  iteration: number;
+  agents: AgentSpec[];
+  nodes: HarnessNode[];
+  hitl_points: string[];
+  artifacts: ArtifactRef[];
+  findings: HarnessFinding[];
+  zip_name: string;
+  zip_sha256: string | null;
+  created_at: string;
+  compiled_at: string | null;
+}
+
+export interface ReviseCommand {
+  command: ReviseKind;
+  nodes?: string[];
+  agent_id?: string;
+  skill?: string;
+  remove?: boolean;
+  op?: "add" | "update" | "delete";
+  agent?: Partial<AgentSpec>;
+  note?: string;
+}
+
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
   "http://localhost:8000";
@@ -310,6 +382,35 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  /** Schritt 4 — Titel/Beschreibung ändern (nur vor Gate 1). */
+  updateProject: (
+    id: string,
+    body: { title?: string; description?: string },
+  ): Promise<Project> =>
+    request<Project>(`/v1/projects/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  /** Schritt 4 — Projekt als Vorlage duplizieren (Gates zurückgesetzt). */
+  duplicateProject: (id: string): Promise<Project> =>
+    request<Project>(`/v1/projects/${id}/duplicate`, { method: "POST" }),
+
+  /** Schritt 4 — Projekt löschen (Backend-DELETE, mit UI-Bestätigung aufrufen). */
+  deleteProject: async (id: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/v1/projects/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        const body = (await res.json()) as { detail?: string };
+        detail = body.detail ?? detail;
+      } catch {
+        /* 204 hat keinen Body */
+      }
+      throw new ApiError(res.status, detail);
+    }
+  },
 
   updateUnderstanding: (
     id: string,
@@ -415,6 +516,40 @@ export const api = {
       throw new ApiError(res.status, detail);
     }
   },
+
+  /**
+   * Schritt 2a (Variante b) — verbindet einen Dropbox-Ordner und liest ihn ein.
+   * Ohne gesetzte Dropbox-Secrets wirft das einen ApiError 501 (ehrlicher Blocker).
+   */
+  importDropboxFolder: (id: string, path: string): Promise<ContextSource[]> =>
+    request<ContextSource[]>(
+      `/v1/projects/${id}/context/cloud/dropbox/import?path=${encodeURIComponent(path)}`,
+      { method: "POST" },
+    ),
+
+  // --- Schritt 8/9: Harness ------------------------------------------------
+
+  /** Schritt 8 — kompiliert den freigegebenen Plan (Gate 2) zu einem Harness. */
+  compileHarness: (id: string): Promise<HarnessGraph> =>
+    request<HarnessGraph>(`/v1/projects/${id}/harness`, { method: "POST" }),
+
+  getHarness: (id: string): Promise<HarnessGraph> =>
+    request<HarnessGraph>(`/v1/projects/${id}/harness`),
+
+  /** Schritt 8 — Kommando anwenden (Sequenz/Parallel/Skill/Agent-CRUD). */
+  reviseHarness: (id: string, body: ReviseCommand): Promise<HarnessGraph> =>
+    request<HarnessGraph>(`/v1/projects/${id}/harness/revise`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  /** Schritt 9 — Gate 3: friert den Harness ein, berechnet den Zip-Hash. */
+  approveHarness: (id: string): Promise<Project> =>
+    request<Project>(`/v1/projects/${id}/harness/approve`, { method: "POST" }),
+
+  /** Schritt 9 — Download-URL des signierten Zips (StreamingResponse). */
+  harnessDownloadUrl: (id: string): string =>
+    `${API_BASE}/v1/projects/${id}/harness/download`,
 
   getInterview: (id: string): Promise<InterviewState> =>
     request<InterviewState>(`/v1/projects/${id}/interview`),

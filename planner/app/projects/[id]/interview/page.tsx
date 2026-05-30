@@ -47,6 +47,7 @@ export default function Interview(): React.ReactElement {
   const [providers, setProviders] = React.useState<ProviderInfo[]>([]);
   const [cloudOpen, setCloudOpen] = React.useState(false);
   const [cloudNote, setCloudNote] = React.useState<Record<string, string>>({});
+  const [dropboxPath, setDropboxPath] = React.useState("");
   const fileRef = React.useRef<HTMLInputElement>(null);
   const endRef = React.useRef<HTMLDivElement>(null);
 
@@ -84,6 +85,25 @@ export default function Interview(): React.ReactElement {
         ...n,
         [provider]:
           e instanceof ApiError ? e.message : "Connect nicht möglich.",
+      }));
+    }
+  }
+
+  async function importDropbox(): Promise<void> {
+    setCloudNote((n) => ({ ...n, dropbox: "Lese Ordner…" }));
+    try {
+      const imported = await api.importDropboxFolder(id, dropboxPath);
+      setSources((s) => [...s, ...imported]);
+      setCloudNote((n) => ({
+        ...n,
+        dropbox: imported.length
+          ? `${imported.length} Datei(en) eingelesen ✓`
+          : "Keine unterstützten Dateien im Ordner.",
+      }));
+    } catch (e: unknown) {
+      setCloudNote((n) => ({
+        ...n,
+        dropbox: e instanceof ApiError ? e.message : "Import nicht möglich.",
       }));
     }
   }
@@ -227,10 +247,11 @@ export default function Interview(): React.ReactElement {
           {cloudOpen ? (
             <div style={{ marginTop: "var(--sp-2)" }}>
               <p style={ctxHintStyle}>
-                Lebende Verbindung zu SharePoint, OneDrive, Dropbox oder Azure
-                Blob — derselbe ephemere Pfad wie beim Upload. Benötigt eine
-                OAuth-App-Registrierung je Anbieter; bis die Secrets gesetzt
-                sind, bleibt der Connect bewusst blockiert.
+                Lebende Verbindung — derselbe ephemere Pfad wie beim Upload (nur
+                Name + Hash bleibt). <strong>Dropbox</strong> ist real: bei
+                gesetzten Secrets einen Ordnerpfad eingeben und einlesen.
+                SharePoint, OneDrive und Azure Blob bleiben bis zur jeweiligen
+                OAuth-App-Registrierung bewusst blockiert.
               </p>
               <ul style={ctxListStyle}>
                 {providers.map((p) => {
@@ -253,14 +274,34 @@ export default function Interview(): React.ReactElement {
                             ? `fehlt: ${p.missing_env.join(", ")}`
                             : p.note)}
                       </span>
-                      <button
-                        type="button"
-                        style={ctxAddBtn}
-                        disabled={done}
-                        onClick={() => void connectCloud(p.id)}
-                      >
-                        Verbinden
-                      </button>
+                      {p.id === "dropbox" && p.status === "configured" ? (
+                        <span style={{ display: "flex", gap: "var(--sp-1)" }}>
+                          <input
+                            style={{ ...inputStyle, height: 30, maxWidth: 160 }}
+                            placeholder="/Ordnerpfad"
+                            value={dropboxPath}
+                            disabled={done}
+                            onChange={(e) => setDropboxPath(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            style={ctxAddBtn}
+                            disabled={done}
+                            onClick={() => void importDropbox()}
+                          >
+                            Ordner einlesen
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          style={ctxAddBtn}
+                          disabled={done}
+                          onClick={() => void connectCloud(p.id)}
+                        >
+                          Verbinden
+                        </button>
+                      )}
                     </li>
                   );
                 })}

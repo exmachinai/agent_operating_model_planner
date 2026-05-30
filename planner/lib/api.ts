@@ -7,6 +7,13 @@
  */
 
 export type ProjectNature = "concept" | "technical" | "hybrid-concept-tech";
+// v0.4 — Projekt-Taxonomie: Top-Level-Radio + Subtyp.
+export type ProjectType = "it" | "non-it";
+export type ProjectSubtype =
+  | "software-app" | "ai-ml-agentic" | "data-analytics" | "cloud-infra"
+  | "integration" | "cybersecurity" | "prototype-mvp" | "automation-rpa"
+  | "concept-strategy" | "compliance-governance" | "org-change" | "process-design"
+  | "enablement" | "market-research" | "documentation-audit" | "procurement-vendor";
 export type TargetPlatform =
   | "azure"
   | "aws"
@@ -64,6 +71,8 @@ export interface Project {
   owner_user_id: string;
   title: string;
   description: string;
+  project_type: ProjectType | null;
+  project_subtype: ProjectSubtype | null;
   project_nature: ProjectNature | null;
   target_platform: TargetPlatform | null;
   understanding_summary: string | null;
@@ -87,6 +96,8 @@ export interface CreateProjectRequest {
 }
 
 export interface UpdateUnderstandingRequest {
+  project_type?: ProjectType;
+  project_subtype?: ProjectSubtype;
   project_nature?: ProjectNature;
   target_platform?: TargetPlatform;
   understanding_summary?: string;
@@ -268,9 +279,35 @@ export interface PlanRevisionRequest {
 
 // --- Schritt 8/9: Harness (BAUEN + Export, Gate 3) -------------------------
 
-export type HarnessNodeKind = "orchestrator" | "worker" | "evaluator" | "hitl";
+export type HarnessNodeKind =
+  | "orchestrator" | "worker" | "evaluator" | "hitl" | "router";
 export type HarnessStatus = "draft" | "compiled";
-export type ReviseKind = "sequence" | "parallel" | "skill" | "agent";
+export type StagePattern =
+  | "chain" | "section" | "route" | "vote" | "evaluator-optimizer";
+export type ReviseKind =
+  | "sequence" | "parallel" | "skill" | "agent" | "layout" | "stage-pattern";
+
+// v0.4 — Subagent-Katalog (Tool-Typ + Risk, Modell-Tiering).
+export type ToolType = "data" | "action" | "orchestration";
+export type ToolRisk = "low" | "medium" | "high";
+export interface ToolSpec { name: string; type: ToolType; risk: ToolRisk; }
+export type AgentClass =
+  | "control" | "worker-it" | "worker-concept" | "quality" | "human";
+export interface CatalogAgent {
+  id: string;
+  label: string;
+  klass: AgentClass;
+  kind: HarnessNodeKind;
+  model: string;
+  description: string;
+  mission: string;
+  responsibility: string;
+  skills: string[];
+  tools: ToolSpec[];
+  applies: string[];
+  subtypes: string[];
+}
+export interface Guardrail { id: string; label: string; kind: string; desc: string; }
 
 export interface AgentSpec {
   id: string;
@@ -278,6 +315,8 @@ export interface AgentSpec {
   name: string;
   kind: HarnessNodeKind;
   mission: string;
+  description?: string;
+  responsibility?: string;
   tasks: string[];
   skills: string[];
   tools: string[];
@@ -292,6 +331,8 @@ export interface HarnessNode {
   agent_id: string | null;
   hitl: boolean;
   depends_on: string[];
+  stage: number;
+  pattern: StagePattern;
 }
 
 export interface ArtifactRef {
@@ -348,6 +389,10 @@ export interface ReviseCommand {
   op?: "add" | "update" | "delete";
   agent?: Partial<AgentSpec>;
   note?: string;
+  // v0.4 — Canvas: layout setzt Stage je Agent; stage-pattern setzt Stage-Muster.
+  stages?: Record<string, number>;
+  stage?: number;
+  pattern?: StagePattern;
 }
 
 const API_BASE =
@@ -549,6 +594,14 @@ export const api = {
 
   getHarness: (id: string): Promise<HarnessGraph> =>
     request<HarnessGraph>(`/v1/projects/${id}/harness`),
+
+  /** v0.4 — Subagent-Katalog (Vorlagen für „Agent definieren" im Canvas). */
+  getCatalog: (): Promise<CatalogAgent[]> =>
+    request<CatalogAgent[]>(`/v1/catalog/agents`),
+
+  /** v0.4 — Guardrail-Schicht (Trust-Layer, Katalog). */
+  getCatalogGuardrails: (): Promise<Guardrail[]> =>
+    request<Guardrail[]>(`/v1/catalog/guardrails`),
 
   /** Schritt 8 — Kommando anwenden (Sequenz/Parallel/Skill/Agent-CRUD). */
   reviseHarness: (id: string, body: ReviseCommand): Promise<HarnessGraph> =>

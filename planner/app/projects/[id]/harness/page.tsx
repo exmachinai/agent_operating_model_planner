@@ -29,20 +29,23 @@ import {
   supportsFsAccess,
   type SaveResult,
 } from "../../../../lib/saveHarness";
+import { HarnessCanvas } from "../../../../components/HarnessCanvas";
 
 const KIND_LABEL: Record<HarnessNodeKind, string> = {
   orchestrator: "Orchestrator",
+  router: "Router",
   worker: "Worker",
   evaluator: "Reviewer",
   hitl: "HITL ◆",
 };
 const KIND_COLOR: Record<HarnessNodeKind, string> = {
   orchestrator: "var(--c-navy)",
+  router: "var(--c-gold)",
   worker: "var(--c-steel)",
   evaluator: "var(--c-gold)",
   hitl: "var(--c-green)",
 };
-const KIND_ORDER: HarnessNodeKind[] = ["orchestrator", "worker", "evaluator", "hitl"];
+const KIND_ORDER: HarnessNodeKind[] = ["orchestrator", "router", "worker", "evaluator", "hitl"];
 
 const SEVERITY_COLOR: Record<string, string> = {
   fail: "var(--c-red)",
@@ -166,7 +169,11 @@ export default function HarnessPage(): React.ReactElement {
 
       {error ? <p style={errorStyle}>{error}</p> : null}
 
-      {/* Preflight-Graph */}
+      {/* v0.4 — Orchestrierungs-Canvas (Drag&Drop, dashboard-grade) */}
+      <div style={sectionLabel}>Orchestrierungs-Canvas</div>
+      <HarnessCanvas id={id} graph={graph} frozen={frozen} onChange={reload} />
+
+      {/* Preflight-Graph (kompakte Lane-Ansicht) */}
       <div style={sectionLabel}>Preflight — Agenten-Graph</div>
       <div style={graphStyle}>
         {KIND_ORDER.map((kind) => {

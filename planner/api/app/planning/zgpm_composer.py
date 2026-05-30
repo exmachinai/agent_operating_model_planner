@@ -81,24 +81,53 @@ _STREAMS: dict[str, list[Stream]] = {
     ],
 }
 
-# Lead-Worker je Projektart (bekommt `A` an den Meilensteinen).
-_LEAD_WORKER: dict[str, str] = {
-    "concept": "Methodik-Agent",
-    "technical": "Architektur-Agent",
-    "hybrid-concept-tech": "Architektur-Agent",
+# v0.4.1 — Ausführender Spezialist JE PHASE (bekommt `A`). Vorher lief die gesamte
+# Ausführung auf einen einzigen Lead-Agenten → die Auslastungs-Kachel konnte
+# strukturell nur einen Balken zeigen. Jetzt verteilt sich `A` über den Plan, damit
+# das Operating Model real mehr-agentig ist und Engpässe sichtbar werden. Labels
+# stammen 1:1 aus dem v0.4-Agentenkatalog (harness/catalog.py). Reihenfolge =
+# Phasenreihenfolge in _PHASES.
+_PHASE_AGENTS: dict[str, list[str]] = {
+    "concept": [
+        "Research/Analyse-Agent",  # Discovery
+        "Methodik-Agent",          # Konzeption
+        "Reviewer/QA-Agent",       # Validierung
+        "Doku-Agent",              # Freigabe
+    ],
+    "technical": [
+        "Research/Analyse-Agent",  # Discovery
+        "Architektur-Agent",       # Architektur
+        "Implementierungs-Agent",  # Implementierung
+        "Security-Agent",          # Härtung
+        "DevOps/Deploy-Agent",     # Freigabe
+    ],
+    "hybrid-concept-tech": [
+        "Research/Analyse-Agent",  # Discovery
+        "Methodik-Agent",          # Konzeption
+        "Architektur-Agent",       # Architektur
+        "Implementierungs-Agent",  # Implementierung
+        "Reviewer/QA-Agent",       # Validierung
+        "DevOps/Deploy-Agent",     # Freigabe
+    ],
 }
-
-_ROLES = [
-    "Projektleiter (HITL)",
-    "PMO-Agent",
-    "Architektur-Agent",
-    "Methodik-Agent",
-    "Risiko-Agent",
-    "Fachbereich",
-]
 
 _PROJECT_LEAD = "Projektleiter (HITL)"
 _PMO = "PMO-Agent"
+
+
+def _phase_agents_unique(nature: str) -> list[str]:
+    """Ausführende Phasen-Spezialisten, dedupliziert in Phasenreihenfolge."""
+    seen: list[str] = []
+    for a in _PHASE_AGENTS[nature]:
+        if a not in seen:
+            seen.append(a)
+    return seen
+
+
+def _roles_for(nature: str) -> list[str]:
+    """PVM-Rollen-Reihenfolge für die Matrix: HITL + PMO, dann die ausführenden
+    Phasen-Spezialisten, dann Querschnittsrollen (Risiko, Fachbereich)."""
+    return [_PROJECT_LEAD, _PMO, *_phase_agents_unique(nature), "Risiko-Agent", "Fachbereich"]
 
 
 def _ampel_for(score: int) -> RiskAmpel:
@@ -128,7 +157,7 @@ def _build_milestones(project: Project, anchor: datetime) -> list[Milestone]:
     nature = _nature(project)
     phase_defs = _PHASES[nature]
     streams = _STREAMS[nature]
-    lead = _LEAD_WORKER[nature]
+    phase_agents = _PHASE_AGENTS[nature]
 
     milestones: list[Milestone] = []
     prev_id: str | None = None
@@ -137,6 +166,8 @@ def _build_milestones(project: Project, anchor: datetime) -> list[Milestone]:
         phase_id = f"PH{idx + 1:02d}"
         ms_id = f"M{idx + 1:02d}"
         stream = streams[idx % len(streams)]
+        # v0.4.1 — ausführender Spezialist dieser Phase (bekommt `A`).
+        lead = phase_agents[idx % len(phase_agents)]
         planned = anchor + timedelta(days=14 * (idx + 1))
         win_start = anchor + timedelta(days=14 * idx)
 
@@ -268,25 +299,35 @@ def _build_prl(project: Project) -> list[Risk]:
     return prl
 
 
-def _build_token_budget(n_milestones: int) -> list[TokenBudgetEntry]:
-    """Kosten als Token-Budget je Agent & Knoten (grobe, deterministische Schätzung)."""
-    return [
+def _build_token_budget(nature: str, n_milestones: int) -> list[TokenBudgetEntry]:
+    """Kosten als Token-Budget je Agent & Knoten (grobe, deterministische Schätzung).
+
+    Ein Worker-Eintrag je ausführendem Phasen-Spezialisten (v0.4.1), plus
+    Orchestrierung (PMO), Risiko-Querschnitt und Evaluator (Reviewer/QA)."""
+    entries = [
         TokenBudgetEntry(
             agent=_PMO, node="orchestration", tokens_estimated=8000 + 1500 * n_milestones
-        ),
-        TokenBudgetEntry(
-            agent="Architektur-Agent", node="worker", tokens_estimated=2200 * n_milestones
-        ),
-        TokenBudgetEntry(
-            agent="Methodik-Agent", node="worker", tokens_estimated=1800 * n_milestones
-        ),
+        )
+    ]
+    agents = _phase_agents_unique(nature)
+    entries += [
+        TokenBudgetEntry(agent=a, node="worker", tokens_estimated=2000 * n_milestones)
+        for a in agents
+    ]
+    entries.append(
         TokenBudgetEntry(
             agent="Risiko-Agent", node="worker", tokens_estimated=1200 * n_milestones
-        ),
-        TokenBudgetEntry(
-            agent="Reviewer-Agent", node="evaluator", tokens_estimated=2500 * n_milestones
-        ),
-    ]
+        )
+    )
+    # Reviewer/QA nur als eigenen Evaluator-Knoten führen, wenn er nicht schon als
+    # ausführender Phasen-Agent gelistet ist (sonst Doppel-Eintrag im Budget).
+    if "Reviewer/QA-Agent" not in agents:
+        entries.append(
+            TokenBudgetEntry(
+                agent="Reviewer/QA-Agent", node="evaluator", tokens_estimated=2500 * n_milestones
+            )
+        )
+    return entries
 
 
 def _hashable(plan_fields: dict) -> str:
@@ -390,7 +431,7 @@ def compose(project: Project, version: int, plan_id: str) -> Plan:
     streams = _STREAMS[nature]
     milestones = _build_milestones(project, now)
     prl = _build_prl(project)
-    token_budget = _build_token_budget(len(milestones))
+    token_budget = _build_token_budget(nature, len(milestones))
 
     # Eingefrorene Quellen-Nachweise (Schritt 2a) als Evidenz in den Plan ziehen.
     evidence = [
@@ -434,7 +475,7 @@ def compose(project: Project, version: int, plan_id: str) -> Plan:
         streams=streams,
         milestones=milestones,
         prl=prl,
-        pvm_roles=_ROLES,
+        pvm_roles=_roles_for(nature),
         token_budget=token_budget,
         overall_ampel=overall,
         reviewer_status=status,

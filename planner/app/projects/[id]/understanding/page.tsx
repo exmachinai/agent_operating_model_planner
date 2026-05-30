@@ -119,6 +119,15 @@ export default function Understanding(): React.ReactElement {
     setBusy(true);
     setError(null);
     try {
+      // v0.4.1 — Clickflow-Fix: vor der Freigabe den aktuellen Formularstand
+      // persistieren. Sonst lief die Gate-1-Freigabe in „project_nature muss
+      // gesetzt sein", wenn der User direkt freigab, ohne vorher „Speichern".
+      await api.updateUnderstanding(id, {
+        project_type: ptype || undefined,
+        project_subtype: psubtype || undefined,
+        target_platform: platform || undefined,
+        understanding_summary: summary.trim() || undefined,
+      });
       const p = await api.approveUnderstanding(id);
       setProject(p);
     } catch (e: unknown) {

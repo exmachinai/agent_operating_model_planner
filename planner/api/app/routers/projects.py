@@ -175,10 +175,16 @@ async def approve_understanding(project_id: str) -> Project:
         raise HTTPException(status_code=404, detail="project not found")
     if project.gate1_approved_at is not None:
         raise HTTPException(status_code=409, detail="Gate 1 already approved")
-    if project.project_nature is None:
+    # v0.4.1 — defensiv: `project_nature` aus der Taxonomie (it/non-it) ableiten,
+    # falls sie vor der Freigabe nur als `project_type` gesetzt wurde. Sonst lief
+    # die Freigabe in einen 422, wenn der User direkt freigab statt erst zu speichern.
+    nature = project.project_nature
+    if nature is None and project.project_type is not None:
+        nature = "technical" if project.project_type == "it" else "concept"
+    if nature is None:
         raise HTTPException(
             status_code=422,
-            detail="project_nature muss vor Gate-1-Freigabe gesetzt sein",
+            detail="Projektart (IT/Non-IT) muss vor Gate-1-Freigabe gesetzt sein",
         )
 
     now = datetime.now(timezone.utc)
@@ -191,6 +197,7 @@ async def approve_understanding(project_id: str) -> Project:
         update={
             "gate1_approved_at": now,
             "updated_at": now,
+            "project_nature": nature,
             "context_sources": frozen,
         }
     )

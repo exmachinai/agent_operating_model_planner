@@ -34,10 +34,10 @@ from ..schemas.harness import (
 )
 from ..schemas.plan import Plan
 from ..schemas.project import Project
-from . import templates, yaml_emit
+from . import catalog, templates, yaml_emit
 
-_SCHEMA_VERSION = "2.0.0-claude-native"
-_COMPILER_ID = "aegira-planner@0.3.0"
+_SCHEMA_VERSION = "2.1.0-claude-native"
+_COMPILER_ID = "aegira-planner@0.4.0"
 
 
 # --- Slug / Ableitung ---------------------------------------------------------
@@ -124,36 +124,33 @@ _ROLE_BLUEPRINT: dict[str, dict] = {
 }
 
 
-def _derive_agents(plan: Plan) -> list[AgentSpec]:
-    """Leitet die Agenten aus den PVM-Rollen des Plans ab (deterministisch)."""
+def _derive_agents(plan: Plan, project: Project | None = None) -> list[AgentSpec]:
+    """Leitet die Subagenten aus dem Katalog ab — vorbelegt je Projekttyp/Subtyp.
+
+    v0.4 (docs/11): Weltklasse-Katalog (Modell-Tiering, least-privilege Tools mit
+    Risk, Delegations-Trigger). Deterministisch. Aufgaben werden aus dem Plan je
+    Agent abgeleitet. Ohne Projekttyp greift ein sinnvoller Non-IT-Default.
+    """
+    ptype = project.project_type if project else None
+    psub = project.project_subtype if project else None
+    templates_ = catalog.defaults_for(ptype, psub)
+
     agents: list[AgentSpec] = []
-    seen: set[str] = set()
-
-    # Reihenfolge: Orchestrator zuerst, dann Worker, Evaluator, HITL zuletzt.
-    ordered_roles = list(plan.pvm_roles)
-    # Reviewer ist im Plan als Token-Budget-Eintrag, nicht zwingend als PVM-Rolle.
-    if not any("Reviewer" in r for r in ordered_roles):
-        ordered_roles.append("Reviewer")
-
-    for role in ordered_roles:
-        blueprint = _ROLE_BLUEPRINT.get(role)
-        if blueprint is None:
-            # Nicht-autonome Rolle (z. B. „Fachbereich") — kein Agent.
-            continue
-        if blueprint["name"] in seen:
-            continue
-        seen.add(blueprint["name"])
+    for cat in templates_:
         agents.append(
             AgentSpec(
-                id="ag_" + blueprint["name"],
-                role=role,
-                name=blueprint["name"],
-                kind=blueprint["kind"],
-                mission=blueprint["mission"],
-                tasks=_tasks_for(blueprint["name"], plan),
-                skills=list(blueprint["skills"]),
-                tools=list(blueprint["tools"]),
-                hitl=bool(blueprint.get("hitl", False)),
+                id="ag_" + cat.id,
+                role=cat.label,
+                name=cat.id,
+                kind=cat.kind,
+                mission=cat.mission,
+                description=cat.description,
+                responsibility=cat.responsibility,
+                tasks=_tasks_for(cat.id, plan),
+                skills=list(cat.skills),
+                tools=[t.name for t in cat.tools],
+                hitl=(cat.kind == "hitl"),
+                model=cat.model,
             )
         )
     return agents
@@ -161,7 +158,7 @@ def _derive_agents(plan: Plan) -> list[AgentSpec]:
 
 def _tasks_for(name: str, plan: Plan) -> list[str]:
     """Konkrete Aufgaben je Agent — für Worker aus den Meilensteinen abgeleitet."""
-    if name == "pmo-agent":
+    if name in ("pmo-agent", "pmo-orchestrator"):
         return [
             f"{len(plan.milestones)} Meilensteine orchestrieren und HITL-Freigaben einholen",
             "Lead-Plan in memory/lead_plan.md führen; nach jedem Knoten Checkpoint",
@@ -194,12 +191,17 @@ def _build_nodes(agents: list[AgentSpec], parallel: bool = True) -> list[Harness
     evaluators = [a for a in agents if a.kind == "evaluator"]
     hitls = [a for a in agents if a.kind == "hitl"]
 
+    # v0.4 — Routers teilen sich Stage 0 mit dem Orchestrator (Handoff vs. Manager).
+    routers = [a for a in agents if a.kind == "router"]
+
     nodes: list[HarnessNode] = []
     orch_id = None
-    for a in orchestrators:
-        orch_id = f"n_{a.name}"
+    for a in orchestrators + routers:
+        nid = f"n_{a.name}"
+        if a.kind == "orchestrator":
+            orch_id = nid
         nodes.append(
-            HarnessNode(id=orch_id, label=a.role, kind="orchestrator", agent_id=a.id)
+            HarnessNode(id=nid, label=a.role, kind=a.kind, agent_id=a.id, stage=0, pattern="route")
         )
 
     worker_ids: list[str] = []
@@ -209,7 +211,10 @@ def _build_nodes(agents: list[AgentSpec], parallel: bool = True) -> list[Harness
         depends = [orch_id] if (parallel or prev is None) else [prev]
         depends = [d for d in depends if d]
         nodes.append(
-            HarnessNode(id=nid, label=a.role, kind="worker", agent_id=a.id, depends_on=depends)
+            HarnessNode(
+                id=nid, label=a.role, kind="worker", agent_id=a.id, depends_on=depends,
+                stage=1, pattern="section" if parallel else "chain",
+            )
         )
         worker_ids.append(nid)
         if not parallel:
@@ -222,6 +227,7 @@ def _build_nodes(agents: list[AgentSpec], parallel: bool = True) -> list[Harness
             HarnessNode(
                 id=nid, label=a.role, kind="evaluator", agent_id=a.id,
                 depends_on=worker_ids or ([orch_id] if orch_id else []),
+                stage=2, pattern="evaluator-optimizer",
             )
         )
         eval_ids.append(nid)
@@ -231,7 +237,7 @@ def _build_nodes(agents: list[AgentSpec], parallel: bool = True) -> list[Harness
         nodes.append(
             HarnessNode(
                 id=nid, label=a.role, kind="hitl", agent_id=a.id, hitl=True,
-                depends_on=eval_ids or worker_ids,
+                depends_on=eval_ids or worker_ids, stage=3, pattern="chain",
             )
         )
     return nodes
@@ -316,7 +322,7 @@ def _detect_anti_patterns(
 def compile_graph(project: Project, plan: Plan, *, harness_id: str | None = None) -> HarnessGraph:
     """Erzeugt den Harness-Graph aus dem freigegebenen Plan (Status `draft`)."""
     now = datetime.now(timezone.utc)
-    agents = _derive_agents(plan)
+    agents = _derive_agents(plan, project)
     nodes = _build_nodes(agents, parallel=True)
     findings = _detect_anti_patterns(agents, nodes)
     slug = slugify(project.title)
@@ -464,6 +470,10 @@ def build_files(graph: HarnessGraph, plan: Plan, project: Project) -> dict[str, 
     )
     for m in plan.milestones:
         files[f"plan/activities/{m.id}.yaml"] = yaml_emit.dump(templates.plan_activities(m))
+
+    # v0.4 — Orchestrierung (Stages/Muster) + Guardrails (Trust-Layer)
+    files["orchestration.yaml"] = yaml_emit.dump(templates.orchestration(graph))
+    files["guardrails.yaml"] = yaml_emit.dump(templates.guardrails_doc())
 
     # .claude/
     files[".claude/settings.json"] = templates.settings_json(graph)

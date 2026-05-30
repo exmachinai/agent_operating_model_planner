@@ -478,9 +478,13 @@ def agent_md(agent, plan: Plan) -> str:  # noqa: ANN001 — AgentSpec
     tools = list(agent.tools) + [f"skill:{s}" for s in agent.skills]
     tools_yaml = "\n".join(f"  - {t}" for t in tools) or "  - Read"
     tasks = "\n".join(f"- {t}" for t in agent.tasks) or "- (aus Plan abgeleitet)"
+    # Frontmatter-`description` ist der Delegations-Trigger (Anthropic Subagent-Spec):
+    # wofür dieser Subagent zuständig ist. Fällt auf die Mission zurück.
+    desc = (getattr(agent, "description", "") or agent.mission).replace("\n", " ")
+    responsibility = getattr(agent, "responsibility", "") or "(siehe Rolle)"
     return f"""---
 name: {agent.name}
-description: {agent.mission}
+description: {desc}
 model: {agent.model}
 thinking_budget: high
 tools:
@@ -488,6 +492,9 @@ tools:
 ---
 
 # {agent.role}
+
+## Verantwortung (eine, fokussiert)
+{responsibility}
 
 ## Rolle
 {agent.mission}
@@ -505,6 +512,44 @@ tools:
 Vage Delegation · Über-Spawning (>5 parallel) · fehlender Checkpoint · relative
 Pfade · Diskutieren statt Delegieren. Der Reviewer-Agent prüft.
 """
+
+
+def orchestration(graph: HarnessGraph) -> dict[str, Any]:
+    """v0.4 — Orchestrierungs-Manifest (Stages/Muster) für den Export.
+
+    Gleiche Stage = parallel (Sectioning); Stage-Reihenfolge = sequenziell
+    (Chaining). Meta-Pattern: `handoff` wenn ein Router existiert, sonst `manager`.
+    """
+    by_stage: dict[int, dict[str, Any]] = {}
+    for n in graph.nodes:
+        slot = by_stage.setdefault(
+            n.stage, {"stage": n.stage, "pattern": n.pattern, "agents": []}
+        )
+        slot["agents"].append({"label": n.label, "kind": n.kind})
+    stages = [by_stage[k] for k in sorted(by_stage)]
+    has_router = any(n.kind == "router" for n in graph.nodes)
+    return {
+        "meta_pattern": "handoff" if has_router else "manager",
+        "stages": stages,
+        "hitl_points": list(graph.hitl_points),
+        "note": "Gleiche Stage = parallel (Sectioning); Stage-Reihenfolge = sequenziell (Chaining).",
+    }
+
+
+def guardrails_doc() -> dict[str, Any]:
+    """v0.4 — Guardrail-Schicht (Trust-Layer) als Export-Manifest."""
+    from . import catalog
+
+    return {
+        "policy": (
+            "Layered Defense, optimistische Ausführung. High-Risk-Tools "
+            "(Schreiben/irreversibel/Finanz/PII) pausieren für HITL-Freigabe."
+        ),
+        "guardrails": [
+            {"id": g["id"], "label": g["label"], "kind": g["kind"], "desc": g["desc"]}
+            for g in catalog.GUARDRAILS
+        ],
+    }
 
 
 def skill_files(graph: HarnessGraph) -> dict[str, str]:

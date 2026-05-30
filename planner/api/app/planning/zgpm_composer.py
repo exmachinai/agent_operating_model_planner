@@ -166,20 +166,31 @@ def _build_milestones(project: Project, anchor: datetime) -> list[Milestone]:
             Responsibility(role="Fachbereich", code="I"),
         ]
 
-        # Eine Aktivität je Meilenstein. PVM Aktivität: ein F (PMO steuert
-        # Fortschritt), ein A (Lead-Worker). Kein E auf Aktivitätsebene.
-        activity = Activity(
-            id=f"{ms_id}-A1",
-            description=f"Arbeitspaket {phase_name} durchführen und Ergebnis sichern.",
-            effort_pt=float(3 + 2 * (idx % 3)),
-            start=win_start,
-            end=planned,
-            responsibilities=[
-                Responsibility(role=lead, code="A"),
-                Responsibility(role=_PMO, code="F"),
-                Responsibility(role="Fachbereich", code="V"),
-            ],
-        )
+        # v0.4 — mehrere editierbare Aktivitätsvorschläge je Meilenstein (docs/11).
+        # PVM Aktivität: ein F (PMO steuert Fortschritt), ein A (Lead-Worker).
+        act_templates = [
+            f"{phase_name} planen und Anforderungen/Scope schärfen.",
+            f"Arbeitspaket {phase_name} durchführen und Ergebnis sichern.",
+            f"Ergebnis {phase_name} prüfen und Nachweise dokumentieren (audit-ready).",
+            f"{phase_name}: HITL-Review vorbereiten und Meilenstein-Freigabe einholen.",
+        ]
+        base_pt = float(3 + 2 * (idx % 3))
+        act_pts = [round(base_pt * w, 1) for w in (0.3, 0.4, 0.2, 0.1)]
+        activities = [
+            Activity(
+                id=f"{ms_id}-A{i + 1}",
+                description=desc,
+                effort_pt=act_pts[i],
+                start=win_start,
+                end=planned,
+                responsibilities=[
+                    Responsibility(role=lead, code="A"),
+                    Responsibility(role=_PMO, code="F"),
+                    Responsibility(role="Fachbereich", code="V"),
+                ],
+            )
+            for i, desc in enumerate(act_templates)
+        ]
 
         milestones.append(
             Milestone(
@@ -191,7 +202,7 @@ def _build_milestones(project: Project, anchor: datetime) -> list[Milestone]:
                 predecessors=[prev_id] if prev_id else [],
                 ampel=_worst([r.ampel for r in mrl]),
                 responsibilities=ms_resp,
-                activities=[activity],
+                activities=activities,
                 mrl=mrl,
             )
         )

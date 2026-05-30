@@ -41,42 +41,13 @@ class ProviderInfo(BaseModel):
 
 # Anbieter-Stammdaten. Scopes/Env-Namen sind die, die die spätere Implementierung
 # erwartet — sie dokumentieren zugleich, was die App-Registrierung liefern muss.
-_REGISTRY: dict[CloudProvider, dict] = {
-    "sharepoint": {
-        "label": "Microsoft SharePoint",
-        "scopes": ["Sites.Read.All", "Files.Read.All", "offline_access"],
-        "required_env": [
-            "MS_GRAPH_CLIENT_ID",
-            "MS_GRAPH_CLIENT_SECRET",
-            "MS_GRAPH_TENANT_ID",
-        ],
-        "note": "Über Microsoft Graph; benötigt eine Entra-ID-App-Registrierung.",
-    },
-    "onedrive": {
-        "label": "Microsoft OneDrive",
-        "scopes": ["Files.Read.All", "offline_access"],
-        "required_env": [
-            "MS_GRAPH_CLIENT_ID",
-            "MS_GRAPH_CLIENT_SECRET",
-            "MS_GRAPH_TENANT_ID",
-        ],
-        "note": "Teilt die Entra-ID-App-Registrierung mit SharePoint (Microsoft Graph).",
-    },
-    "dropbox": {
-        "label": "Dropbox",
-        "scopes": ["files.metadata.read", "files.content.read"],
-        # App-Key/-Secret + ein Refresh-Token (oder direktes Access-Token) der
-        # Scoped App. Ohne Token kann nicht gelesen werden — ehrlicher Blocker.
-        "required_env": ["DROPBOX_APP_KEY", "DROPBOX_APP_SECRET", "DROPBOX_REFRESH_TOKEN"],
-        "note": "Benötigt eine Dropbox-App (App Console) mit Scoped Access + Refresh-Token.",
-    },
-    "azure-blob": {
-        "label": "Azure Blob Storage",
-        "scopes": ["https://storage.azure.com/.default"],
-        "required_env": ["AZURE_BLOB_ACCOUNT_URL"],
-        "note": "Zugriff via Managed Identity/Entra ID; Account-URL muss gesetzt sein.",
-    },
-}
+# v0.4 (docs/11): Cloud-Provider (SharePoint/OneDrive/Dropbox/Azure-Blob) bewusst
+# entfernt — der Fokus liegt auf lokalen Quellen (Datei/Bild-Upload + lokaler
+# Ordner). `list_providers()` liefert daher eine leere Liste; die Connect-/Import-
+# Endpunkte bleiben für Abwärtskompatibilität, werden aber von der UI nicht mehr
+# angeboten. Die Connector-Klassen unten bleiben als Referenz für eine spätere,
+# bewusste Reaktivierung erhalten.
+_REGISTRY: dict[CloudProvider, dict] = {}
 
 
 def _missing_env(required: list[str]) -> list[str]:
@@ -84,7 +55,13 @@ def _missing_env(required: list[str]) -> list[str]:
 
 
 def provider_info(provider: CloudProvider) -> ProviderInfo:
-    meta = _REGISTRY[provider]
+    meta = _REGISTRY.get(provider)
+    if meta is None:
+        # v0.4 — Provider entfernt: sauber als „blocked/removed" melden statt KeyError.
+        return ProviderInfo(
+            id=provider, label=provider, scopes=[], required_env=[],
+            status="blocked", missing_env=[], note="Provider entfernt (v0.4).",
+        )
     missing = _missing_env(meta["required_env"])
     return ProviderInfo(
         id=provider,

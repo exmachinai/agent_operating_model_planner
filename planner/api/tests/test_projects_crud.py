@@ -43,22 +43,15 @@ def test_delete_then_404(client: TestClient) -> None:
     assert client.get(f"/v1/projects/{pid}").status_code == 404
 
 
-def test_dropbox_blocked_without_secrets(client: TestClient, monkeypatch) -> None:
-    for var in ("DROPBOX_APP_KEY", "DROPBOX_APP_SECRET", "DROPBOX_REFRESH_TOKEN"):
-        monkeypatch.delenv(var, raising=False)
-    pid = client.post("/v1/projects", json={"title": "Dropbox-Test"}).json()["id"]
+def test_cloud_providers_removed(client: TestClient) -> None:
+    """v0.4 — Cloud-Provider (SharePoint/OneDrive/Dropbox/Azure-Blob) entfernt."""
+    pid = client.post("/v1/projects", json={"title": "Cloud entfernt"}).json()["id"]
     providers = client.get(f"/v1/projects/{pid}/context/cloud/providers").json()
-    dropbox = next(p for p in providers if p["id"] == "dropbox")
-    assert dropbox["status"] == "blocked"
-    assert "DROPBOX_REFRESH_TOKEN" in dropbox["missing_env"]
-
-    resp = client.post(f"/v1/projects/{pid}/context/cloud/connect?provider=dropbox")
-    assert resp.status_code == 501
-
-
-def test_dropbox_import_blocked_without_secrets(client: TestClient, monkeypatch) -> None:
-    for var in ("DROPBOX_APP_KEY", "DROPBOX_APP_SECRET", "DROPBOX_REFRESH_TOKEN"):
-        monkeypatch.delenv(var, raising=False)
-    pid = client.post("/v1/projects", json={"title": "Dropbox-Import"}).json()["id"]
-    resp = client.post(f"/v1/projects/{pid}/context/cloud/dropbox/import?path=/Briefe")
-    assert resp.status_code == 501
+    assert providers == []
+    # Connect/Import scheitern sauber (501), nicht mit 500.
+    assert client.post(
+        f"/v1/projects/{pid}/context/cloud/connect?provider=dropbox"
+    ).status_code == 501
+    assert client.post(
+        f"/v1/projects/{pid}/context/cloud/dropbox/import?path=/Briefe"
+    ).status_code == 501

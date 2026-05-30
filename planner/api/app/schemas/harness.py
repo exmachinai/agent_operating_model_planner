@@ -20,13 +20,18 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 # Graph-Knotenarten. ◆ HITL ist ein eigener Knoten (Transparenz, keine Blackbox).
-HarnessNodeKind = Literal["orchestrator", "worker", "evaluator", "hitl"]
+# v0.4: `router` (Handoff/Triage-Pattern) ergänzt den Orchestrator (Manager-Pattern).
+HarnessNodeKind = Literal["orchestrator", "worker", "evaluator", "hitl", "router"]
+
+# v0.4 — Orchestrierungsmuster je Stage (Anthropic „Building Effective Agents").
+StagePattern = Literal["chain", "section", "route", "vote", "evaluator-optimizer"]
 
 # Status eines Harness: solange editierbar `draft`, nach Gate 3 `compiled`.
 HarnessStatus = Literal["draft", "compiled"]
 
 # Revisions-Kommandos (Schritt 8, Kommandofeld). `agent` deckt Agent-CRUD ab.
-ReviseKind = Literal["sequence", "parallel", "skill", "agent"]
+# v0.4: `layout` (Drag&Drop-Stages) + `stage-pattern` (Muster einer Stage setzen).
+ReviseKind = Literal["sequence", "parallel", "skill", "agent", "layout", "stage-pattern"]
 
 # Schweregrad eines Compiler-/Reviewer-Befunds (gleiche Skala wie der Plan-Reviewer).
 FindingSeverity = Literal["info", "warn", "fail"]
@@ -46,11 +51,53 @@ class AgentSpec(BaseModel):
     name: str
     kind: HarnessNodeKind
     mission: str
+    # v0.4 — Delegations-Trigger (wofür delegieren) + EINE klare Verantwortung
+    # (Anthropic Subagent-Best-Practice: fokussiert, single-responsibility).
+    description: str = ""
+    responsibility: str = ""
     tasks: list[str] = Field(default_factory=list)
     skills: list[str] = Field(default_factory=list)
     tools: list[str] = Field(default_factory=list)
     hitl: bool = False
     model: str = "claude-sonnet-4-6"
+
+
+# v0.4 — Tool-Taxonomie + Risk-Rating (OpenAI „Practical Guide to Building Agents").
+# High-Risk-Tools (Schreiben/irreversibel/Finanz/PII) triggern automatisch HITL.
+ToolType = Literal["data", "action", "orchestration"]
+ToolRisk = Literal["low", "medium", "high"]
+
+
+class ToolSpec(BaseModel):
+    name: str
+    type: ToolType = "data"
+    risk: ToolRisk = "low"
+
+
+# v0.4 — Agentenklassen für den Subagent-Katalog (docs/11).
+AgentClass = Literal["control", "worker-it", "worker-concept", "quality", "human"]
+
+
+class CatalogAgent(BaseModel):
+    """Eine Subagent-Vorlage im Katalog (Anthropic: Skills+Tools+Subagenten je Rolle).
+
+    Beim Add/Define wählt der Nutzer eine Vorlage; sie befüllt Mission, Skills,
+    Tools (mit Risk), Modell-Tier und Delegations-Trigger vor. `applies`/`subtypes`
+    steuern die Vorbelegung je Projekttyp.
+    """
+
+    id: str
+    label: str
+    klass: AgentClass
+    kind: HarnessNodeKind
+    model: str
+    description: str
+    mission: str
+    responsibility: str
+    skills: list[str] = Field(default_factory=list)
+    tools: list[ToolSpec] = Field(default_factory=list)
+    applies: list[str] = Field(default_factory=list)
+    subtypes: list[str] = Field(default_factory=list)
 
 
 class HarnessNode(BaseModel):
@@ -63,6 +110,10 @@ class HarnessNode(BaseModel):
     hitl: bool = False
     # Vorgänger-Knoten (Kanten im Graph) — macht Sequenz/Parallelität sichtbar.
     depends_on: list[str] = Field(default_factory=list)
+    # v0.4 — Canvas: Stage-Index (gleiche Stage = parallel; Reihenfolge = sequenziell)
+    # + Muster der Stage. Default hält Bestehendes (Stage 0, section) gültig.
+    stage: int = Field(default=0, ge=0)
+    pattern: StagePattern = "section"
 
 
 class ArtifactRef(BaseModel):
@@ -147,6 +198,11 @@ class ReviseCommand(BaseModel):
     op: Literal["add", "update", "delete"] | None = None
     agent: AgentSpec | None = None
     note: str | None = Field(default=None, max_length=2000)
+    # v0.4 — Canvas: `layout` setzt Stage je Agent ({agent_id: stage}); `stage-pattern`
+    # setzt das Muster einer Stage (`stage` + `pattern`).
+    stages: dict[str, int] | None = None
+    stage: int | None = None
+    pattern: StagePattern | None = None
 
 
 # Max. Revisionen je Harness — verhindert Endlos-Loops (docs/04 Evaluator-Optimizer).

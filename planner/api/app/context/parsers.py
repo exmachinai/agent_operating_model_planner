@@ -20,6 +20,12 @@ _BY_EXT: dict[str, ContextFormat] = {
     "text": "txt",
     "pptx": "pptx",
     "xlsx": "xlsx",
+    # v0.4 — Bilder als Quelle (Nachweis Name+Hash, kein Text-Parsing).
+    "png": "image",
+    "jpg": "image",
+    "jpeg": "image",
+    "gif": "image",
+    "webp": "image",
 }
 
 
@@ -32,6 +38,10 @@ def detect_format(filename: str) -> ContextFormat:
 
 
 def parse(data: bytes, fmt: ContextFormat) -> str:
+    if fmt == "image":
+        # Bilder werden nicht text-extrahiert: das Bild selbst ist der Nachweis
+        # (Name + Hash). Kein Inhalt fließt in die Schärfung.
+        return ""
     if fmt in ("txt", "md"):
         return data.decode("utf-8", errors="replace")
     if fmt == "docx":

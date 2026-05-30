@@ -16,14 +16,12 @@ import { Button, cardStyle, inputStyle } from "../../../../components/ui";
 import {
   api,
   ApiError,
-  type CloudProvider,
   type ContextSource,
   type InterviewMessage,
-  type ProviderInfo,
   type Suggestion,
 } from "../../../../lib/api";
 
-const ACCEPT = ".docx,.md,.pdf,.txt,.pptx,.xlsx";
+const ACCEPT = ".docx,.md,.pdf,.txt,.pptx,.xlsx,.png,.jpg,.jpeg,.gif,.webp";
 
 function fmtBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -44,10 +42,6 @@ export default function Interview(): React.ReactElement {
   const [accepted, setAccepted] = React.useState<Record<string, "ok" | "off">>({});
   const [sources, setSources] = React.useState<ContextSource[]>([]);
   const [uploading, setUploading] = React.useState(false);
-  const [providers, setProviders] = React.useState<ProviderInfo[]>([]);
-  const [cloudOpen, setCloudOpen] = React.useState(false);
-  const [cloudNote, setCloudNote] = React.useState<Record<string, string>>({});
-  const [dropboxPath, setDropboxPath] = React.useState("");
   const [folderNote, setFolderNote] = React.useState<string | null>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const folderRef = React.useRef<HTMLInputElement>(null);
@@ -79,46 +73,7 @@ export default function Interview(): React.ReactElement {
       .catch(() => {
         /* Kontext ist optional — Fehler still */
       });
-    api
-      .listCloudProviders(id)
-      .then(setProviders)
-      .catch(() => {
-        /* Cloud-Quellen optional — Fehler still */
-      });
   }, [id]);
-
-  async function connectCloud(provider: CloudProvider): Promise<void> {
-    setCloudNote((n) => ({ ...n, [provider]: "Verbinde…" }));
-    try {
-      await api.connectCloud(id, provider);
-      setCloudNote((n) => ({ ...n, [provider]: "Verbunden ✓" }));
-    } catch (e: unknown) {
-      setCloudNote((n) => ({
-        ...n,
-        [provider]:
-          e instanceof ApiError ? e.message : "Connect nicht möglich.",
-      }));
-    }
-  }
-
-  async function importDropbox(): Promise<void> {
-    setCloudNote((n) => ({ ...n, dropbox: "Lese Ordner…" }));
-    try {
-      const imported = await api.importDropboxFolder(id, dropboxPath);
-      setSources((s) => [...s, ...imported]);
-      setCloudNote((n) => ({
-        ...n,
-        dropbox: imported.length
-          ? `${imported.length} Datei(en) eingelesen ✓`
-          : "Keine unterstützten Dateien im Ordner.",
-      }));
-    } catch (e: unknown) {
-      setCloudNote((n) => ({
-        ...n,
-        dropbox: e instanceof ApiError ? e.message : "Import nicht möglich.",
-      }));
-    }
-  }
 
   async function onUpload(files: FileList | null): Promise<void> {
     if (!files || files.length === 0 || uploading) return;
@@ -272,11 +227,11 @@ export default function Interview(): React.ReactElement {
           )}
         </div>
         <p style={ctxHintStyle}>
-          .docx · .md · .pdf · .txt · .pptx · .xlsx · max. 25 MB, bis 20 Dokumente.
-          Inhalt wird nur zur Schärfung verarbeitet und danach verworfen; als
-          Nachweis bleibt nur die Quelle (Name + Hash), bei Gate 1 eingefroren.
-          Zwei ordnerbasierte Quellen: <strong>lokaler Ordner</strong> (ohne Cloud,
-          funktioniert in allen Browsern) oder <strong>Dropbox</strong> (unten).
+          .docx · .md · .pdf · .txt · .pptx · .xlsx · <strong>Bilder</strong> (.png ·
+          .jpg · .gif · .webp) · max. 25 MB, bis 20 Dateien. Inhalt wird nur zur
+          Schärfung verarbeitet und danach verworfen; als Nachweis bleibt nur die
+          Quelle (Name + Hash), bei Gate 1 eingefroren. Quellen: Einzeldateien oder
+          ein ganzer <strong>lokaler Ordner</strong> (ohne Cloud, alle Browser).
         </p>
         {folderNote ? <p style={ctxHintStyle}>{folderNote}</p> : null}
         {sources.length > 0 ? (
@@ -304,81 +259,6 @@ export default function Interview(): React.ReactElement {
         ) : (
           <p style={ctxEmptyStyle}>Noch keine Quellen hinzugefügt.</p>
         )}
-
-        <div style={cloudWrapStyle}>
-          <button
-            type="button"
-            style={cloudToggleStyle}
-            onClick={() => setCloudOpen((o) => !o)}
-            aria-expanded={cloudOpen}
-          >
-            {cloudOpen ? "▾" : "▸"} Cloud-Quelle verbinden (Phase B)
-          </button>
-          {cloudOpen ? (
-            <div style={{ marginTop: "var(--sp-2)" }}>
-              <p style={ctxHintStyle}>
-                Lebende Verbindung — derselbe ephemere Pfad wie beim Upload (nur
-                Name + Hash bleibt). <strong>Dropbox</strong> ist real: bei
-                gesetzten Secrets einen Ordnerpfad eingeben und einlesen.
-                SharePoint, OneDrive und Azure Blob bleiben bis zur jeweiligen
-                OAuth-App-Registrierung bewusst blockiert.
-              </p>
-              <ul style={ctxListStyle}>
-                {providers.map((p) => {
-                  const note = cloudNote[p.id];
-                  return (
-                    <li key={p.id} style={ctxItemStyle}>
-                      <span
-                        style={
-                          p.status === "configured"
-                            ? cloudOkBadge
-                            : cloudBlockedBadge
-                        }
-                      >
-                        {p.status === "configured" ? "bereit" : "blockiert"}
-                      </span>
-                      <span style={ctxNameStyle}>{p.label}</span>
-                      <span style={ctxMetaStyle}>
-                        {note ??
-                          (p.missing_env.length > 0
-                            ? `fehlt: ${p.missing_env.join(", ")}`
-                            : p.note)}
-                      </span>
-                      {p.id === "dropbox" && p.status === "configured" ? (
-                        <span style={{ display: "flex", gap: "var(--sp-1)" }}>
-                          <input
-                            style={{ ...inputStyle, height: 30, maxWidth: 160 }}
-                            placeholder="/Ordnerpfad"
-                            value={dropboxPath}
-                            disabled={done}
-                            onChange={(e) => setDropboxPath(e.target.value)}
-                          />
-                          <button
-                            type="button"
-                            style={ctxAddBtn}
-                            disabled={done}
-                            onClick={() => void importDropbox()}
-                          >
-                            Ordner einlesen
-                          </button>
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          style={ctxAddBtn}
-                          disabled={done}
-                          onClick={() => void connectCloud(p.id)}
-                        >
-                          Verbinden
-                        </button>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ) : null}
-        </div>
       </div>
 
       <div style={chatStyle}>
@@ -435,35 +315,48 @@ export default function Interview(): React.ReactElement {
       {done ? (
         <div style={doneRowStyle}>
           <span style={{ color: "var(--c-text-muted)", fontSize: 13 }}>
-            Verständnis steht. Weiter zur Freigabe.
+            Planung beendet (DONE). Du bestimmst — weiter zur Freigabe oder weiterplanen.
           </span>
-          <Button
-            variant="accent"
-            onClick={() => router.push(`/projects/${id}/understanding`)}
-          >
-            Weiter zu Verständnis & Gate 1
-          </Button>
+          <span style={{ display: "flex", gap: "var(--sp-2)" }}>
+            <Button variant="secondary" onClick={() => setDone(false)}>
+              Weiterplanen
+            </Button>
+            <Button
+              variant="accent"
+              onClick={() => router.push(`/projects/${id}/understanding`)}
+            >
+              Weiter zu Verständnis & Gate 1
+            </Button>
+          </span>
         </div>
       ) : (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void send();
-          }}
-          style={composerStyle}
-        >
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Deine Antwort…"
-            style={{ ...inputStyle, flex: 1 }}
-            disabled={busy}
-            aria-label="Antwort"
-          />
-          <Button type="submit" disabled={busy || !input.trim()}>
-            {busy ? "…" : "Senden"}
-          </Button>
-        </form>
+        <>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void send();
+            }}
+            style={composerStyle}
+          >
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Deine Antwort…"
+              style={{ ...inputStyle, flex: 1 }}
+              disabled={busy}
+              aria-label="Antwort"
+            />
+            <Button type="submit" disabled={busy || !input.trim()}>
+              {busy ? "…" : "Senden"}
+            </Button>
+          </form>
+          {/* v0.4 — der Anwender bestimmt DONE, nicht die Engine. */}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "var(--sp-2)" }}>
+            <Button variant="secondary" onClick={() => setDone(true)} disabled={busy}>
+              Planung beenden (DONE)
+            </Button>
+          </div>
+        </>
       )}
     </PageShell>
   );
@@ -568,44 +461,6 @@ const ctxEmptyStyle: React.CSSProperties = {
   color: "var(--c-gray)",
   fontSize: 13,
   margin: 0,
-};
-
-const cloudWrapStyle: React.CSSProperties = {
-  marginTop: "var(--sp-3)",
-  paddingTop: "var(--sp-3)",
-  borderTop: "1px solid var(--c-border)",
-};
-
-const cloudToggleStyle: React.CSSProperties = {
-  border: 0,
-  background: "transparent",
-  color: "var(--c-steel)",
-  cursor: "pointer",
-  fontSize: 13,
-  fontWeight: 600,
-  padding: 0,
-};
-
-const cloudOkBadge: React.CSSProperties = {
-  flexShrink: 0,
-  padding: "1px 8px",
-  fontSize: 11,
-  fontWeight: 600,
-  textTransform: "uppercase",
-  border: "1px solid var(--c-green)",
-  borderRadius: "var(--r-pill)",
-  color: "var(--c-green)",
-};
-
-const cloudBlockedBadge: React.CSSProperties = {
-  flexShrink: 0,
-  padding: "1px 8px",
-  fontSize: 11,
-  fontWeight: 600,
-  textTransform: "uppercase",
-  border: "1px solid var(--c-gray)",
-  borderRadius: "var(--r-pill)",
-  color: "var(--c-gray)",
 };
 
 const chatStyle: React.CSSProperties = {

@@ -1,0 +1,335 @@
+/**
+ * Orchestrierungs-Canvas (v0.4, docs/11) — Weltklasse Drag&Drop.
+ *
+ * Stage-Lanes (Spalten): gleiche Stage = parallel (Sectioning), Spalten links→
+ * rechts = sequenziell (Chaining). Agenten aus der Katalog-Palette in Stages
+ * ziehen; bestehende Karten zwischen Stages ziehen → Layout-Revise. Detail-on-
+ * Demand rechts. Dashboard-grade: KPI-Leiste, Karten-Farbsystem (Gestalt/visuelle
+ * Variablen, Burch/Schmid), AEGIRA-Branding, viel Weißraum.
+ */
+
+"use client";
+
+import * as React from "react";
+
+import {
+  api,
+  ApiError,
+  type CatalogAgent,
+  type HarnessGraph,
+  type HarnessNode,
+  type HarnessNodeKind,
+  type StagePattern,
+} from "../lib/api";
+import { Button, cardStyle } from "./ui";
+
+const KIND_COLOR: Record<HarnessNodeKind, string> = {
+  orchestrator: "var(--c-navy)",
+  router: "var(--c-gold)",
+  worker: "var(--c-steel)",
+  evaluator: "var(--c-gold)",
+  hitl: "var(--c-green)",
+};
+const KIND_LABEL: Record<HarnessNodeKind, string> = {
+  orchestrator: "Orchestrator",
+  router: "Router",
+  worker: "Worker",
+  evaluator: "Reviewer",
+  hitl: "HITL ◆",
+};
+const PATTERN_LABEL: Record<StagePattern, string> = {
+  chain: "Sequenziell",
+  section: "Parallel",
+  route: "Routing",
+  vote: "Voting",
+  "evaluator-optimizer": "Evaluator-Optimizer",
+};
+const RISK_COLOR: Record<string, string> = {
+  low: "var(--c-green)",
+  medium: "var(--c-amber)",
+  high: "var(--c-red)",
+};
+const MODEL_LABEL = (m: string): string =>
+  m.includes("opus") ? "Opus" : m.includes("sonnet") ? "Sonnet" : m.includes("haiku") ? "Haiku" : m === "human" ? "Mensch" : m;
+
+export function HarnessCanvas({
+  id,
+  graph,
+  frozen,
+  onChange,
+}: {
+  id: string;
+  graph: HarnessGraph;
+  frozen: boolean;
+  onChange: () => Promise<void> | void;
+}): React.ReactElement {
+  const [catalog, setCatalog] = React.useState<CatalogAgent[]>([]);
+  const [busy, setBusy] = React.useState(false);
+  const [note, setNote] = React.useState<string | null>(null);
+  const [selected, setSelected] = React.useState<string | null>(null);
+  const [dragOverStage, setDragOverStage] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    api.getCatalog().then(setCatalog).catch(() => {});
+  }, []);
+
+  async function run(fn: () => Promise<unknown>, ok: string): Promise<void> {
+    if (frozen) return;
+    setBusy(true);
+    setNote(null);
+    try {
+      await fn();
+      await onChange();
+      setNote(ok);
+    } catch (e: unknown) {
+      setNote(e instanceof ApiError ? e.message : "Aktion fehlgeschlagen.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Stages aus den Knoten ableiten (mind. Stage 0..3 anzeigen, plus eine leere).
+  const nodesByStage = new Map<number, HarnessNode[]>();
+  for (const n of graph.nodes) {
+    const arr = nodesByStage.get(n.stage) ?? [];
+    arr.push(n);
+    nodesByStage.set(n.stage, arr);
+  }
+  const maxStage = Math.max(3, ...graph.nodes.map((n) => n.stage));
+  const stages = Array.from({ length: maxStage + 2 }, (_, i) => i); // +1 leere Ziel-Stage
+
+  // Aktuelle Stage-Map (agent_id → stage) für Layout-Revise.
+  const currentStages = (): Record<string, number> => {
+    const m: Record<string, number> = {};
+    for (const n of graph.nodes) if (n.agent_id) m[n.agent_id] = n.stage;
+    return m;
+  };
+
+  function patternOfStage(s: number): StagePattern | null {
+    const ns = nodesByStage.get(s);
+    return ns && ns.length ? ns[0].pattern : null;
+  }
+
+  // --- Drag&Drop ---
+  function onDropToStage(e: React.DragEvent, stage: number): void {
+    e.preventDefault();
+    setDragOverStage(null);
+    const agentId = e.dataTransfer.getData("agent_id");
+    const catId = e.dataTransfer.getData("catalog_id");
+    if (agentId) {
+      const stagesMap = { ...currentStages(), [agentId]: stage };
+      void run(() => api.reviseHarness(id, { command: "layout", stages: stagesMap }), "Verschoben ✓");
+    } else if (catId) {
+      const cat = catalog.find((c) => c.id === catId);
+      if (!cat) return;
+      void run(async () => {
+        await api.reviseHarness(id, {
+          command: "agent",
+          op: "add",
+          agent: {
+            role: cat.label, name: cat.id, kind: cat.kind, mission: cat.mission,
+            description: cat.description, responsibility: cat.responsibility,
+            skills: cat.skills, tools: cat.tools.map((t) => t.name), model: cat.model,
+            hitl: cat.kind === "hitl",
+          },
+        });
+        const fresh = await api.getHarness(id);
+        const added = fresh.agents.find((a) => a.name === cat.id);
+        if (added) {
+          const stagesMap = { ...currentStages() };
+          for (const n of fresh.nodes) if (n.agent_id) stagesMap[n.agent_id] = n.stage;
+          stagesMap[added.id] = stage;
+          await api.reviseHarness(id, { command: "layout", stages: stagesMap });
+        }
+      }, `${cat.label} hinzugefügt ✓`);
+    }
+  }
+
+  const findFail = graph.findings.filter((f) => f.severity === "fail").length;
+  const sel = graph.agents.find((a) => a.id === selected) ?? null;
+  const selCat = sel ? catalog.find((c) => c.id === sel.name) : null;
+
+  // Palette nach Klasse gruppiert (vorhandene ausgrauen).
+  const present = new Set(graph.agents.map((a) => a.name));
+
+  return (
+    <div style={{ marginBottom: "var(--sp-6)" }}>
+      {/* KPI-Leiste */}
+      <div style={kpiRow}>
+        <Kpi label="Agenten" value={graph.agents.length} />
+        <Kpi label="Stages" value={nodesByStage.size} />
+        <Kpi label="HITL-Punkte" value={graph.hitl_points.length} color="var(--c-green)" />
+        <Kpi label="Findings" value={graph.findings.length} color={findFail ? "var(--c-red)" : "var(--c-steel)"} />
+        <Kpi label="Modus" valueText={graph.nodes.some((n) => n.kind === "router") ? "Handoff" : "Manager"} />
+      </div>
+
+      <div style={layoutGrid}>
+        {/* Palette */}
+        {!frozen ? (
+          <aside style={paletteStyle}>
+            <div style={sectionLabel}>Agenten-Palette</div>
+            <p style={hintStyle}>In eine Stage ziehen. Farbe = Klasse, Badge = Modell/Risk.</p>
+            {catalog.map((c) => (
+              <div
+                key={c.id}
+                draggable
+                onDragStart={(e) => { e.dataTransfer.setData("catalog_id", c.id); }}
+                style={{
+                  ...paletteCard,
+                  borderLeft: `3px solid ${KIND_COLOR[c.kind]}`,
+                  opacity: present.has(c.id) ? 0.45 : 1,
+                }}
+                title={c.description}
+              >
+                <span style={{ fontWeight: 600, fontSize: 13 }}>{c.label}</span>
+                <span style={modelBadge}>{MODEL_LABEL(c.model)}</span>
+              </div>
+            ))}
+          </aside>
+        ) : null}
+
+        {/* Stage-Lanes */}
+        <div style={lanesScroll}>
+          <div style={lanesRow}>
+            {stages.map((s) => {
+              const ns = nodesByStage.get(s) ?? [];
+              const pat = patternOfStage(s);
+              const isEmpty = ns.length === 0;
+              return (
+                <div
+                  key={s}
+                  onDragOver={(e) => { if (!frozen) { e.preventDefault(); setDragOverStage(s); } }}
+                  onDragLeave={() => setDragOverStage((cur) => (cur === s ? null : cur))}
+                  onDrop={(e) => onDropToStage(e, s)}
+                  style={{
+                    ...laneStyle,
+                    borderColor: dragOverStage === s ? "var(--c-gold)" : "var(--c-border)",
+                    background: dragOverStage === s ? "rgba(197,160,89,0.06)" : "var(--c-surface)",
+                    borderStyle: isEmpty ? "dashed" : "solid",
+                  }}
+                >
+                  <div style={laneHead}>
+                    <span>Stage {s + 1}</span>
+                    {pat ? <span style={patternPill}>{PATTERN_LABEL[pat]}</span> : <span style={{ ...patternPill, opacity: 0.5 }}>leer</span>}
+                  </div>
+                  {ns.map((n) => {
+                    const a = graph.agents.find((x) => x.id === n.agent_id);
+                    const hiRisk = (catalog.find((c) => c.id === a?.name)?.tools ?? []).some((t) => t.risk === "high");
+                    return (
+                      <div
+                        key={n.id}
+                        draggable={!frozen}
+                        onDragStart={(e) => { if (n.agent_id) e.dataTransfer.setData("agent_id", n.agent_id); }}
+                        onClick={() => setSelected(n.agent_id)}
+                        style={{
+                          ...nodeCard,
+                          borderColor: KIND_COLOR[n.kind],
+                          outline: selected === n.agent_id ? "2px solid var(--c-navy)" : "none",
+                        }}
+                      >
+                        <span style={{ ...dot, background: KIND_COLOR[n.kind] }} />
+                        <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{n.label}</span>
+                        {a ? <span style={modelBadge}>{MODEL_LABEL(a.model)}</span> : null}
+                        {hiRisk ? <span style={riskBadge} title="High-Risk-Tool → HITL">⚠</span> : null}
+                        <span style={{ fontSize: 10, color: "var(--c-text-muted)" }}>{KIND_LABEL[n.kind]}</span>
+                      </div>
+                    );
+                  })}
+                  {isEmpty ? <div style={dropHint}>hierher ziehen</div> : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Detail-Panel */}
+        <aside style={detailStyle}>
+          {sel ? (
+            <>
+              <div style={sectionLabel}>{sel.role}</div>
+              <p style={{ fontSize: 13, color: "var(--c-text-muted)", margin: "4px 0 10px" }}>
+                <span style={modelBadge}>{MODEL_LABEL(sel.model)}</span> · {KIND_LABEL[sel.kind]}
+              </p>
+              <Field label="Verantwortung" value={sel.responsibility || "—"} />
+              <Field label="Mission" value={sel.mission} />
+              {selCat ? (
+                <>
+                  <div style={miniLabel}>Tools (Typ · Risk)</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
+                    {selCat.tools.map((t) => (
+                      <span key={t.name} style={{ ...toolChip, borderColor: RISK_COLOR[t.risk] }} title={`${t.type} · ${t.risk}`}>
+                        {t.name}
+                      </span>
+                    ))}
+                    {selCat.tools.length === 0 ? <span style={hintStyle}>—</span> : null}
+                  </div>
+                </>
+              ) : null}
+              <div style={miniLabel}>Skills</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>
+                {sel.skills.map((s) => <span key={s} style={skillChip}>{s}</span>)}
+                {sel.skills.length === 0 ? <span style={hintStyle}>—</span> : null}
+              </div>
+              {!frozen ? (
+                <Button
+                  variant="secondary"
+                  style={{ color: "var(--c-red)", borderColor: "var(--c-red)" }}
+                  disabled={busy}
+                  onClick={() => run(() => api.reviseHarness(id, { command: "agent", op: "delete", agent_id: sel.id }), "Gelöscht ✓").then(() => setSelected(null))}
+                >
+                  Agent löschen
+                </Button>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <div style={sectionLabel}>Detail</div>
+              <p style={hintStyle}>Eine Agenten-Karte anklicken, um Mission, Verantwortung, Tools (mit Risk) und Modell-Tier zu sehen.</p>
+            </>
+          )}
+          {note ? <p style={{ ...hintStyle, marginTop: 10, color: "var(--c-text)" }}>{note}</p> : null}
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function Kpi({ label, value, valueText, color }: { label: string; value?: number; valueText?: string; color?: string }): React.ReactElement {
+  return (
+    <div style={{ ...cardStyle, padding: "12px 16px", minWidth: 110 }}>
+      <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--c-text-muted)" }}>{label}</div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: color ?? "var(--c-text)" }}>{valueText ?? value}</div>
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string }): React.ReactElement {
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={miniLabel}>{label}</div>
+      <div style={{ fontSize: 13, lineHeight: 1.5 }}>{value}</div>
+    </div>
+  );
+}
+
+// --- Styles ---
+const kpiRow: React.CSSProperties = { display: "flex", gap: "var(--sp-2)", flexWrap: "wrap", marginBottom: "var(--sp-3)" };
+const layoutGrid: React.CSSProperties = { display: "grid", gridTemplateColumns: "200px 1fr 280px", gap: "var(--sp-3)", alignItems: "start" };
+const paletteStyle: React.CSSProperties = { ...cardStyle, padding: "var(--sp-3)", maxHeight: 560, overflowY: "auto" };
+const paletteCard: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, padding: "6px 8px", marginBottom: 6, background: "var(--c-vellum)", border: "1px solid var(--c-border)", borderRadius: "var(--r-md)", cursor: "grab" };
+const lanesScroll: React.CSSProperties = { overflowX: "auto", padding: "2px" };
+const lanesRow: React.CSSProperties = { display: "flex", gap: "var(--sp-3)", alignItems: "stretch", minHeight: 320 };
+const laneStyle: React.CSSProperties = { minWidth: 190, flex: "0 0 190px", border: "1px solid var(--c-border)", borderRadius: "var(--r-md)", padding: "var(--sp-2)", display: "flex", flexDirection: "column", gap: 6 };
+const laneHead: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--c-steel)", marginBottom: 2 };
+const patternPill: React.CSSProperties = { fontSize: 10, fontWeight: 600, padding: "1px 6px", border: "1px solid var(--c-border-strong)", borderRadius: "var(--r-pill)", color: "var(--c-text-muted)" };
+const nodeCard: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", background: "var(--c-vellum)", border: "1px solid", borderRadius: "var(--r-md)", cursor: "grab", fontWeight: 600 };
+const dot: React.CSSProperties = { width: 9, height: 9, borderRadius: "50%", flexShrink: 0 };
+const modelBadge: React.CSSProperties = { fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: "var(--r-pill)", background: "var(--c-navy)", color: "var(--c-vellum)" };
+const riskBadge: React.CSSProperties = { fontSize: 12, color: "var(--c-red)" };
+const dropHint: React.CSSProperties = { fontSize: 11, color: "var(--c-text-muted)", textAlign: "center", padding: "16px 4px", fontStyle: "italic" };
+const detailStyle: React.CSSProperties = { ...cardStyle, padding: "var(--sp-3)", position: "sticky", top: 12 };
+const sectionLabel: React.CSSProperties = { fontSize: "var(--fs-caption)", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--c-text-muted)" };
+const miniLabel: React.CSSProperties = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--c-text-muted)", marginBottom: 2 };
+const hintStyle: React.CSSProperties = { fontSize: 12, color: "var(--c-text-muted)", lineHeight: 1.5 };
+const toolChip: React.CSSProperties = { fontSize: 11, padding: "1px 6px", border: "1px solid", borderRadius: "var(--r-pill)" };
+const skillChip: React.CSSProperties = { fontSize: 11, padding: "1px 6px", border: "1px solid var(--c-border-strong)", borderRadius: "var(--r-pill)" };

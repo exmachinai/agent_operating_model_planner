@@ -15,6 +15,9 @@ param cmkKeyUri string
 param userAssignedMiId string
 param privateEndpointSubnetId string
 
+@description('VNet ID used to link the private DNS zone so the blob endpoint resolves to the private IP.')
+param vnetId string
+
 @description('Storage SKU. Spike-Tier = Standard_LRS (local-redundant, ~5 €/Mo). Prod-Tier = Standard_RAGRS (geo-redundant for DR, ~25 €/Mo).')
 @allowed([ 'Standard_LRS', 'Standard_ZRS', 'Standard_GRS', 'Standard_RAGRS' ])
 param skuName string = 'Standard_LRS'
@@ -159,6 +162,41 @@ resource pe 'Microsoft.Network/privateEndpoints@2024-05-01' = {
           privateLinkServiceId: sa.id
           groupIds: [ 'blob' ]
         }
+      }
+    ]
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Private DNS — so the blob endpoint resolves to the private IP (public access
+// is Disabled on the account).
+// -----------------------------------------------------------------------------
+
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
+  name: 'privatelink.blob.${environment().suffixes.storage}'
+  location: 'global'
+  tags: tags
+}
+
+resource dnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
+  parent: privateDnsZone
+  name: 'link-${storageAccountName}-blob'
+  location: 'global'
+  tags: tags
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: { id: vnetId }
+  }
+}
+
+resource dnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = {
+  parent: pe
+  name: 'default'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'blob'
+        properties: { privateDnsZoneId: privateDnsZone.id }
       }
     ]
   }

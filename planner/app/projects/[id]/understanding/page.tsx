@@ -108,14 +108,14 @@ export default function Understanding(): React.ReactElement {
 
   if (project === null) {
     return (
-      <PageShell subtitle="Verständnis · Schritt 3">
+      <PageShell subtitle="Verständnis · Schritt 3" helpTopic="understanding">
         {error ? <p style={errorStyle}>{error}</p> : <p>Lade…</p>}
       </PageShell>
     );
   }
 
   return (
-    <PageShell subtitle="Verständnis · Schritt 3">
+    <PageShell subtitle="Verständnis · Schritt 3" helpTopic="understanding">
       <h1 style={{ marginBottom: "var(--sp-2)" }}>{project.title}</h1>
       <p style={leadStyle}>
         Schärfe Projektart, Zielplattform und die Kernaussage. Mit der
@@ -204,7 +204,15 @@ export default function Understanding(): React.ReactElement {
           </div>
         ) : (
           <div style={actionsStyle}>
-            <Button onClick={() => router.push("/")}>Zur Übersicht</Button>
+            <Button variant="secondary" onClick={() => router.push("/")}>
+              Zur Übersicht
+            </Button>
+            <Button
+              variant="accent"
+              onClick={() => router.push(`/projects/${id}/guardrails`)}
+            >
+              Weiter zu Leitplanken
+            </Button>
           </div>
         )}
       </div>

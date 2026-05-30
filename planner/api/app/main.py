@@ -17,7 +17,17 @@ from fastapi.responses import JSONResponse
 
 from .config import Settings, get_settings
 from .db import cosmos
-from .routers import health, projects, interview, sessions, hitl
+from .routers import (
+    health,
+    projects,
+    interview,
+    context,
+    cloud,
+    guardrails,
+    plans,
+    sessions,
+    hitl,
+)
 
 logger = logging.getLogger("aegira.planner.api")
 logging.basicConfig(
@@ -69,6 +79,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router, tags=["health"])
     app.include_router(projects.router, prefix="/v1/projects", tags=["projects"])
     app.include_router(interview.router, prefix="/v1/projects", tags=["interview"])
+    app.include_router(context.router, prefix="/v1/projects", tags=["context"])
+    app.include_router(cloud.router, prefix="/v1/projects", tags=["cloud"])
+    app.include_router(guardrails.router, prefix="/v1/projects", tags=["guardrails"])
+    app.include_router(plans.router, prefix="/v1/projects", tags=["plans"])
     app.include_router(sessions.router, prefix="/v1/sessions", tags=["sessions"])
     app.include_router(hitl.router, prefix="/v1", tags=["hitl"])
 

@@ -23,6 +23,11 @@ const AMPEL_COLOR: Record<RiskAmpel, string> = {
   gruen: "var(--c-green)",
 };
 
+/** Aufwand-PT für die Anzeige runden (Float-Summen wie 7.000000000000001 vermeiden). */
+function fmtPt(n: number): string {
+  return Number(n.toFixed(1)).toLocaleString("de-DE");
+}
+
 /** Risk-Matrix-Score (Eintritt × Auswirkung) → Ampel. Spiegelt das Backend. */
 function ampelForScore(score: number): RiskAmpel {
   if (score >= 15) return "rot";
@@ -301,7 +306,7 @@ export function UtilizationBars({ plan }: { plan: Plan }): React.ReactElement {
                 }}
               />
             </span>
-            <span style={tokenNumStyle}>{pt} PT</span>
+            <span style={tokenNumStyle}>{fmtPt(pt)} PT</span>
             <span style={{ ...tokenNumStyle, color: "var(--c-text-muted)" }}>
               {Math.round((pt / total) * 100)}%
             </span>
@@ -309,7 +314,7 @@ export function UtilizationBars({ plan }: { plan: Plan }): React.ReactElement {
         ))}
       </div>
       <p style={legendStyle}>
-        Aufwand je ausführender Rolle (PVM-Code „A“). Summe {total} PT über{" "}
+        Aufwand je ausführender Rolle (PVM-Code „A“). Summe {fmtPt(total)} PT über{" "}
         {rows.length} Agenten — zeigt Engpässe auf einen Blick.
       </p>
     </div>

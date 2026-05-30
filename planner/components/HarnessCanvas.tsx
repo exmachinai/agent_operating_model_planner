@@ -52,6 +52,13 @@ const RISK_COLOR: Record<string, string> = {
 const MODEL_LABEL = (m: string): string =>
   m.includes("opus") ? "Opus" : m.includes("sonnet") ? "Sonnet" : m.includes("haiku") ? "Haiku" : m === "human" ? "Mensch" : m;
 
+// v0.4.2 — editierbare Modell-Tier-Zuordnung. „human" bleibt fix für HITL-Knoten.
+const MODEL_OPTIONS: { id: string; label: string }[] = [
+  { id: "claude-opus-4-8", label: "Opus" },
+  { id: "claude-sonnet-4-6", label: "Sonnet" },
+  { id: "claude-haiku-4-5", label: "Haiku" },
+];
+
 export function HarnessCanvas({
   id,
   graph,
@@ -148,6 +155,27 @@ export function HarnessCanvas({
   const findFail = graph.findings.filter((f) => f.severity === "fail").length;
   const sel = graph.agents.find((a) => a.id === selected) ?? null;
   const selCat = sel ? catalog.find((c) => c.id === sel.name) : null;
+
+  // v0.4.2 — Modell-Tier eines Agenten ändern. Voller Spec wird zurückgesendet,
+  // damit der Update-Op keine Tools/Skills/HITL-Flags verliert (Partial-Patch-Falle).
+  function setModel(newModel: string): void {
+    if (!sel) return;
+    void run(
+      () =>
+        api.reviseHarness(id, {
+          command: "agent",
+          op: "update",
+          agent_id: sel.id,
+          agent: {
+            role: sel.role, name: sel.name, kind: sel.kind, mission: sel.mission,
+            description: sel.description ?? "", responsibility: sel.responsibility ?? "",
+            tasks: sel.tasks, skills: sel.skills, tools: sel.tools,
+            hitl: sel.hitl, model: newModel,
+          },
+        }),
+      "Modell geändert ✓",
+    );
+  }
 
   // Palette nach Klasse gruppiert (vorhandene ausgrauen).
   const present = new Set(graph.agents.map((a) => a.name));
@@ -250,6 +278,24 @@ export function HarnessCanvas({
               <p style={{ fontSize: 13, color: "var(--c-text-muted)", margin: "4px 0 10px" }}>
                 <span style={modelBadge}>{MODEL_LABEL(sel.model)}</span> · {KIND_LABEL[sel.kind]}
               </p>
+              {!frozen && sel.kind !== "hitl" ? (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={miniLabel}>Modell-Tier (editierbar)</div>
+                  <select
+                    value={sel.model}
+                    onChange={(e) => setModel(e.target.value)}
+                    disabled={busy}
+                    style={modelSelect}
+                  >
+                    {MODEL_OPTIONS.map((o) => (
+                      <option key={o.id} value={o.id}>{o.label}</option>
+                    ))}
+                    {!MODEL_OPTIONS.some((o) => o.id === sel.model) ? (
+                      <option value={sel.model}>{MODEL_LABEL(sel.model)}</option>
+                    ) : null}
+                  </select>
+                </div>
+              ) : null}
               <Field label="Verantwortung" value={sel.responsibility || "—"} />
               <Field label="Mission" value={sel.mission} />
               {selCat ? (
@@ -317,7 +363,9 @@ const kpiRow: React.CSSProperties = { display: "flex", gap: "var(--sp-2)", flexW
 const layoutGrid: React.CSSProperties = { display: "grid", gridTemplateColumns: "200px 1fr 280px", gap: "var(--sp-3)", alignItems: "start" };
 const paletteStyle: React.CSSProperties = { ...cardStyle, padding: "var(--sp-3)", maxHeight: 560, overflowY: "auto" };
 const paletteCard: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, padding: "6px 8px", marginBottom: 6, background: "var(--c-vellum)", border: "1px solid var(--c-border)", borderRadius: "var(--r-md)", cursor: "grab" };
-const lanesScroll: React.CSSProperties = { overflowX: "auto", padding: "2px" };
+// minWidth:0 ist zwingend: ohne das wächst die 1fr-Grid-Spalte auf die Inhaltsbreite
+// (Summe aller Lanes) und überlappt die Detail-Spalte. So scrollt sie stattdessen intern.
+const lanesScroll: React.CSSProperties = { overflowX: "auto", padding: "2px", minWidth: 0 };
 const lanesRow: React.CSSProperties = { display: "flex", gap: "var(--sp-3)", alignItems: "stretch", minHeight: 320 };
 const laneStyle: React.CSSProperties = { minWidth: 190, flex: "0 0 190px", border: "1px solid var(--c-border)", borderRadius: "var(--r-md)", padding: "var(--sp-2)", display: "flex", flexDirection: "column", gap: 6 };
 const laneHead: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--c-steel)", marginBottom: 2 };
@@ -325,6 +373,7 @@ const patternPill: React.CSSProperties = { fontSize: 10, fontWeight: 600, paddin
 const nodeCard: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", background: "var(--c-vellum)", border: "1px solid", borderRadius: "var(--r-md)", cursor: "grab", fontWeight: 600 };
 const dot: React.CSSProperties = { width: 9, height: 9, borderRadius: "50%", flexShrink: 0 };
 const modelBadge: React.CSSProperties = { fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: "var(--r-pill)", background: "var(--c-navy)", color: "var(--c-vellum)" };
+const modelSelect: React.CSSProperties = { width: "100%", padding: "6px 8px", fontSize: 13, border: "1px solid var(--c-border-strong)", borderRadius: "var(--r-md)", background: "var(--c-surface)", color: "var(--c-text)", cursor: "pointer" };
 const riskBadge: React.CSSProperties = { fontSize: 12, color: "var(--c-red)" };
 const dropHint: React.CSSProperties = { fontSize: 11, color: "var(--c-text-muted)", textAlign: "center", padding: "16px 4px", fontStyle: "italic" };
 const detailStyle: React.CSSProperties = { ...cardStyle, padding: "var(--sp-3)", position: "sticky", top: 12 };

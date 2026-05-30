@@ -11,8 +11,9 @@
 using '../main.bicep'
 
 param environment = 'prod'
-param primaryLocation = 'swedencentral'
-param secondaryLocation = 'westeurope'
+// Frankfurt für deutsche Datenresidenz (Migration 2026-05-30, weg von Sweden Central).
+param primaryLocation = 'germanywestcentral'
+param secondaryLocation = 'germanynorth'
 param resourcePrefix = 'aegira'
 param customDomain = 'aegira.ai'
 

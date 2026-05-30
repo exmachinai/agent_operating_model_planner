@@ -11,7 +11,6 @@ param tags object
 @maxLength(24)
 param storageAccountName string
 
-param cmkKeyUri string
 param userAssignedMiId string
 param privateEndpointSubnetId string
 
@@ -43,17 +42,8 @@ resource sa 'Microsoft.Storage/storageAccounts@2024-01-01' = {
     publicNetworkAccess: 'Disabled'
     supportsHttpsTrafficOnly: true
     accessTier: 'Hot'
-    encryption: {
-      keySource: 'Microsoft.Keyvault'
-      keyvaultproperties: { keyvaulturi: substring(cmkKeyUri, 0, indexOf(cmkKeyUri, '/keys/')), keyname: 'storage-cmk' }
-      identity: { userAssignedIdentity: userAssignedMiId }
-      services: {
-        blob: { enabled: true, keyType: 'Account' }
-        file: { enabled: true, keyType: 'Account' }
-        queue: { enabled: true, keyType: 'Account' }
-        table: { enabled: true, keyType: 'Account' }
-      }
-    }
+    // Encryption: Microsoft-managed keys. CMK wurde im Spike fallengelassen
+    // (Frankfurt-Migration) — Daten sind weiterhin at-rest verschlüsselt.
     networkAcls: {
       defaultAction: 'Deny'
       bypass: 'AzureServices'

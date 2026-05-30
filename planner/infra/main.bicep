@@ -30,11 +30,11 @@ targetScope = 'subscription'
 @allowed([ 'prod', 'staging', 'dev' ])
 param environment string
 
-@description('Primary Azure region. Sweden Central recommended.')
-param primaryLocation string = 'swedencentral'
+@description('Primary Azure region. Germany West Central (Frankfurt) für deutsche Datenresidenz.')
+param primaryLocation string = 'germanywestcentral'
 
-@description('Secondary region for DR. West Europe recommended.')
-param secondaryLocation string = 'westeurope'
+@description('Secondary region for DR (nur Prod-Tier). Germany North hält die DR ebenfalls in Deutschland; bei Prod-Tier-Aktivierung Service-/Cosmos-Multi-Region-Verfügbarkeit prüfen.')
+param secondaryLocation string = 'germanynorth'
 
 @description('Resource name prefix. Combined with environment for uniqueness.')
 param resourcePrefix string = 'aegira'
@@ -148,19 +148,9 @@ module acr 'modules/acr.bicep' = {
   }
 }
 
-module keyvault 'modules/keyvault.bicep' = {
-  name: 'keyvault-${environment}'
-  scope: rgSharedRes
-  params: {
-    location: primaryLocation
-    tags: tags
-    keyVaultName: 'kv-${resourcePrefix}-shared-${environment}'
-    privateEndpointSubnetId: networking.outputs.privateEndpointSubnetId
-    vnetId: networking.outputs.vnetId
-    userAssignedMiPrincipalId: reference(userAssignedMiId, '2024-11-30').principalId
-    skuName: isProd ? 'premium' : 'standard'
-  }
-}
+// HINWEIS: Key Vault + CMK wurden im Spike fallengelassen (Frankfurt-Migration).
+// Cosmos/Storage nutzen Microsoft-managed Encryption; App-Secrets (z.B. LLM-Key)
+// liegen als Container-App-Secret. CMK ist als Advanced-Control später nachrüstbar.
 
 module cosmos 'modules/cosmos.bicep' = {
   name: 'cosmos-${environment}'
@@ -171,13 +161,11 @@ module cosmos 'modules/cosmos.bicep' = {
     tags: tags
     accountName: toLower('cosmos-${resourcePrefix}-planner-${environment}')
     databaseName: 'planner'
-    cmkKeyUri: keyvault.outputs.cosmosCmkKeyUri
     userAssignedMiId: userAssignedMiId
     privateEndpointSubnetId: networking.outputs.privateEndpointSubnetId
     vnetId: networking.outputs.vnetId
     costTier: costTier
   }
-  // Implicit dependency on keyvault via cmkKeyUri output reference.
 }
 
 module storage 'modules/storage.bicep' = {
@@ -189,13 +177,11 @@ module storage 'modules/storage.bicep' = {
     // Storage account names: 3–24 chars, lowercase alphanumeric only.
     // 'aegira' (6) + 'st' (2) + 'prod' (4) + 12-char hash = 24 exactly.
     storageAccountName: toLower('${resourcePrefix}st${environment}${substring(uniqueString(rgPlannerRes.id), 0, 12)}')
-    cmkKeyUri: keyvault.outputs.storageCmkKeyUri
     userAssignedMiId: userAssignedMiId
     privateEndpointSubnetId: networking.outputs.privateEndpointSubnetId
     vnetId: networking.outputs.vnetId
     skuName: isProd ? 'Standard_RAGRS' : 'Standard_LRS'
   }
-  // Implicit dependency on keyvault via cmkKeyUri output reference.
 }
 
 module containerAppsEnv 'modules/containerAppsEnv.bicep' = {
@@ -312,7 +298,6 @@ output appPublicUrl string = 'https://zgpm.${customDomain}'
 output apiPublicUrl string = 'https://api.zgpm.${customDomain}'
 output cosmosEndpoint string = cosmos.outputs.endpoint
 output storageAccountName string = storage.outputs.accountName
-output keyVaultUri string = keyvault.outputs.uri
 output frontDoorDnsTarget string = frontDoor.outputs.endpointHostName
 output appInsightsConnectionString string = observability.outputs.appInsightsConnectionString
 output deployedCostTier string = costTier

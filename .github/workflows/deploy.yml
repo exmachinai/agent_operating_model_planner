@@ -1,13 +1,14 @@
-# Produktiv-Deploy nach Azure (Container Apps + Front Door) — manuell ausgelöst.
+# Produktiv-Deploy nach Azure — Push-Button, vollständig Azure-nativ.
 #
-# Voraussetzung (einmalig, durch Owner): Entra-App mit Federated Credential (OIDC)
-# auf dieses Repo + Repo-Secrets:
-#   AZURE_CLIENT_ID · AZURE_TENANT_ID · AZURE_SUBSCRIPTION_ID
-#   USER_MI_ID · ENTRA_APP_ID            (aus dem ersten _deploy-azure.sh-Run)
-# Erst-Provisionierung (RG/MI/Entra-App/Front-Door-DNS) bleibt _deploy-azure.sh
-# vorbehalten — dieser Workflow deployt Infra-Updates + neue Images push-button.
+# Baut beide Images SERVER-SEITIG in der ACR (az acr build — kein lokaler Docker)
+# und stellt die beiden Container Apps auf den neuen Tag um (image-only, KEIN
+# Infra-Redeploy). Infra-Änderungen (RG/MI/Front-Door/Cosmos-Container) bleiben
+# `_deploy-azure.sh` bzw. dem Bicep-Sub-Deploy vorbehalten — sie gehören nicht in
+# den Routine-Image-Push (Front-Door/DNS-Risiko).
 #
-# Details + Diagnose: _meta/HANDOVER_AZURE_DEPLOY_20260530.md
+# Auth: OIDC (Federated Credential) auf die Entra-App `github-deploy-aegira-planner`.
+# Repo-Secrets: AZURE_CLIENT_ID · AZURE_TENANT_ID · AZURE_SUBSCRIPTION_ID.
+# Rollen des Deploy-SP: Contributor auf ACR (Build/Push) + RG aegira-planner-prod.
 
 name: Deploy (prod)
 
@@ -15,13 +16,13 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Container-Image-Tag"
+        description: "Container-Image-Tag (z. B. v0.3.2)"
         required: true
-        default: "v0.3.0"
+        default: "v0.3.2"
       api_base_url:
-        description: "NEXT_PUBLIC_API_BASE_URL (wird ins Frontend gebacken!)"
+        description: "NEXT_PUBLIC_API_BASE_URL — wird ins Frontend gebacken! (API-Subdomain)"
         required: true
-        default: "https://zgpm.aegira.ai"
+        default: "https://api.zgpm.aegira.ai"
 
 permissions:
   id-token: write
@@ -32,14 +33,15 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PRIMARY_LOCATION: germanywestcentral
   RG_PLANNER: aegira-planner-prod
-  ACR: acraegira
+  ACR: aegiraacrprodtgygvmrc            # echter Registry-Name (loginServer: aegiraacrprodtgygvmrc.azurecr.io)
+  APP_API: ca-aegira-planner-api
+  APP_FRONTEND: ca-aegira-planner-frontend
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production   # Schützt mit Required-Reviewers (in Repo-Settings setzen)
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
@@ -50,13 +52,15 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # Server-seitiger Build in ACR — kein lokaler Docker-Daemon nötig.
+      # Server-seitiger Build in der ACR — kein lokaler Docker-Daemon nötig.
       - name: Build & push API image (ACR)
         run: |
           az acr build --registry "$ACR" \
             --image "planner-api:${{ inputs.image_tag }}" \
             --file planner/api/Dockerfile planner/api
 
+      # KRITISCH: NEXT_PUBLIC_API_BASE_URL wird zur Build-Zeit eingebacken → muss
+      # die echte API-URL sein (sonst ruft der Browser localhost:8000).
       - name: Build & push Frontend image (ACR)
         run: |
           az acr build --registry "$ACR" \
@@ -64,29 +68,20 @@ jobs:
             --build-arg NEXT_PUBLIC_API_BASE_URL="${{ inputs.api_base_url }}" \
             --file planner/Dockerfile planner
 
-      - name: Bicep deploy (sub scope)
-        env:
-          BACKEND_API_IMAGE: ${{ env.ACR }}.azurecr.io/planner-api:${{ inputs.image_tag }}
-          FRONTEND_IMAGE: ${{ env.ACR }}.azurecr.io/planner-frontend:${{ inputs.image_tag }}
-          USER_MI_ID: ${{ secrets.USER_MI_ID }}
-          ENTRA_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ENTRA_APP_ID: ${{ secrets.ENTRA_APP_ID }}
+      - name: Container Apps auf neuen Tag umstellen (image-only)
         run: |
-          az deployment sub create \
-            --name "deploy-$(date +%Y%m%d-%H%M%S)" \
-            --location "$PRIMARY_LOCATION" \
-            --template-file planner/infra/main.bicep \
-            --parameters planner/infra/parameters/prod.bicepparam
-
-      - name: Update Container Apps auf neue Image-Tags
-        run: |
-          az containerapp update -g "$RG_PLANNER" -n planner-api \
+          az containerapp update -g "$RG_PLANNER" -n "$APP_API" \
             --image "$ACR.azurecr.io/planner-api:${{ inputs.image_tag }}"
-          az containerapp update -g "$RG_PLANNER" -n planner-frontend \
+          az containerapp update -g "$RG_PLANNER" -n "$APP_FRONTEND" \
             --image "$ACR.azurecr.io/planner-frontend:${{ inputs.image_tag }}"
 
-      - name: Smoke-Test
+      - name: Smoke-Test (wartet auf Hochlauf)
         run: |
-          code=$(curl -sS -o /dev/null -w "%{http_code}" https://zgpm.aegira.ai/ || true)
-          echo "zgpm.aegira.ai -> $code"
-          test "$code" = "200" || echo "::warning::Front-Door/DNS evtl. noch nicht propagiert — siehe Handover §4."
+          app=$(curl -sS -o /dev/null -w "%{http_code}" --retry 30 --retry-delay 5 \
+            --retry-all-errors --max-time 20 https://zgpm.aegira.ai/ || true)
+          api=$(curl -sS -o /dev/null -w "%{http_code}" --retry 30 --retry-delay 5 \
+            --retry-all-errors --max-time 20 https://api.zgpm.aegira.ai/health || true)
+          echo "app https://zgpm.aegira.ai/ -> $app"
+          echo "api https://api.zgpm.aegira.ai/health -> $api"
+          test "$app" = "200" -a "$api" = "200" || {
+            echo "::error::Smoke-Test fehlgeschlagen (app=$app api=$api)"; exit 1; }

@@ -29,6 +29,11 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
+# NEXT_PUBLIC_* werden zur BUILD-Zeit in den Client-Bundle eingebacken (nicht zur
+# Laufzeit). Ohne dies fällt der API-Client auf http://localhost:8000 zurück →
+# "API nicht erreichbar" im Browser. Default = prod-API; per --build-arg übersteuerbar.
+ARG NEXT_PUBLIC_API_BASE_URL=https://api.zgpm.aegira.ai
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 RUN npm run build
 
 # -----------------------------------------------------------------------------

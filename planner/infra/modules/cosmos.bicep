@@ -23,7 +23,6 @@ param secondaryLocation string = ''
 param tags object
 param accountName string
 param databaseName string
-param cmkKeyUri string
 param userAssignedMiId string
 param privateEndpointSubnetId string
 
@@ -82,8 +81,7 @@ resource cosmos 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
         backupStorageRedundancy: 'Local'
       }
     }
-    keyVaultKeyUri: cmkKeyUri
-    defaultIdentity: 'UserAssignedIdentity=${userAssignedMiId}'
+    // CMK im Spike fallengelassen (Frankfurt-Migration) — Microsoft-managed Encryption.
     minimalTlsVersion: 'Tls12'
     disableLocalAuth: true
     capabilities: isProd ? [] : [ { name: 'EnableServerless' } ]

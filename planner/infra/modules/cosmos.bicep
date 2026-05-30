@@ -1,5 +1,5 @@
 // =============================================================================
-// modules/cosmos.bicep — Cosmos DB Account + 4 containers + CMK + Private Endpoint
+// modules/cosmos.bicep — Cosmos DB Account + 5 containers + CMK + Private Endpoint
 //
 // Containers per docs/02 §4 and docs/06 §7:
 //   projects   PK=/tenantId
@@ -125,6 +125,18 @@ resource plansContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/cont
   properties: {
     resource: {
       id: 'plans'
+      partitionKey: { paths: [ '/projectId' ], kind: 'Hash' }
+    }
+  }
+}
+
+resource harnessContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = {
+  parent: db
+  name: 'harness'
+  properties: {
+    resource: {
+      // Ein Harness-Graph je Projekt (Schritt 8/9); id == projectId, PK wie plans.
+      id: 'harness'
       partitionKey: { paths: [ '/projectId' ], kind: 'Hash' }
     }
   }

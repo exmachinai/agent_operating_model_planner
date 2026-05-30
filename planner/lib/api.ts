@@ -307,6 +307,20 @@ export interface HarnessFinding {
   message: string;
 }
 
+/** Eine entpackte Harness-Datei (Pfad relativ zum Root) mit Textinhalt. */
+export interface HarnessFile {
+  path: string;
+  content: string;
+}
+
+/** Entpackte Repräsentation des Harness — für „Speichern unter" (unzipped). */
+export interface HarnessFileMap {
+  root: string;
+  zip_name: string;
+  zip_sha256: string | null;
+  files: HarnessFile[];
+}
+
 export interface HarnessGraph {
   id: string;
   projectId: string;
@@ -550,6 +564,19 @@ export const api = {
   /** Schritt 9 — Download-URL des signierten Zips (StreamingResponse). */
   harnessDownloadUrl: (id: string): string =>
     `${API_BASE}/v1/projects/${id}/harness/download`,
+
+  /** Schritt 9 — die signierte Zip als Blob (für „Speichern unter…" via Picker). */
+  harnessZipBlob: async (id: string): Promise<Blob> => {
+    const res = await fetch(`${API_BASE}/v1/projects/${id}/harness/download`, {
+      cache: "no-store",
+    });
+    if (!res.ok) throw new ApiError(res.status, res.statusText || "Download fehlgeschlagen");
+    return res.blob();
+  },
+
+  /** Schritt 9 — der Harness entpackt als Datei-Map (für „Speichern unter", unzipped). */
+  getHarnessFiles: (id: string): Promise<HarnessFileMap> =>
+    request<HarnessFileMap>(`/v1/projects/${id}/harness/files`),
 
   getInterview: (id: string): Promise<InterviewState> =>
     request<InterviewState>(`/v1/projects/${id}/interview`),

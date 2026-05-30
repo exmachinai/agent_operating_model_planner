@@ -21,7 +21,7 @@ from ..db.harness_repo import get_harness_repo
 from ..db.plans_repo import get_plans_repo
 from ..db.projects_repo import get_projects_repo
 from ..harness import compiler
-from ..schemas.harness import HarnessGraph, ReviseCommand
+from ..schemas.harness import HarnessFile, HarnessFileMap, HarnessGraph, ReviseCommand
 from ..schemas.project import Project
 
 router = APIRouter()
@@ -162,3 +162,30 @@ async def download_harness(project_id: str) -> StreamingResponse:
     data, _, _ = compiler.build_zip(graph, plan, project)
     headers = {"Content-Disposition": f'attachment; filename="{graph.zip_name}"'}
     return StreamingResponse(io.BytesIO(data), media_type="application/zip", headers=headers)
+
+
+@router.get("/{project_id}/harness/files", response_model=HarnessFileMap)
+async def harness_files(project_id: str) -> HarnessFileMap:
+    """Schritt 9 — der Harness **entpackt** als Datei-Map (für „Speichern unter").
+
+    Liefert dieselben Artefakte wie das Zip, nur einzeln (Pfad + Textinhalt), damit
+    der Client sie clientseitig (File System Access API) in einen lokal gewählten
+    Ordner schreiben kann. Bit-Parität zur Zip über `compiler.build_file_map`;
+    `checksums.txt` ist enthalten, sodass `shasum -c` auch im Ordner gilt.
+    """
+    project = await _load_project(project_id)
+    graph = await get_harness_repo().get(project_id)
+    if graph is None:
+        raise HTTPException(status_code=404, detail="noch kein Harness kompiliert")
+    plan = await _approved_plan(project)
+    if plan is None:
+        raise HTTPException(status_code=404, detail="kein freigegebener Plan gefunden")
+
+    files, _ = compiler.build_file_map(graph, plan, project)
+    root = graph.zip_name.replace(".harness.zip", "")
+    return HarnessFileMap(
+        root=root,
+        zip_name=graph.zip_name,
+        zip_sha256=graph.zip_sha256,
+        files=[HarnessFile(path=p, content=files[p]) for p in sorted(files)],
+    )

@@ -23,6 +23,12 @@ import {
   type HarnessNodeKind,
   type Project,
 } from "../../../../lib/api";
+import {
+  saveUnzipped,
+  saveZip,
+  supportsFsAccess,
+  type SaveResult,
+} from "../../../../lib/saveHarness";
 
 const KIND_LABEL: Record<HarnessNodeKind, string> = {
   orchestrator: "Orchestrator",
@@ -307,15 +313,12 @@ export default function HarnessPage(): React.ReactElement {
       ) : null}
 
       {/* Export / Gate 3 */}
+      {frozen ? <SaveExport id={id} graph={graph} /> : null}
       <div style={actionsStyle}>
         <Button variant="secondary" onClick={() => router.push(`/projects/${id}/review`)}>
           Zurück zum Review
         </Button>
-        {frozen ? (
-          <a href={api.harnessDownloadUrl(id)} style={{ textDecoration: "none" }}>
-            <Button variant="accent">Zip herunterladen ({graph.zip_name})</Button>
-          </a>
-        ) : (
+        {!frozen ? (
           <Button
             variant="accent"
             disabled={busy || hasFail}
@@ -324,10 +327,139 @@ export default function HarnessPage(): React.ReactElement {
           >
             Freigeben & kompilieren (Gate 3)
           </Button>
-        )}
+        ) : null}
       </div>
     </PageShell>
   );
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * „Speichern unter" (Gate 3) — den eingefrorenen Harness lokal ablegen. Der
+ * Nutzer wählt **vorher** gepackt (.zip) oder entpackt (ganze Struktur, neuer
+ * benennbarer Ordner). Volles Speichern (Ort/Ordner) in Chrome/Edge via File
+ * System Access API; in Firefox/Safari ehrlicher Download-Fallback.
+ * Spec: docs/10_local-storage-and-save-as.md.
+ */
+function SaveExport({ id, graph }: { id: string; graph: HarnessGraph }): React.ReactElement {
+  const [mode, setMode] = React.useState<"zip" | "unzip">("zip");
+  const [newFolder, setNewFolder] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [note, setNote] = React.useState<string | null>(null);
+  // Capability erst clientseitig bestimmen (kein SSR-Hydration-Mismatch).
+  const [fsCap, setFsCap] = React.useState<boolean | null>(null);
+  React.useEffect(() => setFsCap(supportsFsAccess()), []);
+
+  const root = graph.zip_name.replace(".harness.zip", "");
+
+  async function onSave(): Promise<void> {
+    setBusy(true);
+    setNote(null);
+    try {
+      if (mode === "zip") {
+        const blob = await api.harnessZipBlob(id);
+        setNote(resultNote(await saveZip(blob, graph.zip_name), "zip"));
+      } else {
+        const map = await api.getHarnessFiles(id);
+        const r = await saveUnzipped(map.root, map.files, newFolder);
+        if (r === "unsupported") {
+          // Fallback: gepackt herunterladen, manuell entpacken.
+          const blob = await api.harnessZipBlob(id);
+          await saveZip(blob, graph.zip_name);
+          setNote(
+            "Entpacktes Speichern braucht Chrome/Edge — die Zip wurde stattdessen " +
+              "heruntergeladen, bitte manuell entpacken.",
+          );
+        } else {
+          setNote(resultNote(r, "unzip"));
+        }
+      }
+    } catch (e: unknown) {
+      setNote(e instanceof ApiError ? e.message : "Speichern fehlgeschlagen.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div style={{ ...cardStyle, marginBottom: "var(--sp-4)", borderColor: "var(--c-green)" }}>
+      <div style={sectionLabel}>Speichern unter</div>
+      <p style={subMetaStyle}>
+        Den eingefrorenen Harness lokal ablegen — gepackt als{" "}
+        <code style={ruleStyle}>.zip</code> oder entpackt als ganze Ordnerstruktur
+        (mit neuem, benennbarem Ordner).
+      </p>
+
+      {/* Format-Wahl (vorher) */}
+      <div style={{ ...cmdRowStyle, marginBottom: "var(--sp-1)" }}>
+        <label style={radioLabelStyle}>
+          <input
+            type="radio"
+            name="savemode"
+            checked={mode === "zip"}
+            onChange={() => setMode("zip")}
+          />
+          Gepackt (.zip)
+        </label>
+        <label style={radioLabelStyle}>
+          <input
+            type="radio"
+            name="savemode"
+            checked={mode === "unzip"}
+            onChange={() => setMode("unzip")}
+          />
+          Entpackt (ganze Struktur)
+        </label>
+      </div>
+
+      {mode === "unzip" ? (
+        <label style={{ ...fieldStyle, maxWidth: 380 }}>
+          <span style={fieldLabelStyle}>Neuer Ordnername (optional — Default: {root})</span>
+          <input
+            style={inputStyle}
+            placeholder={root}
+            value={newFolder}
+            onChange={(e) => setNewFolder(e.target.value)}
+          />
+        </label>
+      ) : null}
+
+      {/* Browser-Hinweis (Chrome/Edge vs. Firefox/Safari) */}
+      <p style={{ ...metaStyle, marginTop: "var(--sp-2)" }}>
+        {fsCap === null
+          ? null
+          : fsCap
+            ? "✓ Dieser Browser (Chrome/Edge) unterstützt „Speichern unter“ mit freier Ort- und Ordnerwahl."
+            : "ℹ Dieser Browser (Firefox/Safari) erlaubt nur den Standard-Download. Freie Ort-/Ordnerwahl und entpacktes Speichern gehen in Chrome/Edge."}
+      </p>
+
+      <div style={{ ...cmdRowStyle, marginTop: "var(--sp-3)" }}>
+        <Button variant="accent" disabled={busy} onClick={() => void onSave()}>
+          {busy ? "Speichere…" : "Speichern unter…"}
+        </Button>
+        <a href={api.harnessDownloadUrl(id)} style={{ textDecoration: "none" }}>
+          <Button variant="secondary">Zip-Download ({graph.zip_name})</Button>
+        </a>
+      </div>
+      {note ? (
+        <p style={{ ...metaStyle, marginTop: "var(--sp-2)", color: "var(--c-text)" }}>{note}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function resultNote(r: SaveResult, mode: "zip" | "unzip"): string {
+  switch (r) {
+    case "saved":
+      return mode === "zip" ? "Zip gespeichert ✓" : "Ordnerstruktur gespeichert ✓";
+    case "downloaded":
+      return "Über den Browser-Download gespeichert ✓";
+    case "cancelled":
+      return "Abgebrochen.";
+    default:
+      return "In diesem Browser nicht unterstützt.";
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -676,6 +808,13 @@ const inputStyle: React.CSSProperties = {
 const metaStyle: React.CSSProperties = {
   fontSize: "var(--fs-caption)",
   color: "var(--c-text-muted)",
+};
+const radioLabelStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "var(--sp-1)",
+  fontSize: 14,
+  cursor: "pointer",
 };
 const subMetaStyle: React.CSSProperties = {
   fontSize: "var(--fs-caption)",

@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # --- App ----------------------------------------------------------------
     app_env: Literal["prod", "staging", "dev"] = Field(default="dev", alias="APP_ENV")
-    app_version: str = Field(default="0.2.0", alias="APP_VERSION")
+    app_version: str = Field(default="0.3.1", alias="APP_VERSION")
     log_level: str = Field(default="info", alias="LOG_LEVEL")
 
     # --- Cosmos -------------------------------------------------------------

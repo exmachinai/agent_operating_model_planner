@@ -48,8 +48,20 @@ export default function Interview(): React.ReactElement {
   const [cloudOpen, setCloudOpen] = React.useState(false);
   const [cloudNote, setCloudNote] = React.useState<Record<string, string>>({});
   const [dropboxPath, setDropboxPath] = React.useState("");
+  const [folderNote, setFolderNote] = React.useState<string | null>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
+  const folderRef = React.useRef<HTMLInputElement>(null);
   const endRef = React.useRef<HTMLDivElement>(null);
+
+  // `webkitdirectory` ist kein Standard-JSX-Attribut → per Ref setzen (cross-browser:
+  // Chrome/Edge/Firefox/Safari erlauben so das Einlesen eines ganzen lokalen Ordners).
+  React.useEffect(() => {
+    const el = folderRef.current;
+    if (el) {
+      el.setAttribute("webkitdirectory", "");
+      el.setAttribute("directory", "");
+    }
+  }, []);
 
   React.useEffect(() => {
     api
@@ -125,6 +137,45 @@ export default function Interview(): React.ReactElement {
     }
   }
 
+  // Feature A — eine ganze lokale Ordnerstruktur einlesen (ohne Dropbox). Nutzt
+  // denselben ephemeren Upload-Pfad; nicht unterstützte Dateien werden still
+  // übersprungen, die 20-Dokumente-Grenze gilt. Spec: docs/10.
+  async function onUploadFolder(files: FileList | null): Promise<void> {
+    if (!files || files.length === 0 || uploading) return;
+    setUploading(true);
+    setError(null);
+    setFolderNote("Lese Ordner…");
+    const exts = ACCEPT.split(",");
+    const supported = Array.from(files).filter((f) =>
+      exts.some((ext) => f.name.toLowerCase().endsWith(ext)),
+    );
+    let added = 0;
+    let skipped = files.length - supported.length;
+    try {
+      for (const file of supported) {
+        if (sources.length + added >= 20) {
+          skipped += 1;
+          continue;
+        }
+        try {
+          const src = await api.uploadContext(id, file);
+          setSources((s) => [...s, src]);
+          added += 1;
+        } catch {
+          skipped += 1; // einzelne defekte/zu große Datei still überspringen
+        }
+      }
+      setFolderNote(
+        `${added} Datei(en) aus Ordner eingelesen` +
+          (skipped ? `, ${skipped} übersprungen` : "") +
+          " ✓",
+      );
+    } finally {
+      setUploading(false);
+      if (folderRef.current) folderRef.current.value = "";
+    }
+  }
+
   async function removeSource(sourceId: string): Promise<void> {
     setError(null);
     try {
@@ -191,6 +242,13 @@ export default function Interview(): React.ReactElement {
                 style={{ display: "none" }}
                 onChange={(e) => void onUpload(e.target.files)}
               />
+              <input
+                ref={folderRef}
+                type="file"
+                multiple
+                style={{ display: "none" }}
+                onChange={(e) => void onUploadFolder(e.target.files)}
+              />
               <button
                 type="button"
                 style={ctxAddBtn}
@@ -198,6 +256,15 @@ export default function Interview(): React.ReactElement {
                 onClick={() => fileRef.current?.click()}
               >
                 {uploading ? "Lädt…" : "+ Datei hinzufügen"}
+              </button>
+              <button
+                type="button"
+                style={ctxAddBtn}
+                disabled={uploading || sources.length >= 20}
+                onClick={() => folderRef.current?.click()}
+                title="Eine ganze lokale Ordnerstruktur einlesen (ohne Dropbox)"
+              >
+                + Lokaler Ordner
               </button>
             </>
           ) : (
@@ -208,7 +275,10 @@ export default function Interview(): React.ReactElement {
           .docx · .md · .pdf · .txt · .pptx · .xlsx · max. 25 MB, bis 20 Dokumente.
           Inhalt wird nur zur Schärfung verarbeitet und danach verworfen; als
           Nachweis bleibt nur die Quelle (Name + Hash), bei Gate 1 eingefroren.
+          Zwei ordnerbasierte Quellen: <strong>lokaler Ordner</strong> (ohne Cloud,
+          funktioniert in allen Browsern) oder <strong>Dropbox</strong> (unten).
         </p>
+        {folderNote ? <p style={ctxHintStyle}>{folderNote}</p> : null}
         {sources.length > 0 ? (
           <ul style={ctxListStyle}>
             {sources.map((s) => (

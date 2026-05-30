@@ -146,3 +146,43 @@ def test_handover_md_contains_setup(client: TestClient, gate2_project: str) -> N
     handover = zf.read(f"{root}/HANDOVER.md").decode("utf-8")
     assert "Claude Code" in handover and "Cowork" in handover
     assert "/run-harness" in handover
+
+
+def test_harness_files_matches_zip(client: TestClient, gate2_project: str) -> None:
+    """Der entpackte Files-Export ist bit-identisch zur Zip (gleiche Dateien + Hashes)."""
+    client.post(f"/v1/projects/{gate2_project}/harness")
+    client.post(f"/v1/projects/{gate2_project}/harness/approve")
+
+    zf = zipfile.ZipFile(
+        io.BytesIO(client.get(f"/v1/projects/{gate2_project}/harness/download").content)
+    )
+    zip_root = zf.namelist()[0].split("/")[0]
+    zip_files = {
+        n[len(zip_root) + 1 :]: zf.read(n)
+        for n in zf.namelist()
+        if not n.endswith("/")
+    }
+
+    resp = client.get(f"/v1/projects/{gate2_project}/harness/files")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["root"] == zip_root
+    assert body["zip_name"].endswith(".harness.zip")
+    assert body["zip_sha256"].startswith("sha256:")
+
+    files = {f["path"]: f["content"] for f in body["files"]}
+    # Gleiche Pfade wie in der Zip (inkl. checksums.txt) …
+    assert set(files) == set(zip_files), "Datei-Menge weicht von der Zip ab"
+    assert "checksums.txt" in files
+    # … und bit-identische Inhalte.
+    for path, content in files.items():
+        assert content.encode("utf-8") == zip_files[path], f"Inhalt weicht ab: {path}"
+
+    # checksums.txt deckt den entpackten Ordner korrekt ab.
+    for line in files["checksums.txt"].strip().splitlines():
+        digest, path = line.split("  ", 1)
+        assert hashlib.sha256(files[path].encode("utf-8")).hexdigest() == digest
+
+
+def test_harness_files_404_before_compile(client: TestClient, gate2_project: str) -> None:
+    assert client.get(f"/v1/projects/{gate2_project}/harness/files").status_code == 404

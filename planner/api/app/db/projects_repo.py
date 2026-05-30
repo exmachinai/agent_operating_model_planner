@@ -27,6 +27,7 @@ class ProjectsRepo(Protocol):
     async def get(self, project_id: str, tenant_id: str) -> Project | None: ...
     async def list(self, tenant_id: str) -> list[Project]: ...
     async def replace(self, project: Project) -> Project: ...
+    async def delete(self, project_id: str, tenant_id: str) -> bool: ...
 
 
 class InMemoryProjectsRepo:
@@ -51,6 +52,13 @@ class InMemoryProjectsRepo:
     async def replace(self, project: Project) -> Project:
         self._store[project.id] = project
         return project
+
+    async def delete(self, project_id: str, tenant_id: str) -> bool:
+        p = self._store.get(project_id)
+        if p is None or p.tenant_id != tenant_id:
+            return False
+        del self._store[project_id]
+        return True
 
 
 class CosmosProjectsRepo:
@@ -88,6 +96,16 @@ class CosmosProjectsRepo:
             body=project.model_dump(mode="json", by_alias=True),
         )
         return project
+
+    async def delete(self, project_id: str, tenant_id: str) -> bool:
+        from azure.cosmos.exceptions import CosmosResourceNotFoundError
+
+        container = await cosmos.get_container(_CONTAINER)
+        try:
+            await container.delete_item(item=project_id, partition_key=tenant_id)
+        except CosmosResourceNotFoundError:
+            return False
+        return True
 
 
 _repo: ProjectsRepo | None = None

@@ -25,15 +25,34 @@ import {
   api,
   ApiError,
   type Project,
-  type ProjectNature,
+  type ProjectSubtype,
+  type ProjectType,
   type TargetPlatform,
 } from "../../../../lib/api";
 
-const NATURES: { value: ProjectNature; label: string }[] = [
-  { value: "concept", label: "Konzept (Methodik & Dokumente)" },
-  { value: "technical", label: "Technisch (Architektur & Code)" },
-  { value: "hybrid-concept-tech", label: "Hybrid (beides)" },
-];
+// v0.4 — Projektart als Radio (IT/Non-IT) + Subtyp-Auswahl darunter (docs/11).
+const SUBTYPES: Record<ProjectType, { value: ProjectSubtype; label: string }[]> = {
+  it: [
+    { value: "software-app", label: "Softwareentwicklung / Custom App" },
+    { value: "ai-ml-agentic", label: "AI/ML- bzw. Agentic-System" },
+    { value: "data-analytics", label: "Datenplattform / Analytics / BI" },
+    { value: "cloud-infra", label: "Cloud-Migration / Infrastruktur" },
+    { value: "integration", label: "Integration / API / Schnittstellen" },
+    { value: "cybersecurity", label: "Cybersecurity / IAM" },
+    { value: "prototype-mvp", label: "Prototyp / MVP (clickable)" },
+    { value: "automation-rpa", label: "Automatisierung / RPA / Workflow" },
+  ],
+  "non-it": [
+    { value: "concept-strategy", label: "Konzept / Strategie" },
+    { value: "compliance-governance", label: "Compliance / Governance (ISO 42001, EU-AI-Act)" },
+    { value: "org-change", label: "Organisation / Change-Management" },
+    { value: "process-design", label: "Prozessdesign / Operating Model" },
+    { value: "enablement", label: "Schulung / Enablement / Knowledge" },
+    { value: "market-research", label: "Marktanalyse / Research" },
+    { value: "documentation-audit", label: "Dokumentation / Audit-Vorbereitung" },
+    { value: "procurement-vendor", label: "Beschaffung / Vendor-Auswahl" },
+  ],
+};
 
 const PLATFORMS: { value: TargetPlatform; label: string }[] = [
   { value: "azure", label: "Azure" },
@@ -51,7 +70,8 @@ export default function Understanding(): React.ReactElement {
   const id = params.id;
 
   const [project, setProject] = React.useState<Project | null>(null);
-  const [nature, setNature] = React.useState<ProjectNature | "">("");
+  const [ptype, setPtype] = React.useState<ProjectType | "">("");
+  const [psubtype, setPsubtype] = React.useState<ProjectSubtype | "">("");
   const [platform, setPlatform] = React.useState<TargetPlatform | "">("");
   const [summary, setSummary] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -63,7 +83,8 @@ export default function Understanding(): React.ReactElement {
       .getProject(id)
       .then((p) => {
         setProject(p);
-        setNature(p.project_nature ?? "");
+        setPtype(p.project_type ?? "");
+        setPsubtype(p.project_subtype ?? "");
         setPlatform(p.target_platform ?? "");
         setSummary(p.understanding_summary ?? "");
       })
@@ -80,7 +101,8 @@ export default function Understanding(): React.ReactElement {
     setSaved(false);
     try {
       const p = await api.updateUnderstanding(id, {
-        project_nature: nature || undefined,
+        project_type: ptype || undefined,
+        project_subtype: psubtype || undefined,
         target_platform: platform || undefined,
         understanding_summary: summary.trim() || undefined,
       });
@@ -132,21 +154,39 @@ export default function Understanding(): React.ReactElement {
 
       <div style={{ ...cardStyle, ...formStyle }}>
         <div>
-          <label htmlFor="nature" style={labelStyle}>
-            Projektart
-          </label>
+          <label style={labelStyle}>Projektart</label>
+          <div style={{ display: "flex", gap: "var(--sp-3)", marginBottom: "var(--sp-2)" }}>
+            {([
+              { v: "it", label: "IT-Projekt" },
+              { v: "non-it", label: "Non-IT-Projekt (z. B. Konzepte)" },
+            ] as const).map((o) => (
+              <label
+                key={o.v}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14,
+                  cursor: locked ? "default" : "pointer", fontWeight: ptype === o.v ? 600 : 400,
+                }}
+              >
+                <input
+                  type="radio"
+                  name="ptype"
+                  checked={ptype === o.v}
+                  disabled={locked || busy}
+                  onChange={() => { setPtype(o.v); setPsubtype(""); }}
+                />
+                {o.label}
+              </label>
+            ))}
+          </div>
           <select
-            id="nature"
-            value={nature}
-            onChange={(e) => setNature(e.target.value as ProjectNature)}
+            value={psubtype}
+            onChange={(e) => setPsubtype(e.target.value as ProjectSubtype)}
             style={inputStyle}
-            disabled={locked || busy}
+            disabled={locked || busy || !ptype}
           >
-            <option value="">— wählen —</option>
-            {NATURES.map((n) => (
-              <option key={n.value} value={n.value}>
-                {n.label}
-              </option>
+            <option value="">{ptype ? "— Unterart wählen —" : "erst Projektart wählen"}</option>
+            {(ptype ? SUBTYPES[ptype] : []).map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
         </div>
@@ -196,8 +236,8 @@ export default function Understanding(): React.ReactElement {
             <Button
               variant="accent"
               onClick={approve}
-              disabled={busy || !nature}
-              title={!nature ? "Projektart muss gesetzt sein" : undefined}
+              disabled={busy || !ptype}
+              title={!ptype ? "Projektart (IT/Non-IT) muss gesetzt sein" : undefined}
             >
               Verständnis freigeben (Gate 1)
             </Button>

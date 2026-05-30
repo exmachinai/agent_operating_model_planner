@@ -53,6 +53,9 @@ desktop.ini
 # ---------- Cowork session leftovers ----------
 .cowork/
 
+# ---------- Playwright / Claude-Browser-Debug-Artefakte ----------
+.playwright-mcp/
+
 # ---------- Build outputs ----------
 mcp/github-pat-mcp-server/dist/
 mcp/github-pat-mcp-server/node_modules/

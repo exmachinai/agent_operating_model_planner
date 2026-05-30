@@ -31,7 +31,7 @@ export default function Dashboard(): React.ReactElement {
   }, []);
 
   return (
-    <PageShell subtitle="Projekte">
+    <PageShell subtitle="Projekte" helpTopic="overview">
       <div style={titleRowStyle}>
         <h1>Projekte</h1>
         <Button onClick={() => router.push("/projects/new")}>

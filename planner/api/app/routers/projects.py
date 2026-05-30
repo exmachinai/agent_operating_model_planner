@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException
 
+from ..context import store as context_store
 from ..db.projects_repo import get_projects_repo
 from ..schemas.project import (
     CreateProjectRequest,
@@ -103,7 +104,19 @@ async def approve_understanding(project_id: str) -> Project:
         )
 
     now = datetime.now(timezone.utc)
+    # Gate 1 friert die Quellen-Nachweise ein (Hash-Snapshot, append-only)…
+    frozen = [
+        s.model_copy(update={"frozen_at": now}) if s.frozen_at is None else s
+        for s in project.context_sources
+    ]
     approved = project.model_copy(
-        update={"gate1_approved_at": now, "updated_at": now}
+        update={
+            "gate1_approved_at": now,
+            "updated_at": now,
+            "context_sources": frozen,
+        }
     )
-    return await repo.replace(approved)
+    result = await repo.replace(approved)
+    # …und verwirft den ephemeren Inhalts-Cache (nur Nachweis bleibt).
+    context_store.clear(project_id)
+    return result

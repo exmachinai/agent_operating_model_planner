@@ -54,6 +54,38 @@ Was das System tut · Ausgabe/Artefakt · Kontrollpunkt**.
 - **Ausgabe:** Strukturierte Annahmen + Vorschläge.
 - **Kontrollpunkt:** Jeder Vorschlag ist annehmbar, änderbar oder verwerfbar (Interview-Schleife).
 
+#### Schritt 2a — Zusätzlichen Kontext einspeisen (Datei-Upload / Cloud-Quelle)
+Neben dem Dialog kann der Anwender weiteren Kontext zur **Schärfung der Fragestellung**
+hinzufügen. Zwei Wege:
+- **Datei-Upload** (Phase A, in-App): `.docx`, `.md`, `.pdf`, `.txt`, `.pptx`, `.xlsx`.
+  Extrahiert werden **Fließtext und Tabellen**. Grenzen: **25 MB/Datei**, **max. 20
+  Dokumente/Projekt**; harte Obergrenze ist das **Token-Budget** an Foundry
+  (Cap ≈ **150 000 Tokens** geparster Text je Schärfungs-Runde, darüber Auswahl/Truncation).
+- **Cloud-Quelle** (Phase B, später): lebende OAuth-Anbindung an SharePoint/OneDrive/
+  Dropbox/Azure Blob, vor Gate 1 fortlaufend lesbar. Braucht App-Registrierung + Tenant-Secrets.
+
+> **Umsetzung (Spike).** Phase B ist als ehrlicher Connector-Scaffold angelegt:
+> `app/context/connectors.py` führt eine Registry der vier Anbieter mit Scopes und
+> benötigten Env-Vars. `GET …/context/cloud/providers` meldet je Anbieter `configured`
+> oder **`blocked`** samt fehlender Konfiguration; `POST …/context/cloud/connect`
+> hebt bis zur OAuth-App-Registrierung bewusst **501** mit klarer Begründung — kein
+> vorgetäuschter Halb-Connect. Die UI (Schritt 2) zeigt die Anbieter mit Status; die
+> echte OAuth-/Lese-Implementierung folgt, sobald Registrierungen + Secrets vorliegen.
+
+**Inhalt vs. Nachweis (Datenschutz, kritisch für AEGIRA):**
+- **Inhalt** ist **ephemer** — geparst, an Foundry zur Schärfung gegeben (ohne Redigierung),
+  danach **verworfen**; keine Persistenz der Bytes/Volltexte in Cosmos oder Blob. Damit ist
+  DSGVO-Art.-17 trivial (es existiert keine dauerhafte Kopie).
+- **Nachweis** ist **dauerhaft** — pro Quelle nur Metadaten als zitierbares Evidenz-Asset:
+  Dateiname, Herkunft/URI, **SHA-256-Hash**, Größe, Format, geschätzte Tokens, wer/wann.
+  Mandantenisoliert am Projekt.
+
+**Gate- & Reversibilitäts-Logik:** Quellen sind **vor Gate 1 frei hinzufügbar/entfernbar**
+und werden mit der Verständnis-Freigabe **eingefroren** (Hash-Snapshot, append-only) — der
+ephemere Inhalts-Cache wird beim Freeze geleert. Die eingefrorenen Quellen erscheinen im
+**ZGPM-Plan** und beim **Reviewer** als nachvollziehbare **Quellen-Referenz** (Buyer-Promise
+„evidence-based"). Geltungsbereich endet mit dem exportierten Harness.
+
 ### Schritt 3 — Projektverständnis & Agentenstruktur freigeben (VERSTEHEN)
 - **Ziel:** Eine pre-finale Zusammenfassung plus die Agenten, die den Plan bauen werden.
 - **Eingabe:** Korrekturen an Details.
@@ -96,6 +128,18 @@ Was das System tut · Ausgabe/Artefakt · Kontrollpunkt**.
 - **System:** Zeigt jede Änderung als Vorher/Nachher (DiffViewer) und versioniert sie.
 - **Ausgabe:** Neue, gültige Planversion (alte bleibt erhalten — Reversibilität).
 - **Kontrollpunkt:** **Gate 2.** Erst die Freigabe macht die Version zum gültigen Plan.
+
+> **Umsetzung (Spike).** Editierbar ist die fachliche Substanz — Meilenstein-Zustand
+> und -Termin, Aktivitäts-Beschreibung und Aufwand (PT), Risiko-Beschreibung,
+> Eintritt/Auswirkung und Maßnahme (PRL wie MRL). **Nicht** editierbar ist die
+> PVM-Struktur; sie bleibt den ZGPM-Regeln vorbehalten und wird vom Reviewer geprüft.
+> Ampeln setzt nicht der Anwender, sondern der Server leitet sie nach jeder Revision
+> neu ab (Risiko aus E×A → MRL → Meilenstein → Projekt). Jede gespeicherte Revision
+> ist eine neue, unveränderliche Version (`POST …/plan/revise`, append-only) mit
+> eigenem `plan_hash`; der Diff vergleicht die letzten beiden Versionen. Gate 2
+> (`POST …/approve-plan`) friert die freigegebene Version als Bauvorlage ein
+> (`gate2_approved_at`, `approved_plan_version`, Status `approved`) und sperrt weitere
+> Revisionen. Ein `HARD_FAIL` des Reviewers blockiert die Freigabe.
 
 ### Schritt 8 — Agent-Harness bauen & gestalten (BAUEN)
 - **Ziel:** Aus dem Plan wird ein lauffähiges Agententeam, visuell nachvollziehbar.

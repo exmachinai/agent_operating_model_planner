@@ -41,7 +41,7 @@ export default function NewProject(): React.ReactElement {
   }
 
   return (
-    <PageShell subtitle="Neues Projekt · Schritt 1">
+    <PageShell subtitle="Neues Projekt · Schritt 1" helpTopic="new">
       <h1 style={{ marginBottom: "var(--sp-2)" }}>Projekt beschreiben</h1>
       <p style={leadStyle}>
         Beschreibe dein Vorhaben formlos, in eigenen Worten — keine Struktur und

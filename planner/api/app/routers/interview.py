@@ -18,6 +18,7 @@ from typing import AsyncIterator
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
+from ..context import store as context_store
 from ..db.projects_repo import get_projects_repo
 from ..llm import interview_engine
 from ..schemas.interview import (
@@ -47,7 +48,9 @@ async def get_interview(project_id: str) -> InterviewState:
     project = await _load_project(project_id)
     transcript = _TRANSCRIPTS.setdefault(project_id, [])
     if not transcript:
-        opening, _ = interview_engine.next_turn(project, transcript)
+        opening, _ = interview_engine.next_turn(
+            project, transcript, context_store.combined(project_id)
+        )
         transcript.append(opening)
     done = bool(transcript) and not _can_continue(project)
     return InterviewState(project_id=project_id, transcript=transcript, done=done)
@@ -70,7 +73,9 @@ async def interview_turn(
 
     transcript = _TRANSCRIPTS.setdefault(project_id, [])
     transcript.append(InterviewMessage(role="user", content=req.message))
-    assistant_msg, done = interview_engine.next_turn(project, transcript)
+    assistant_msg, done = interview_engine.next_turn(
+        project, transcript, context_store.combined(project_id)
+    )
     transcript.append(assistant_msg)
 
     async def stream() -> AsyncIterator[bytes]:

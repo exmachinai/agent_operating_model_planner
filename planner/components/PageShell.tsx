@@ -7,12 +7,17 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { HelpButton } from "./HelpDrawer";
+import type { HelpTopic } from "../lib/help";
 
 export function PageShell({
   subtitle,
+  helpTopic,
   children,
 }: {
   subtitle: string;
+  /** Schaltet die kontextsensitive Hilfe für diese Seite frei. */
+  helpTopic?: HelpTopic;
   children: React.ReactNode;
 }): React.ReactElement {
   return (
@@ -31,6 +36,7 @@ export function PageShell({
             <div style={brandTaglineStyle}>Planner · {subtitle}</div>
           </div>
         </Link>
+        {helpTopic && <HelpButton topic={helpTopic} />}
       </header>
       {children}
     </main>

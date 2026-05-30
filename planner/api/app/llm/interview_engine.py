@@ -67,22 +67,37 @@ def _guess_platform(text: str) -> Suggestion:
 
 
 def next_turn(
-    project: Project, transcript: list[InterviewMessage]
+    project: Project,
+    transcript: list[InterviewMessage],
+    context_text: str = "",
 ) -> tuple[InterviewMessage, bool]:
-    """Liefert die nächste Assistenz-Runde und ob das Interview fertig ist."""
+    """Liefert die nächste Assistenz-Runde und ob das Interview fertig ist.
+
+    `context_text` ist der ephemer geparste Volltext hochgeladener Quellen
+    (Schritt 2a) — er fließt in die Hypothesenbildung ein, wird aber nie
+    persistiert.
+    """
     answers = sum(1 for m in transcript if m.role == "user")
     text = _user_text(transcript)
+    # Korpus für Hypothesen: Antworten + hochgeladener Kontext (ephemer).
+    corpus = (text + " " + context_text.lower()).strip()
 
     if answers == 0:
+        ctx_note = (
+            "\n\n(Ich beziehe deine hochgeladenen Kontext-Quellen in die "
+            "Schärfung ein.)"
+            if context_text.strip()
+            else ""
+        )
         msg = (
             f"Lass uns „{project.title}“ schärfen. Eine Frage nach der anderen.\n\n"
             "Was soll am Ende konkret vorliegen — ein laufendes System, ein "
-            "Dokumenten-/Methodik-Ergebnis, oder beides?"
+            "Dokumenten-/Methodik-Ergebnis, oder beides?" + ctx_note
         )
         return InterviewMessage(role="assistant", content=msg), False
 
     if answers == 1:
-        nature = _guess_nature(text)
+        nature = _guess_nature(corpus)
         msg = (
             "Verstanden. Hypothese zur Projektart (bitte bestätigen oder korrigieren):\n\n"
             f"→ **{nature.label}**\n\n"
@@ -91,7 +106,7 @@ def next_turn(
         return InterviewMessage(role="assistant", content=msg, suggestions=[nature]), False
 
     if answers == 2:
-        platform = _guess_platform(text)
+        platform = _guess_platform(corpus)
         msg = (
             "Danke. Daraus leite ich die Zielplattform ab:\n\n"
             f"→ **{platform.label}**\n\n"

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./styles/tokens.css";
 import { FAVICON_DATA_URI } from "../lib/brand-logo";
+import { LockProvider } from "../lib/lockProvider";
 
 export const metadata: Metadata = {
   title: "AEGIRA — Agent Operating Model Planner",
@@ -27,7 +28,9 @@ export default function RootLayout({
 }): React.ReactElement {
   return (
     <html lang="de">
-      <body>{children}</body>
+      <body>
+        <LockProvider>{children}</LockProvider>
+      </body>
     </html>
   );
 }

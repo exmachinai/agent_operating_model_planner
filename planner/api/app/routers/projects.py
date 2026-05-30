@@ -59,6 +59,20 @@ async def get_project(project_id: str) -> Project:
     return project
 
 
+@router.delete("/{project_id}", status_code=204)
+async def delete_project(project_id: str) -> None:
+    """Schritt 4 — Projekt löschen (Verwaltung).
+
+    Hard-Delete im `projects`-Container; der ephemere Context-Cache wird
+    mitgeräumt. Zugehörige `plans`/`sessions` bleiben vorerst bestehen
+    (append-only Audit-Spur) — Kaskaden-Löschung ist Phase-2-Beta.
+    """
+    deleted = await get_projects_repo().delete(project_id, _STUB_TENANT)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="project not found")
+    context_store.clear(project_id)
+
+
 @router.patch("/{project_id}/understanding", response_model=Project)
 async def update_understanding(
     project_id: str, req: UpdateUnderstandingRequest

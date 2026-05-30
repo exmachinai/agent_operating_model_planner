@@ -15,10 +15,12 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Response
 
 from ..context import store as context_store
+from ..db.harness_repo import get_harness_repo
 from ..db.projects_repo import get_projects_repo
 from ..schemas.project import (
     CreateProjectRequest,
     Project,
+    UpdateProjectRequest,
     UpdateUnderstandingRequest,
 )
 
@@ -71,7 +73,64 @@ async def delete_project(project_id: str) -> Response:
     if not deleted:
         raise HTTPException(status_code=404, detail="project not found")
     context_store.clear(project_id)
+    await get_harness_repo().delete(project_id)
     return Response(status_code=204)
+
+
+@router.patch("/{project_id}", response_model=Project)
+async def update_project(project_id: str, req: UpdateProjectRequest) -> Project:
+    """Schritt 4 — Titel/Beschreibung ändern (Rename), nur vor Gate 1.
+
+    Nach Gate 1 ist das Vorhaben fixiert (analog `update_understanding`): der
+    Titel ist Teil der eingefrorenen Identität und der Evidenzkette.
+    """
+    repo = get_projects_repo()
+    project = await repo.get(project_id, _STUB_TENANT)
+    if project is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    if project.gate1_approved_at is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Projekt nach Gate 1 fixiert — Titel/Beschreibung gesperrt.",
+        )
+    patch = req.model_dump(exclude_unset=True)
+    if not patch:
+        return project
+    updated = project.model_copy(
+        update={**patch, "updated_at": datetime.now(timezone.utc)}
+    )
+    return await repo.replace(updated)
+
+
+@router.post("/{project_id}/duplicate", response_model=Project, status_code=201)
+async def duplicate_project(project_id: str) -> Project:
+    """Schritt 4 — Projekt als Vorlage duplizieren.
+
+    Kopiert Titel/Beschreibung in ein frisches Projekt im Status `planning`; alle
+    Gates sind zurückgesetzt. Quellen-Nachweise werden mitkopiert (Hash bleibt),
+    aber als *nicht* eingefroren (`frozen_at=None`) — die Kopie startet neu.
+    """
+    repo = get_projects_repo()
+    source = await repo.get(project_id, _STUB_TENANT)
+    if source is None:
+        raise HTTPException(status_code=404, detail="project not found")
+
+    now = datetime.now(timezone.utc)
+    copied_sources = [
+        s.model_copy(update={"frozen_at": None, "added_at": now})
+        for s in source.context_sources
+    ]
+    copy = Project(
+        id="prj_" + uuid.uuid4().hex[:12],
+        tenantId=_STUB_TENANT,
+        owner_user_id=_STUB_USER,
+        title=f"{source.title} (Kopie)",
+        description=source.description,
+        created_at=now,
+        updated_at=now,
+        context_sources=copied_sources,
+    )
+    return await repo.create(copy)
 
 
 @router.patch("/{project_id}/understanding", response_model=Project)

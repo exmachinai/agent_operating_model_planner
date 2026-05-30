@@ -197,6 +197,8 @@ export default function ReviewPage(): React.ReactElement {
   const [versions, setVersions] = React.useState<Plan[]>([]);
   const [draft, setDraft] = React.useState<Draft | null>(null);
   const [note, setNote] = React.useState("");
+  // WP-6 — aktiver Suffizienz-Entscheidungspunkt vor Gate 2 (kein stiller Übergang).
+  const [sufficient, setSufficient] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -520,6 +522,36 @@ export default function ReviewPage(): React.ReactElement {
         </div>
       ) : null}
 
+      {/* WP-6 — Suffizienz-Entscheidung vor Gate 2 */}
+      {!frozen ? (
+        <div
+          style={{
+            ...cardStyle,
+            marginBottom: "var(--sp-4)",
+            borderColor: sufficient ? "var(--c-green)" : "var(--c-gold)",
+          }}
+        >
+          <div style={sectionLabel}>Reicht der Planungsstand?</div>
+          <p style={{ ...subMetaStyle, marginTop: 0 }}>
+            Bevor du freigibst, entscheide bewusst: Ist der Plan reif für die
+            Bauvorlage — oder willst du ihn noch verfeinern? Kein stiller Übergang
+            in die Freigabe.
+          </p>
+          <label style={{ display: "flex", gap: "var(--sp-2)", alignItems: "flex-start", fontSize: 14 }}>
+            <input
+              type="checkbox"
+              checked={sufficient}
+              disabled={dirty}
+              onChange={(e) => setSufficient(e.target.checked)}
+            />
+            <span>
+              Der Planungsstand reicht für die Freigabe (Gate 2).
+              {dirty ? " — erst offene Änderungen speichern." : ""}
+            </span>
+          </label>
+        </div>
+      ) : null}
+
       <div style={actionsStyle}>
         <Button variant="secondary" onClick={() => router.push(`/projects/${id}/plan`)}>
           Zurück zum Plan
@@ -533,20 +565,22 @@ export default function ReviewPage(): React.ReactElement {
           <Button
             variant="accent"
             onClick={approve}
-            disabled={busy || dirty || hardFail}
+            disabled={busy || dirty || hardFail || !sufficient}
             title={
               hardFail
                 ? "HARD_FAIL — Plan zuerst überarbeiten"
                 : dirty
                   ? "Erst Änderungen speichern"
-                  : "Plan freigeben (Gate 2)"
+                  : !sufficient
+                    ? "Suffizienz oben bestätigen"
+                    : "Plan freigeben (Gate 2)"
             }
           >
             Freigeben (Gate 2)
           </Button>
         ) : (
-          <Button variant="accent" onClick={() => router.push("/")}>
-            Zur Übersicht
+          <Button variant="accent" onClick={() => router.push(`/projects/${id}/harness`)}>
+            Weiter zum Harness (Schritt 8)
           </Button>
         )}
       </div>

@@ -341,3 +341,32 @@ shasum -a 256 -c checksums.txt   # macOS/Linux
 ```
 
 Plattform-spezifische Kommandos in `INSTALL.md` §5.
+
+## API-Endpunkte (implementiert, WP-1)
+
+Der Compiler (`planner/api/app/harness/compiler.py`) ist über den Router
+`planner/api/app/routers/harness.py` angebunden (Prefix `/v1/projects`):
+
+| Methode | Pfad | Zweck |
+|---|---|---|
+| `POST` | `/{id}/harness` | Schritt 8 — kompiliert den freigegebenen Plan (nur nach Gate 2) zu einem Harness-Graph (`draft`). |
+| `GET` | `/{id}/harness` | Aktueller Graph: Agenten, Knoten, HITL-Punkte, Befunde, Artefakt-Liste. |
+| `POST` | `/{id}/harness/revise` | Kommando `sequence \| parallel \| skill \| agent` (Agent-CRUD via `op`); neue Iteration, max. 25 (kein Endlos-Loop). |
+| `POST` | `/{id}/harness/approve` | **Gate 3** — friert den Harness ein (`compiled`), berechnet Zip-Hash, `status="compiled"`. |
+| `GET` | `/{id}/harness/download` | Signiertes `.harness.zip` als `StreamingResponse`. |
+
+Der Graph wird in einem eigenen Container (`harness`, PartitionKey `/projectId`,
+ein Dokument je Projekt) persistiert; das Zip wird beim Download deterministisch
+neu kompiliert (gleicher Graph → gleicher Zip-Hash). Akzeptanz: `shasum -a 256
+-c checksums.txt` ist grün, das Zip enthält `CLAUDE.md`, `HANDOVER.md`,
+`.claude/agents/*` und den Plan unter `plan/`.
+
+## Cloud-Quellen — Dropbox real (WP-5)
+
+Nur **Dropbox** ist real implementiert (`context/connectors.py`,
+`DropboxConnector`, Scoped App + Refresh-Token-Flow). Endpunkt
+`POST /{id}/context/cloud/dropbox/import?path=…` listet einen Ordner, parst die
+unterstützten Formate ephemer (gleicher Pfad wie der Upload) und legt je Datei
+einen Quellen-Nachweis (Name + Hash, `origin="cloud"`) ans Projekt. Ohne die
+Env-Vars `DROPBOX_APP_KEY/SECRET/REFRESH_TOKEN` bleibt der Provider ehrlich
+`blocked` (501). SharePoint/OneDrive/Azure-Blob bleiben bewusst blockiert.

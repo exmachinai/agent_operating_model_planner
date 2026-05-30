@@ -15,6 +15,13 @@ import { useParams, useRouter } from "next/navigation";
 import { PageShell } from "../../../../components/PageShell";
 import { Button, cardStyle } from "../../../../components/ui";
 import {
+  GanttChart,
+  RaciMatrix,
+  RiskHeatmap,
+  TokenLiveCounter,
+  UtilizationBars,
+} from "../../../../components/PlanViews";
+import {
   api,
   ApiError,
   type Plan,
@@ -244,69 +251,40 @@ export default function PlanPage(): React.ReactElement {
         ))}
       </div>
 
+      {/* Gantt — Zeitachse */}
+      <div style={sectionLabel}>Zeitplan (Gantt)</div>
+      <div style={{ ...cardStyle, marginBottom: "var(--sp-6)" }}>
+        <GanttChart plan={plan} />
+      </div>
+
+      {/* RACI / PVM-Matrix */}
+      <div style={sectionLabel}>Verantwortlichkeiten (PVM-Matrix)</div>
+      <div style={{ ...cardStyle, marginBottom: "var(--sp-6)" }}>
+        <RaciMatrix plan={plan} />
+      </div>
+
       <div style={twoColStyle}>
-        {/* Risk-Matrix (PRL) */}
+        {/* Risk-Heatmap (PRL + MRL) */}
         <div style={cardStyle}>
-          <div style={sectionLabel}>Projektrisiken (PRL)</div>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={thStyle}>Risiko</th>
-                <th style={thNumStyle}>E×A</th>
-                <th style={thNumStyle}>Ampel</th>
-              </tr>
-            </thead>
-            <tbody>
-              {plan.prl.map((r) => (
-                <tr key={r.id}>
-                  <td style={tdStyle} title={r.mitigation}>
-                    {r.description}
-                  </td>
-                  <td style={tdNumStyle}>
-                    {r.probability}×{r.impact}
-                  </td>
-                  <td style={tdNumStyle}>
-                    <span
-                      style={{ ...dotSmStyle, backgroundColor: AMPEL_COLOR[r.ampel] }}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div style={sectionLabel}>Risiko-Heatmap (P×A)</div>
+          <RiskHeatmap plan={plan} />
         </div>
 
-        {/* Token-Budget */}
+        {/* Token-Live-Zähler */}
         <div style={cardStyle}>
-          <div style={sectionLabel}>Token-Budget je Agent</div>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={thStyle}>Agent · Knoten</th>
-                <th style={thNumStyle}>Tokens</th>
-              </tr>
-            </thead>
-            <tbody>
-              {plan.token_budget.map((t) => (
-                <tr key={t.agent}>
-                  <td style={tdStyle}>
-                    {t.agent} <span style={metaStyle}>· {t.node}</span>
-                  </td>
-                  <td style={tdNumStyle}>{t.tokens_estimated.toLocaleString("de-DE")}</td>
-                </tr>
-              ))}
-              <tr>
-                <td style={{ ...tdStyle, fontWeight: 700 }}>Summe</td>
-                <td style={{ ...tdNumStyle, fontWeight: 700 }}>
-                  {totalTokens.toLocaleString("de-DE")}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <div style={sectionLabel}>Token-Budget je Agent (laufende Summe)</div>
+          <TokenLiveCounter plan={plan} />
           <div style={subMetaStyle}>
-            Geschätzter Gesamtaufwand: {totalEffort} Personentage.
+            Geschätzter Gesamtaufwand: {totalEffort} Personentage ·{" "}
+            {totalTokens.toLocaleString("de-DE")} Token gesamt.
           </div>
         </div>
+      </div>
+
+      {/* Auslastung je Agent */}
+      <div style={sectionLabel}>Auslastung je Agent (Aufwand PT)</div>
+      <div style={{ ...cardStyle, marginBottom: "var(--sp-4)" }}>
+        <UtilizationBars plan={plan} />
       </div>
 
       {plan.evidence_sources.length > 0 ? (
@@ -455,34 +433,6 @@ const twoColStyle: React.CSSProperties = {
   gridTemplateColumns: "1fr 1fr",
   gap: "var(--sp-3)",
   marginBottom: "var(--sp-4)",
-};
-
-const tableStyle: React.CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse",
-  fontSize: 13,
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "var(--sp-1) var(--sp-2)",
-  borderBottom: "1px solid var(--c-border)",
-  color: "var(--c-text-muted)",
-  fontWeight: 600,
-};
-
-const thNumStyle: React.CSSProperties = { ...thStyle, textAlign: "right" };
-
-const tdStyle: React.CSSProperties = {
-  padding: "var(--sp-1) var(--sp-2)",
-  borderBottom: "1px solid var(--c-border)",
-  verticalAlign: "top",
-};
-
-const tdNumStyle: React.CSSProperties = {
-  ...tdStyle,
-  textAlign: "right",
-  whiteSpace: "nowrap",
 };
 
 const plainListStyle: React.CSSProperties = {

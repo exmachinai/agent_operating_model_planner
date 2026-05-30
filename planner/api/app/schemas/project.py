@@ -48,6 +48,16 @@ class CreateProjectRequest(BaseModel):
     description: str = Field(default="", max_length=4000)
 
 
+class UpdateProjectRequest(BaseModel):
+    """Schritt 4 — Titel/Beschreibung ändern (Rename), nur vor Gate 1.
+
+    Beide Felder optional, damit Titel und Beschreibung einzeln änderbar sind.
+    """
+
+    title: str | None = Field(default=None, min_length=3, max_length=200)
+    description: str | None = Field(default=None, max_length=4000)
+
+
 class UpdateUnderstandingRequest(BaseModel):
     """Schritt 3 — Projektverständnis schärfen (vor Gate 1).
 
@@ -80,6 +90,9 @@ class Project(BaseModel):
     # Gate 2 — Plan-Freigabe (Schritt 7). Friert die freigegebene Planversion ein.
     gate2_approved_at: datetime | None = None
     approved_plan_version: int | None = None
+    # Gate 3 — Harness-Freigabe (Schritt 9). Friert den kompilierten Harness ein.
+    gate3_approved_at: datetime | None = None
+    harness_zip_sha256: str | None = None
     # Schritt 2a — zitierbare Quellen-Nachweise (Inhalt ephemer, Nachweis dauerhaft).
     context_sources: list[ContextSource] = Field(default_factory=list)
 

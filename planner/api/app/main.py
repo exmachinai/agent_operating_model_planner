@@ -25,6 +25,7 @@ from .routers import (
     cloud,
     guardrails,
     plans,
+    harness,
     sessions,
     hitl,
 )
@@ -83,6 +84,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(cloud.router, prefix="/v1/projects", tags=["cloud"])
     app.include_router(guardrails.router, prefix="/v1/projects", tags=["guardrails"])
     app.include_router(plans.router, prefix="/v1/projects", tags=["plans"])
+    app.include_router(harness.router, prefix="/v1/projects", tags=["harness"])
     app.include_router(sessions.router, prefix="/v1/sessions", tags=["sessions"])
     app.include_router(hitl.router, prefix="/v1", tags=["hitl"])
 

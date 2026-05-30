@@ -152,6 +152,10 @@ async def update_understanding(
         )
 
     patch = req.model_dump(exclude_unset=True)
+    # v0.4 — Projekt-Taxonomie steuert die abgeleitete project_nature
+    # (it→technical, non-it→concept), solange nicht explizit gesetzt.
+    if "project_type" in patch and "project_nature" not in patch:
+        patch["project_nature"] = "technical" if patch["project_type"] == "it" else "concept"
     updated = project.model_copy(
         update={**patch, "updated_at": datetime.now(timezone.utc)}
     )

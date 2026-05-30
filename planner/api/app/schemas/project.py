@@ -14,7 +14,20 @@ TargetPlatform = Literal[
 ]
 ProjectStatus = Literal["planning", "reviewing", "approved", "compiled", "archived"]
 
-ContextFormat = Literal["docx", "md", "pdf", "txt", "pptx", "xlsx"]
+# v0.4 — Projekt-Taxonomie: Top-Level-Radio + Subtyp (docs/11). `project_nature`
+# bleibt abgeleitet (it→technical, non-it→concept) für Downstream-Kompatibilität.
+ProjectType = Literal["it", "non-it"]
+ProjectSubtype = Literal[
+    # IT
+    "software-app", "ai-ml-agentic", "data-analytics", "cloud-infra",
+    "integration", "cybersecurity", "prototype-mvp", "automation-rpa",
+    # Non-IT
+    "concept-strategy", "compliance-governance", "org-change", "process-design",
+    "enablement", "market-research", "documentation-audit", "procurement-vendor",
+]
+
+# v0.4 — Bilder als Quelle erlaubt (Nachweis Name+Hash, kein Text-Parsing).
+ContextFormat = Literal["docx", "md", "pdf", "txt", "pptx", "xlsx", "image"]
 ContextOrigin = Literal["upload", "cloud"]
 
 
@@ -64,6 +77,8 @@ class UpdateUnderstandingRequest(BaseModel):
     Alle Felder optional: erlaubt partielles Setzen während des Interviews.
     """
 
+    project_type: ProjectType | None = None
+    project_subtype: ProjectSubtype | None = None
     project_nature: ProjectNature | None = None
     target_platform: TargetPlatform | None = None
     understanding_summary: str | None = Field(default=None, max_length=8000)
@@ -75,6 +90,8 @@ class Project(BaseModel):
     owner_user_id: str
     title: str
     description: str = ""
+    project_type: ProjectType | None = None
+    project_subtype: ProjectSubtype | None = None
     project_nature: ProjectNature | None = None
     target_platform: TargetPlatform | None = None
     understanding_summary: str | None = None

@@ -12,7 +12,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 
 from ..context import store as context_store
 from ..db.projects_repo import get_projects_repo
@@ -59,8 +59,8 @@ async def get_project(project_id: str) -> Project:
     return project
 
 
-@router.delete("/{project_id}", status_code=204)
-async def delete_project(project_id: str) -> None:
+@router.delete("/{project_id}", status_code=204, response_class=Response)
+async def delete_project(project_id: str) -> Response:
     """Schritt 4 — Projekt löschen (Verwaltung).
 
     Hard-Delete im `projects`-Container; der ephemere Context-Cache wird
@@ -71,6 +71,7 @@ async def delete_project(project_id: str) -> None:
     if not deleted:
         raise HTTPException(status_code=404, detail="project not found")
     context_store.clear(project_id)
+    return Response(status_code=204)
 
 
 @router.patch("/{project_id}/understanding", response_model=Project)

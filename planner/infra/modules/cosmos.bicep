@@ -27,6 +27,9 @@ param cmkKeyUri string
 param userAssignedMiId string
 param privateEndpointSubnetId string
 
+@description('VNet ID used to link the private DNS zone so the document endpoint resolves to the private IP.')
+param vnetId string
+
 @description('Default consistency level. "Session" recommended for SaaS workloads.')
 param consistencyLevel string = 'Session'
 
@@ -170,6 +173,42 @@ resource pe 'Microsoft.Network/privateEndpoints@2024-05-01' = {
           privateLinkServiceId: cosmos.id
           groupIds: [ 'Sql' ]
         }
+      }
+    ]
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Private DNS — so cosmos-*.documents.azure.com resolves to the private IP.
+// Without this the endpoint resolves to the public IP and Cosmos (public access
+// Disabled) blocks the request with "Forbidden ... through public internet".
+// -----------------------------------------------------------------------------
+
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
+  name: 'privatelink.documents.azure.com'
+  location: 'global'
+  tags: tags
+}
+
+resource dnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
+  parent: privateDnsZone
+  name: 'link-${accountName}'
+  location: 'global'
+  tags: tags
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: { id: vnetId }
+  }
+}
+
+resource dnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = {
+  parent: pe
+  name: 'default'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'documents'
+        properties: { privateDnsZoneId: privateDnsZone.id }
       }
     ]
   }

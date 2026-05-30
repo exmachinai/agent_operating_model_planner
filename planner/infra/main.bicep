@@ -156,6 +156,7 @@ module keyvault 'modules/keyvault.bicep' = {
     tags: tags
     keyVaultName: 'kv-${resourcePrefix}-shared-${environment}'
     privateEndpointSubnetId: networking.outputs.privateEndpointSubnetId
+    vnetId: networking.outputs.vnetId
     userAssignedMiPrincipalId: reference(userAssignedMiId, '2024-11-30').principalId
     skuName: isProd ? 'premium' : 'standard'
   }
@@ -173,6 +174,7 @@ module cosmos 'modules/cosmos.bicep' = {
     cmkKeyUri: keyvault.outputs.cosmosCmkKeyUri
     userAssignedMiId: userAssignedMiId
     privateEndpointSubnetId: networking.outputs.privateEndpointSubnetId
+    vnetId: networking.outputs.vnetId
     costTier: costTier
   }
   // Implicit dependency on keyvault via cmkKeyUri output reference.
@@ -190,6 +192,7 @@ module storage 'modules/storage.bicep' = {
     cmkKeyUri: keyvault.outputs.storageCmkKeyUri
     userAssignedMiId: userAssignedMiId
     privateEndpointSubnetId: networking.outputs.privateEndpointSubnetId
+    vnetId: networking.outputs.vnetId
     skuName: isProd ? 'Standard_RAGRS' : 'Standard_LRS'
   }
   // Implicit dependency on keyvault via cmkKeyUri output reference.
@@ -233,6 +236,10 @@ module backendApi 'modules/containerApp.bicep' = {
     maxReplicas: 3
     envVars: [
       { name: 'APP_ENV', value: environment }
+      // Tells DefaultAzureCredential which user-assigned MI to use. Without this
+      // the SDK cannot load the proper managed identity and Cosmos/Storage/KV
+      // token acquisition fails ("Unable to load the proper Managed Identity").
+      { name: 'AZURE_CLIENT_ID', value: reference(userAssignedMiId, '2024-11-30').clientId }
       { name: 'COSMOS_ENDPOINT', value: cosmos.outputs.endpoint }
       { name: 'COSMOS_DATABASE', value: 'planner' }
       { name: 'STORAGE_ACCOUNT_NAME', value: storage.outputs.accountName }

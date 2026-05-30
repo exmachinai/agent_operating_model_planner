@@ -19,6 +19,9 @@ param tags object
 param keyVaultName string
 param privateEndpointSubnetId string
 
+@description('VNet ID used to link the private DNS zone so the vault endpoint resolves to the private IP.')
+param vnetId string
+
 @description('Principal ID of the User-Assigned MI used by Container Apps + Functions')
 param userAssignedMiPrincipalId string
 
@@ -142,6 +145,41 @@ resource pe 'Microsoft.Network/privateEndpoints@2024-05-01' = {
           privateLinkServiceId: kv.id
           groupIds: [ 'vault' ]
         }
+      }
+    ]
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Private DNS — so the vault endpoint resolves to the private IP (public access
+// is Disabled on the vault).
+// -----------------------------------------------------------------------------
+
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
+  name: 'privatelink.vaultcore.azure.net'
+  location: 'global'
+  tags: tags
+}
+
+resource dnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
+  parent: privateDnsZone
+  name: 'link-${keyVaultName}'
+  location: 'global'
+  tags: tags
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: { id: vnetId }
+  }
+}
+
+resource dnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = {
+  parent: pe
+  name: 'default'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'vault'
+        properties: { privateDnsZoneId: privateDnsZone.id }
       }
     ]
   }

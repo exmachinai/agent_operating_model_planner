@@ -74,6 +74,27 @@ class ArtifactRef(BaseModel):
     size_bytes: int = Field(ge=0)
 
 
+class HarnessFile(BaseModel):
+    """Eine entpackte Harness-Datei (Pfad relativ zum Root) mit Textinhalt."""
+
+    path: str
+    content: str
+
+
+class HarnessFileMap(BaseModel):
+    """Entpackte Repräsentation des Harness — für den „Speichern unter"-Export.
+
+    Spiegelt exakt die Zip (`build_file_map`): gleiche Dateien (inkl.
+    `checksums.txt`), gleiche Hashes. `root` ist der Ordnername (`<slug>`), unter
+    den die Dateien beim entpackten Speichern gelegt werden.
+    """
+
+    root: str
+    zip_name: str
+    zip_sha256: str | None = None
+    files: list[HarnessFile]
+
+
 class HarnessFinding(BaseModel):
     """Sichtbarer Compiler-/Anti-Muster-Befund (docs/04)."""
 

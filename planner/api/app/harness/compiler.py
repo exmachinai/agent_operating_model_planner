@@ -499,17 +499,17 @@ def _kind_for(path: str) -> str:
     return "doc"
 
 
-def build_zip(
+def build_file_map(
     graph: HarnessGraph, plan: Plan, project: Project
-) -> tuple[bytes, list[ArtifactRef], str]:
-    """Baut das signierte Harness-Zip; gibt (Zip-Bytes, Artefakt-Liste, Zip-SHA-256).
+) -> tuple[dict[str, str], list[ArtifactRef]]:
+    """Komplette Harness-Dateien (Pfad → Inhalt) inkl. `checksums.txt` + Artefakte.
 
-    Jede Datei liegt unter `<slug>/…`. `checksums.txt` enthält SHA-256 aller
-    Dateien (shasum-Format); der Gesamt-Hash deckt das fertige Zip ab.
+    Geteilte Basis für den **gepackten** Export (`build_zip`) und den **entpackten**
+    Export (`GET /harness/files`) — so bleiben Dateien und Hashes bit-identisch,
+    und `shasum -c checksums.txt` gilt für Zip wie Ordner gleichermaßen.
+    `checksums.txt` listet alle übrigen Dateien (nicht sich selbst).
     """
     files = build_files(graph, plan, project)
-    root = graph.zip_name.replace(".harness.zip", "")
-
     artifacts: list[ArtifactRef] = []
     checksum_lines: list[str] = []
     for path in sorted(files):
@@ -520,6 +520,19 @@ def build_zip(
         )
         checksum_lines.append(f"{digest}  {path}")
     files["checksums.txt"] = "\n".join(checksum_lines) + "\n"
+    return files, artifacts
+
+
+def build_zip(
+    graph: HarnessGraph, plan: Plan, project: Project
+) -> tuple[bytes, list[ArtifactRef], str]:
+    """Baut das signierte Harness-Zip; gibt (Zip-Bytes, Artefakt-Liste, Zip-SHA-256).
+
+    Jede Datei liegt unter `<slug>/…`. `checksums.txt` enthält SHA-256 aller
+    Dateien (shasum-Format); der Gesamt-Hash deckt das fertige Zip ab.
+    """
+    files, artifacts = build_file_map(graph, plan, project)
+    root = graph.zip_name.replace(".harness.zip", "")
 
     buf = io.BytesIO()
     # Deterministisch: feste Reihenfolge + fixe Zeitstempel → stabiler Zip-Hash.

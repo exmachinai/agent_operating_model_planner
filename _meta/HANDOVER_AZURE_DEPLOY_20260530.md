@@ -1,11 +1,23 @@
 # HANDOVER → Claude Code (neue Session) — Produktiv-Deploy zgpm.aegira.ai
 
-**Repo:** `50_APPS/20_AGENT_OPERATING_MODEL_PLANNER` (Zone 3) · **Stand:** 2026-05-30
-**Branch mit aktuellem Code:** `main` (PR #21 gemergt) + offener PR `claude/lockscreen-deploy-EHpW2` (Lockscreen + CI-Workflow)
+**Repo:** `50_APPS/20_AGENT_OPERATING_MODEL_PLANNER` (Zone 3) · **Stand:** 2026-05-30 (rev. 2)
 
 > Diese Datei in einer **neuen Claude-Code-Session mit Azure-Zugang** öffnen und
-> abarbeiten. Die aktuelle Build-/Web-Session hatte **kein** `az`/Docker/Azure-Netz
-> — daher konnte nicht deployt werden. Code, Tests und User Guide sind fertig.
+> abarbeiten. Die Build-/Web-Session hatte **kein** `az`/Docker/Azure-Netz — daher
+> konnte nicht deployt werden. Code, Tests und User Guide sind fertig.
+
+## Aktueller Lieferstand (vor dem Deploy)
+
+| Artefakt | Stand |
+|---|---|
+| **PR #21** (Phase BAUEN: Harness/Export, Plan-UX, Projekt-CRUD, Dropbox, Suffizienz-Gate) | ✅ in `main` gemergt |
+| **PR #22** (`claude/lockscreen-deploy-EHpW2`): aktiver Idle-Lockscreen, **dieser Deploy-Workflow** `.github/workflows/deploy.yml`, finaler User Guide (23-Folien-PPTX) | 🟡 **offen — zuerst mergen** |
+| User Guide | ✅ `user_guides/AEGIRA_Planner_User_Guide.pptx` (echte Screens, Dropbox-/Lockscreen-Sektion) |
+| Prod `zgpm.aegira.ai` | 🔻 down (`ERR_SOCKET_NOT_CONNECTED`) — vor Go-Live diagnostizieren (§4) |
+
+**Reihenfolge:** (1) PR #22 nach grünem CI **mergen** → `main` enthält dann Lockscreen +
+Deploy-Workflow. (2) OIDC-Secrets/Environment setzen (siehe Workflow-Kopf). (3) Deploy
+(Weg A oder B). (4) Prod-Ausfall verifizieren/fixen (§4). (5) Akzeptanz (§5).
 
 ---
 

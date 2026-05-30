@@ -177,6 +177,23 @@ export function HarnessCanvas({
     );
   }
 
+  // v0.4.3 — globale Modell-Strategie auf alle Agenten anwenden (ein Backend-Schritt).
+  function setStrategy(strategy: "balanced" | "economy" | "premium"): void {
+    void run(() => api.reviseHarness(id, { command: "model-strategy", strategy }), "Modell-Strategie angewandt ✓");
+  }
+  // Aktive Strategie aus den Modellen ableiten (für die Hervorhebung).
+  const nonHitl = graph.agents.filter((a) => a.kind !== "hitl" && a.model !== "human");
+  const allSonnet = nonHitl.length > 0 && nonHitl.every((a) => a.model.includes("sonnet"));
+  const allOpus = nonHitl.length > 0 && nonHitl.every((a) => a.model.includes("opus"));
+  const balanced = nonHitl.length > 0 && nonHitl.every((a) =>
+    a.kind === "orchestrator" ? a.model.includes("opus") : a.model.includes("sonnet"));
+  const activeStrategy = allSonnet ? "economy" : allOpus ? "premium" : balanced ? "balanced" : "custom";
+  const STRATEGIES: { id: "balanced" | "economy" | "premium"; label: string; hint: string }[] = [
+    { id: "balanced", label: "Ausgewogen", hint: "Opus-Orchestrator + Sonnet-Worker (Standard)" },
+    { id: "economy", label: "Sparsam", hint: "alles Sonnet — günstigster Lauf" },
+    { id: "premium", label: "Premium", hint: "alles Opus — höchste Qualität, teuerster Lauf" },
+  ];
+
   // Palette nach Klasse gruppiert (vorhandene ausgrauen).
   const present = new Set(graph.agents.map((a) => a.name));
 
@@ -191,12 +208,48 @@ export function HarnessCanvas({
         <Kpi label="Modus" valueText={graph.nodes.some((n) => n.kind === "router") ? "Handoff" : "Manager"} />
       </div>
 
-      <div style={layoutGrid}>
+      {/* v0.4.3 — Modus-Erklärung (war nicht selbsterklärend). */}
+      <p style={hintStyle}>
+        <strong>Modus:</strong>{" "}
+        {graph.nodes.some((n) => n.kind === "router")
+          ? "Handoff — ein Router/Triage-Agent klassifiziert und reicht an den passenden Spezialisten weiter."
+          : "Manager — ein Orchestrator zerlegt das Vorhaben, delegiert an Worker und synthetisiert (Standard)."}{" "}
+        Wechseln: den <em>Router/Triage-Agent</em> aus der Palette in eine Stage ziehen (= Handoff) bzw. entfernen (= Manager).
+      </p>
+
+      {/* v0.4.3 — globale Modell-Strategie statt fixer Pro-Agent-Badges. */}
+      {!frozen ? (
+        <div style={strategyRow}>
+          <span style={{ ...miniLabel, marginBottom: 0 }}>Modell-Strategie:</span>
+          {STRATEGIES.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              disabled={busy}
+              onClick={() => setStrategy(s.id)}
+              title={s.hint}
+              style={{
+                ...strategyBtn,
+                ...(activeStrategy === s.id ? strategyBtnActive : {}),
+              }}
+            >
+              {s.label}
+            </button>
+          ))}
+          <span style={hintStyle}>
+            {activeStrategy === "custom"
+              ? "aktuell: gemischt (pro Agent im Detail überschrieben)"
+              : `aktiv: ${STRATEGIES.find((s) => s.id === activeStrategy)?.hint}`}
+          </span>
+        </div>
+      ) : null}
+
+      <div style={layoutGrid(frozen)}>
         {/* Palette */}
         {!frozen ? (
           <aside style={paletteStyle}>
             <div style={sectionLabel}>Agenten-Palette</div>
-            <p style={hintStyle}>In eine Stage ziehen. Farbe = Klasse, Badge = Modell/Risk.</p>
+            <p style={hintStyle}>In eine Stage ziehen. Farbe = Klasse (Orchestrator/Worker/Reviewer/HITL).</p>
             {catalog.map((c) => (
               <div
                 key={c.id}
@@ -210,7 +263,6 @@ export function HarnessCanvas({
                 title={c.description}
               >
                 <span style={{ fontWeight: 600, fontSize: 13 }}>{c.label}</span>
-                <span style={modelBadge}>{MODEL_LABEL(c.model)}</span>
               </div>
             ))}
           </aside>
@@ -257,7 +309,6 @@ export function HarnessCanvas({
                       >
                         <span style={{ ...dot, background: KIND_COLOR[n.kind] }} />
                         <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{n.label}</span>
-                        {a ? <span style={modelBadge}>{MODEL_LABEL(a.model)}</span> : null}
                         {hiRisk ? <span style={riskBadge} title="High-Risk-Tool → HITL">⚠</span> : null}
                         <span style={{ fontSize: 10, color: "var(--c-text-muted)" }}>{KIND_LABEL[n.kind]}</span>
                       </div>
@@ -269,9 +320,10 @@ export function HarnessCanvas({
             })}
           </div>
         </div>
+      </div>
 
-        {/* Detail-Panel */}
-        <aside style={detailStyle}>
+      {/* Detail-Panel — v0.4.3: volle Breite UNTER der Canvas (kein Overlap mehr). */}
+      <aside style={detailStyle}>
           {sel ? (
             <>
               <div style={sectionLabel}>{sel.role}</div>
@@ -335,7 +387,6 @@ export function HarnessCanvas({
           )}
           {note ? <p style={{ ...hintStyle, marginTop: 10, color: "var(--c-text)" }}>{note}</p> : null}
         </aside>
-      </div>
     </div>
   );
 }
@@ -360,7 +411,16 @@ function Field({ label, value }: { label: string; value: string }): React.ReactE
 
 // --- Styles ---
 const kpiRow: React.CSSProperties = { display: "flex", gap: "var(--sp-2)", flexWrap: "wrap", marginBottom: "var(--sp-3)" };
-const layoutGrid: React.CSSProperties = { display: "grid", gridTemplateColumns: "200px 1fr 280px", gap: "var(--sp-3)", alignItems: "start" };
+// v0.4.3 — Detail-Panel ist UNTER die Canvas gewandert; Grid hat nur noch Palette + Lanes.
+const layoutGrid = (frozen: boolean): React.CSSProperties => ({
+  display: "grid",
+  gridTemplateColumns: frozen ? "1fr" : "200px 1fr",
+  gap: "var(--sp-3)",
+  alignItems: "start",
+});
+const strategyRow: React.CSSProperties = { display: "flex", alignItems: "center", gap: "var(--sp-2)", flexWrap: "wrap", marginBottom: "var(--sp-3)" };
+const strategyBtn: React.CSSProperties = { fontSize: 13, fontWeight: 600, padding: "4px 12px", border: "1px solid var(--c-border-strong)", borderRadius: "var(--r-pill)", background: "var(--c-surface)", color: "var(--c-text)", cursor: "pointer" };
+const strategyBtnActive: React.CSSProperties = { background: "var(--c-navy)", color: "var(--c-vellum)", borderColor: "var(--c-navy)" };
 const paletteStyle: React.CSSProperties = { ...cardStyle, padding: "var(--sp-3)", maxHeight: 560, overflowY: "auto" };
 const paletteCard: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, padding: "6px 8px", marginBottom: 6, background: "var(--c-vellum)", border: "1px solid var(--c-border)", borderRadius: "var(--r-md)", cursor: "grab" };
 // minWidth:0 ist zwingend: ohne das wächst die 1fr-Grid-Spalte auf die Inhaltsbreite
@@ -376,7 +436,7 @@ const modelBadge: React.CSSProperties = { fontSize: 10, fontWeight: 700, padding
 const modelSelect: React.CSSProperties = { width: "100%", padding: "6px 8px", fontSize: 13, border: "1px solid var(--c-border-strong)", borderRadius: "var(--r-md)", background: "var(--c-surface)", color: "var(--c-text)", cursor: "pointer" };
 const riskBadge: React.CSSProperties = { fontSize: 12, color: "var(--c-red)" };
 const dropHint: React.CSSProperties = { fontSize: 11, color: "var(--c-text-muted)", textAlign: "center", padding: "16px 4px", fontStyle: "italic" };
-const detailStyle: React.CSSProperties = { ...cardStyle, padding: "var(--sp-3)", position: "sticky", top: 12 };
+const detailStyle: React.CSSProperties = { ...cardStyle, padding: "var(--sp-3)", marginTop: "var(--sp-3)" };
 const sectionLabel: React.CSSProperties = { fontSize: "var(--fs-caption)", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--c-text-muted)" };
 const miniLabel: React.CSSProperties = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--c-text-muted)", marginBottom: 2 };
 const hintStyle: React.CSSProperties = { fontSize: 12, color: "var(--c-text-muted)", lineHeight: 1.5 };

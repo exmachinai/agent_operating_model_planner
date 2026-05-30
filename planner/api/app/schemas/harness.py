@@ -31,7 +31,14 @@ HarnessStatus = Literal["draft", "compiled"]
 
 # Revisions-Kommandos (Schritt 8, Kommandofeld). `agent` deckt Agent-CRUD ab.
 # v0.4: `layout` (Drag&Drop-Stages) + `stage-pattern` (Muster einer Stage setzen).
-ReviseKind = Literal["sequence", "parallel", "skill", "agent", "layout", "stage-pattern"]
+# v0.4.3: `model-strategy` setzt die Modell-Tiers aller Agenten in einem Schritt.
+ReviseKind = Literal[
+    "sequence", "parallel", "skill", "agent", "layout", "stage-pattern", "model-strategy"
+]
+
+# v0.4.3 — globale Modell-Strategie: balanced = Opus-Orchestrator + Sonnet-Rest,
+# economy = alles Sonnet, premium = alles Opus. HITL-Knoten bleiben „human".
+ModelStrategy = Literal["balanced", "economy", "premium"]
 
 # Schweregrad eines Compiler-/Reviewer-Befunds (gleiche Skala wie der Plan-Reviewer).
 FindingSeverity = Literal["info", "warn", "fail"]
@@ -203,6 +210,8 @@ class ReviseCommand(BaseModel):
     stages: dict[str, int] | None = None
     stage: int | None = None
     pattern: StagePattern | None = None
+    # v0.4.3 — `model-strategy`: setzt die Modell-Tiers aller Agenten auf einmal.
+    strategy: ModelStrategy | None = None
 
 
 # Max. Revisionen je Harness — verhindert Endlos-Loops (docs/04 Evaluator-Optimizer).

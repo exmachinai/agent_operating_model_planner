@@ -133,9 +133,25 @@ export default function PlanPage(): React.ReactElement {
     (sum, t) => sum + t.tokens_estimated,
     0,
   );
-  const totalEffort = plan.milestones
-    .flatMap((m) => m.activities)
-    .reduce((sum, a) => sum + a.effort_pt, 0);
+  const totalEffort = Number(
+    plan.milestones
+      .flatMap((m) => m.activities)
+      .reduce((sum, a) => sum + a.effort_pt, 0)
+      .toFixed(1),
+  );
+
+  // Gesamtrisiko-Begründung: welche Einzel-Risiken (MRL/PRL) ziehen die Ampel auf
+  // ihr Niveau? ZGPM-Ampel-Propagation = schlechteste Einzelampel gewinnt.
+  const riskDrivers = [
+    ...plan.milestones.flatMap((m) =>
+      m.mrl
+        .filter((r) => r.ampel === plan.overall_ampel)
+        .map((r) => ({ source: `${m.id} · ${m.name}`, risk: r })),
+    ),
+    ...plan.prl
+      .filter((r) => r.ampel === plan.overall_ampel)
+      .map((r) => ({ source: "Projektrisiko (PRL)", risk: r })),
+  ];
 
   return (
     <PageShell subtitle="ZGPM-Plan · Schritt 6" helpTopic="plan">
@@ -165,6 +181,53 @@ export default function PlanPage(): React.ReactElement {
         {plan.kontrolliert_durch}. AI-generierter Vorschlag (EU AI Act Art. 50) —
         die Freigabe trifft der Anwender (Gate 2, Schritt 7).
       </p>
+
+      {/* Gesamtrisiko — immer mit ausführlicher Begründung (Treiber + Mitigation). */}
+      <div
+        style={{
+          ...cardStyle,
+          marginBottom: "var(--sp-4)",
+          borderLeft: `4px solid ${AMPEL_COLOR[plan.overall_ampel]}`,
+        }}
+      >
+        <div style={sectionLabel}>
+          Gesamtrisiko:{" "}
+          <span style={{ color: AMPEL_COLOR[plan.overall_ampel] }}>
+            {AMPEL_LABEL[plan.overall_ampel]}
+          </span>{" "}
+          — Begründung
+        </div>
+        <p style={{ fontSize: 14, lineHeight: 1.6, margin: "var(--sp-2) 0 0" }}>
+          Die Gesamt-Ampel folgt der ZGPM-Ampel-Propagation: die{" "}
+          <strong>schlechteste Einzel-Ampel</strong> (Meilenstein-Risiko MRL bzw.
+          Projektrisiko PRL) bestimmt das Gesamtbild.{" "}
+          {plan.overall_ampel === "gruen"
+            ? "Alle Meilensteine und Projektrisiken liegen im grünen Bereich — keine Gelb- oder Rot-Treiber."
+            : `Auf „${AMPEL_LABEL[plan.overall_ampel]}" ziehen ${riskDrivers.length} Einzelrisiko(en):`}
+        </p>
+        {plan.overall_ampel !== "gruen" ? (
+          <ul style={driverListStyle}>
+            {riskDrivers.map(({ source, risk }) => (
+              <li key={risk.id} style={{ fontSize: 14, lineHeight: 1.5 }}>
+                <span
+                  style={{
+                    ...dotSmStyle,
+                    backgroundColor: AMPEL_COLOR[risk.ampel],
+                    marginRight: 6,
+                  }}
+                />
+                <strong>{source}</strong> — {risk.description}{" "}
+                <span style={metaStyle}>
+                  (Eintritt {risk.probability} × Auswirkung {risk.impact} ={" "}
+                  {risk.probability * risk.impact})
+                </span>
+                <br />
+                <span style={metaStyle}>Maßnahme: {risk.mitigation}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
 
       {plan.reviewer_findings.length > 0 ? (
         <div style={{ ...cardStyle, marginBottom: "var(--sp-4)" }}>
@@ -444,6 +507,15 @@ const plainListStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   gap: "var(--sp-1)",
+};
+
+const driverListStyle: React.CSSProperties = {
+  listStyle: "none",
+  margin: "var(--sp-2) 0 0",
+  padding: 0,
+  display: "flex",
+  flexDirection: "column",
+  gap: "var(--sp-2)",
 };
 
 const tagStyle: React.CSSProperties = {

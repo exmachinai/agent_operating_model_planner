@@ -492,6 +492,8 @@ def _apply_agent_op(
                 "skills": patch.skills if patch.skills is not None else agents[idx].skills,
                 "tools": patch.tools if patch.tools is not None else agents[idx].tools,
                 "kind": patch.kind or agents[idx].kind,
+                # v0.4.2 — Modell-Tier ist editierbar (Canvas-Detailpanel).
+                "model": patch.model or agents[idx].model,
                 "hitl": patch.hitl,
             }
         )

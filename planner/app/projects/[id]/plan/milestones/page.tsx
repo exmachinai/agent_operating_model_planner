@@ -2,8 +2,9 @@
  * Schritt 6a — Meilensteine bestätigen (geführter Plan-Wizard, v0.5).
  *
  * Das System schlägt Meilensteine vor (LLM, sonst regelbasiert). Der Anwender
- * ändert/löscht/ergänzt/sortiert sie und bestätigt mit DONE — erst dann geht es
- * weiter zu den Aktivitäten (Schritt 6b). Muster der DONE-Gate aus interview/page.
+ * ändert/löscht/ergänzt/sortiert sie und bestätigt mit DONE — danach geht es
+ * direkt zum Plan-Ergebnis (Schritt 6c). v0.6 — keine Aktivitäts-Stufe (6b) mehr;
+ * die konkrete Arbeit übernehmen die Agenten autonom.
  */
 
 "use client";
@@ -63,7 +64,7 @@ export default function MilestonesPage(): React.ReactElement {
     setError(null);
     try {
       await api.milestonesDone(id);
-      router.push(`/projects/${id}/plan/activities`);
+      router.push(`/projects/${id}/plan`);
     } catch (e: unknown) {
       setError(e instanceof ApiError ? e.message : "Bestätigen fehlgeschlagen.");
       setBusy(false);
@@ -78,7 +79,8 @@ export default function MilestonesPage(): React.ReactElement {
         vorgeschlagen. Prüfe sie in Ruhe: Du kannst sie umbenennen, das Datum
         ändern, welche löschen, neue hinzufügen und die Reihenfolge per Ziehen oder
         mit den Pfeilen anpassen. Wenn es passt, bestätige mit <strong>DONE</strong>{" "}
-        — dann schlagen wir passende Aktivitäten vor.
+        — dann siehst du das fertige Plan-Ergebnis. Die konkrete Arbeit zu jedem
+        Meilenstein übernehmen später die Agenten autonom.
       </p>
 
       {error ? <p style={errorStyle}>{error}</p> : null}
@@ -89,8 +91,8 @@ export default function MilestonesPage(): React.ReactElement {
         <>
           {done ? (
             <p style={infoStyle}>
-              Diese Meilensteine sind bereits bestätigt. Du kannst direkt weiter zu
-              den Aktivitäten.
+              Diese Meilensteine sind bereits bestätigt. Du kannst direkt weiter zum
+              Plan-Ergebnis.
             </p>
           ) : null}
           <MilestoneEditor id={id} plan={plan} onPlan={setPlan} disabled={done} />
@@ -102,9 +104,9 @@ export default function MilestonesPage(): React.ReactElement {
             {done ? (
               <Button
                 variant="accent"
-                onClick={() => router.push(`/projects/${id}/plan/activities`)}
+                onClick={() => router.push(`/projects/${id}/plan`)}
               >
-                Weiter zu den Aktivitäten
+                Weiter zum Plan-Ergebnis
               </Button>
             ) : (
               <Button

@@ -1,8 +1,8 @@
-"""Schritt 8 — Werkzeug/MCP-Bindung je Agent (v0.5 `tool`-Kommando).
+"""Schritt 8 — Werkzeug/MCP-Bindung + echter SKILL.md-Import je Agent (v0.6).
 
 Spiegelt das Muster von test_harness.py (Agent-CRUD): kompilieren, ein `tool`-
-Kommando anwenden, Bindung prüfen, wieder entfernen. Plus Validierungsfehler (422)
-und der /plan/accepted-tools-Endpunkt.
+bzw. `skill`-Kommando anwenden, Bindung prüfen, wieder entfernen. Plus
+Validierungsfehler (422) und der unveränderte SKILL.md-Import ins Zip.
 """
 
 from __future__ import annotations
@@ -28,7 +28,6 @@ def _gate2(client: TestClient) -> str:
     client.post(f"/v1/projects/{pid}/guardrails/clear", json={"proceed": True})
     client.post(f"/v1/projects/{pid}/plan")
     client.post(f"/v1/projects/{pid}/plan/milestones/done")
-    client.post(f"/v1/projects/{pid}/plan/activities/done")
     client.post(f"/v1/projects/{pid}/approve-plan")
     return pid
 
@@ -66,48 +65,51 @@ def test_tool_command_requires_fields(client: TestClient) -> None:
     assert resp.status_code == 422
 
 
-def test_accepted_tools_endpoint_empty(client: TestClient) -> None:
+_VALID_SKILL = """---
+name: my-skill
+description: Tut etwas Konkretes für den Harness.
+---
+
+# my-skill
+
+Ein echter, importierter Skill.
+"""
+
+
+def test_skill_import_unchanged_in_graph(client: TestClient) -> None:
+    """v0.6 — `skill`-Kommando mit skill_content importiert eine echte SKILL.md."""
     pid = _gate2(client)
-    # DONE-Flow akzeptierte nichts → leere Liste, aber 200.
-    r0 = client.get(f"/v1/projects/{pid}/plan/accepted-tools")
-    assert r0.status_code == 200
-    assert isinstance(r0.json(), list)
+    graph = client.post(f"/v1/projects/{pid}/harness").json()
+    agent_id = graph["agents"][0]["id"]
 
-
-def test_accepted_tools_reflects_acceptance(client: TestClient) -> None:
-    # Eigener Flow: Tool annehmen, bevor Aktivitäten-DONE.
-    pid = client.post(
-        "/v1/projects", json={"title": "Accept-Tools", "description": "x"}
-    ).json()["id"]
-    client.patch(
-        f"/v1/projects/{pid}/understanding",
+    r = client.post(
+        f"/v1/projects/{pid}/harness/revise",
         json={
-            "project_type": "it",
-            "project_subtype": "data-analytics",
-            "target_platform": "azure",
-            "understanding_summary": "Datenprojekt.",
+            "command": "skill",
+            "agent_id": agent_id,
+            "skill": "my-skill",
+            "skill_content": _VALID_SKILL,
         },
     )
-    client.post(f"/v1/projects/{pid}/approve-understanding")
-    client.post(f"/v1/projects/{pid}/guardrails/clear", json={"proceed": True})
-    client.post(f"/v1/projects/{pid}/plan")
-    client.post(f"/v1/projects/{pid}/plan/milestones/done")
-    plan = client.get(f"/v1/projects/{pid}/plan").json()
-    ms = plan["milestones"][0]
-    act = ms["activities"][0]
-    tool_id = act["tool_suggestions"][0]["id"]
-    tool_name = act["tool_suggestions"][0]["name"]
-    client.post(
-        f"/v1/projects/{pid}/plan/activities/op",
-        json=[
-            {
-                "op": "update",
-                "milestone_id": ms["id"],
-                "id": act["id"],
-                "tool_id": tool_id,
-                "tool_accepted": True,
-            }
-        ],
+    assert r.status_code == 201, r.text
+    body = r.json()
+    target = next(a for a in body["agents"] if a["id"] == agent_id)
+    assert "my-skill" in target["skills"]
+    imported = {s["name"]: s["content"] for s in body["imported_skills"]}
+    assert imported.get("my-skill") == _VALID_SKILL
+
+
+def test_skill_import_rejects_missing_frontmatter(client: TestClient) -> None:
+    pid = _gate2(client)
+    graph = client.post(f"/v1/projects/{pid}/harness").json()
+    agent_id = graph["agents"][0]["id"]
+    r = client.post(
+        f"/v1/projects/{pid}/harness/revise",
+        json={
+            "command": "skill",
+            "agent_id": agent_id,
+            "skill": "broken",
+            "skill_content": "Nur Freitext, kein Frontmatter.",
+        },
     )
-    accepted = client.get(f"/v1/projects/{pid}/plan/accepted-tools").json()
-    assert any(t["name"] == tool_name for t in accepted)
+    assert r.status_code == 422

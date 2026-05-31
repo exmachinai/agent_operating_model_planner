@@ -256,8 +256,15 @@ export default function HarnessPage(): React.ReactElement {
                 api.reviseHarness(id, { command: "agent", op: "delete", agent_id: a.id }),
               )
             }
-            onAddSkill={(skill) =>
-              run(() => api.reviseHarness(id, { command: "skill", agent_id: a.id, skill }))
+            onImportSkill={(skill, content) =>
+              run(() =>
+                api.reviseHarness(id, {
+                  command: "skill",
+                  agent_id: a.id,
+                  skill,
+                  skill_content: content,
+                }),
+              )
             }
             onRemoveSkill={(skill) =>
               run(() =>
@@ -458,13 +465,24 @@ function resultNote(r: SaveResult, mode: "zip" | "unzip"): string {
 
 // ---------------------------------------------------------------------------
 
+/** Liest den Skill-Slug aus dem Frontmatter (`name:`), sonst aus dem Dateinamen. */
+function skillNameFromContent(content: string, fallback: string): string {
+  const m = content.match(/^\s*---[\s\S]*?^\s*name\s*:\s*(.+?)\s*$/m);
+  const raw = (m?.[1] ?? fallback).trim();
+  return raw
+    .toLowerCase()
+    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "skill";
+}
+
 function AgentCard({
   agent,
   frozen,
   busy,
   onSave,
   onDelete,
-  onAddSkill,
+  onImportSkill,
   onRemoveSkill,
 }: {
   agent: AgentSpec;
@@ -472,14 +490,14 @@ function AgentCard({
   busy: boolean;
   onSave: (patch: Partial<AgentSpec>) => void;
   onDelete: () => void;
-  onAddSkill: (skill: string) => void;
+  onImportSkill: (skill: string, content: string) => void;
   onRemoveSkill: (skill: string) => void;
 }): React.ReactElement {
   const [editing, setEditing] = React.useState(false);
   const [mission, setMission] = React.useState(agent.mission);
   const [tasks, setTasks] = React.useState(agent.tasks.join("\n"));
-  const [skill, setSkill] = React.useState("");
   const [confirmDel, setConfirmDel] = React.useState(false);
+  const fileRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     setMission(agent.mission);
@@ -561,21 +579,30 @@ function AgentCard({
 
       {!frozen ? (
         <div style={{ ...cmdRowStyle, marginTop: "var(--sp-3)" }}>
+          {/* v0.6 — echter SKILL.md-Import statt Freitext: Inhalt wird unverändert
+              ins Harness-ZIP geschrieben; Frontmatter (name/description) prüft der Server. */}
           <input
-            style={{ ...inputStyle, maxWidth: 220 }}
-            placeholder="Skill hinzufügen (z. B. pvm-validate)"
-            value={skill}
-            onChange={(e) => setSkill(e.target.value)}
+            ref={fileRef}
+            type="file"
+            accept=".md,text/markdown"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = ""; // gleiche Datei erneut wählbar
+              if (!f) return;
+              void f.text().then((content) => {
+                const name = skillNameFromContent(content, f.name.replace(/\.md$/i, ""));
+                onImportSkill(name, content);
+              });
+            }}
           />
           <Button
             variant="secondary"
-            disabled={busy || skill.trim().length < 2}
-            onClick={() => {
-              onAddSkill(skill.trim());
-              setSkill("");
-            }}
+            disabled={busy}
+            onClick={() => fileRef.current?.click()}
+            title="Eine SKILL.md-Datei je Agent importieren (mit Frontmatter name/description)"
           >
-            + Skill
+            + SKILL.md importieren
           </Button>
           {!editing ? (
             <Button variant="secondary" onClick={() => setEditing(true)}>

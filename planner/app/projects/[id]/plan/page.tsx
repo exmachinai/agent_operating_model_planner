@@ -20,7 +20,6 @@ import {
   RaciMatrix,
   RiskHeatmap,
   TokenLiveCounter,
-  UtilizationBars,
 } from "../../../../components/PlanViews";
 import {
   api,
@@ -77,18 +76,14 @@ export default function PlanPage(): React.ReactElement {
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    // v0.5 — Gating: das Plan-Ergebnis (Gantt/Risiken) ist erst nach den geführten
-    // Schritten 6a (Meilensteine) und 6b (Aktivitäten) sinnvoll. Fehlt eine
-    // Bestätigung, leiten wir in den passenden Wizard-Schritt um.
+    // v0.6 — Gating: das Plan-Ergebnis (Gantt/Risiken) ist erst nach dem geführten
+    // Schritt 6a (Meilensteine) sinnvoll. Fehlt die Bestätigung, leiten wir in den
+    // Meilenstein-Wizard um. (Die 6b-Aktivitätsstufe entfällt.)
     api
       .getProject(id)
       .then((proj) => {
         if (proj.milestones_done_at == null) {
           router.replace(`/projects/${id}/plan/milestones`);
-          return;
-        }
-        if (proj.activities_done_at == null) {
-          router.replace(`/projects/${id}/plan/activities`);
           return;
         }
         return api
@@ -150,12 +145,6 @@ export default function PlanPage(): React.ReactElement {
   const totalTokens = plan.token_budget.reduce(
     (sum, t) => sum + t.tokens_estimated,
     0,
-  );
-  const totalEffort = Number(
-    plan.milestones
-      .flatMap((m) => m.activities)
-      .reduce((sum, a) => sum + a.effort_pt, 0)
-      .toFixed(1),
   );
 
   // Gesamtrisiko-Begründung: welche Einzel-Risiken (MRL/PRL) ziehen die Ampel auf
@@ -327,15 +316,6 @@ export default function PlanPage(): React.ReactElement {
               ))}
             </div>
 
-            <ul style={activityListStyle}>
-              {m.activities.map((a) => (
-                <li key={a.id} style={{ fontSize: 14 }}>
-                  {a.description}{" "}
-                  <span style={metaStyle}>({a.effort_pt} PT)</span>
-                </li>
-              ))}
-            </ul>
-
             {m.mrl.map((r) => (
               <div key={r.id} style={mrlStyle}>
                 <span
@@ -350,9 +330,15 @@ export default function PlanPage(): React.ReactElement {
           </div>
         ))}
         </div>
+        <div style={hintBoxStyle}>
+          Aktivitäten werden im Betrieb autonom von den Agenten übernommen — keine
+          manuelle Detailplanung nötig. Der Plan beschreibt die Ziel-Zustände
+          (Meilensteine), Verantwortlichkeiten und Risiken; Werkzeuge/MCP werden je
+          Agent im Harness (Schritt 8) gebunden.
+        </div>
       </Accordion>
 
-      {/* Zeitplan (Gantt) */}
+      {/* Zeitplan (Gantt) — v0.6: Meilenstein-Termine (kein Aktivitäts-Fenster) */}
       <Accordion title="Zeitplan (Gantt)">
         <GanttChart plan={plan} />
       </Accordion>
@@ -367,18 +353,13 @@ export default function PlanPage(): React.ReactElement {
         <RiskHeatmap plan={plan} />
       </Accordion>
 
-      {/* Token-Budget — eigene volle Breite, damit der Zähler nicht abgeschnitten wird. */}
+      {/* Kosten = Token je Agent (v0.6 — keine Personentage mehr). */}
       <Accordion title="Token-Budget je Agent (laufende Summe)">
         <TokenLiveCounter plan={plan} />
         <div style={subMetaStyle}>
-          Geschätzter Gesamtaufwand: {totalEffort} Personentage ·{" "}
-          {totalTokens.toLocaleString("de-DE")} Token gesamt.
+          Kosten je Agent als Token-Schätzung · {totalTokens.toLocaleString("de-DE")}{" "}
+          Token gesamt. Die konkrete Arbeit übernehmen die Agenten autonom.
         </div>
-      </Accordion>
-
-      {/* Auslastung je Agent */}
-      <Accordion title="Auslastung je Agent (Aufwand PT)">
-        <UtilizationBars plan={plan} />
       </Accordion>
 
       {plan.evidence_sources.length > 0 ? (
@@ -504,12 +485,15 @@ const pvmChipStyle: React.CSSProperties = {
   cursor: "help",
 };
 
-const activityListStyle: React.CSSProperties = {
-  margin: "var(--sp-2) 0 0",
-  paddingLeft: "var(--sp-4)",
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--sp-1)",
+const hintBoxStyle: React.CSSProperties = {
+  marginTop: "var(--sp-3)",
+  padding: "var(--sp-2) var(--sp-3)",
+  backgroundColor: "var(--c-vellum)",
+  border: "1px solid var(--c-border)",
+  borderRadius: "var(--r-md)",
+  fontSize: 13,
+  lineHeight: 1.6,
+  color: "var(--c-text-muted)",
 };
 
 const mrlStyle: React.CSSProperties = {

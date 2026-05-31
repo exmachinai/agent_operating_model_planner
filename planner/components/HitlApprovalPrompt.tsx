@@ -44,15 +44,11 @@ export interface HitlApprovalPromptProps {
   risk: "gruen" | "gelb" | "rot";
   /** Optional list of risk IDs to display. */
   riskIds?: string[];
-  /** Number of completed vs total activities. */
-  activities: { done: number; total: number };
   /** Reviewer-Agent outcome. */
   reviewer: {
     status: "PASS" | "PASS_WITH_NOTES" | "NEEDS_REVISION";
     findings?: ReviewerFinding[];
   };
-  /** Effort comparison in person-days. */
-  effort?: { planned: number; actual: number };
   /** Locale for labels. Default 'de'. */
   locale?: "de" | "en";
 
@@ -72,12 +68,10 @@ const COPY: Record<
     riskLabel: string;
     riskFor: Record<"gruen" | "gelb" | "rot", string>;
     phase: string;
-    activities: (done: number, total: number) => string;
     reviewer: string;
     reviewerPass: string;
     reviewerPassWithNotes: string;
     reviewerNeeds: string;
-    effort: (planned: number, actual: number) => string;
     approve: string;
     approveShortcut: string;
     requestChanges: string;
@@ -96,12 +90,10 @@ const COPY: Record<
     riskLabel: "Risiko",
     riskFor: { gruen: "grün", gelb: "gelb", rot: "rot" },
     phase: "Phase",
-    activities: (d, t) => `${d} / ${t} Aktivitäten`,
     reviewer: "Reviewer",
     reviewerPass: "PASS",
     reviewerPassWithNotes: "PASS mit Hinweisen",
     reviewerNeeds: "NEEDS REVISION",
-    effort: (p, a) => `Aufwand: ${a} MT (geplant: ${p} MT)`,
     approve: "Approve",
     approveShortcut: "⌘⏎",
     requestChanges: "Änderungen anfordern",
@@ -120,12 +112,10 @@ const COPY: Record<
     riskLabel: "Risk",
     riskFor: { gruen: "green", gelb: "amber", rot: "red" },
     phase: "Phase",
-    activities: (d, t) => `${d} / ${t} activities`,
     reviewer: "Reviewer",
     reviewerPass: "PASS",
     reviewerPassWithNotes: "PASS with notes",
     reviewerNeeds: "NEEDS REVISION",
-    effort: (p, a) => `Effort: ${a} PD (planned: ${p} PD)`,
     approve: "Approve",
     approveShortcut: "⌘⏎",
     requestChanges: "Request changes",
@@ -154,9 +144,7 @@ export function HitlApprovalPrompt(
     phaseName,
     risk,
     riskIds,
-    activities,
     reviewer,
-    effort,
     locale = "de",
     onApprove,
     onRequestChanges,
@@ -252,33 +240,6 @@ export function HitlApprovalPrompt(
           <dt style={dtStyle}>{t.reviewer}</dt>
           <dd style={ddStyle}>{reviewerBadge}</dd>
         </div>
-        <div>
-          <dt style={dtStyle}>{t.activities(activities.done, activities.total)}</dt>
-          <dd style={ddStyle}>
-            <progress
-              max={activities.total}
-              value={activities.done}
-              style={progressStyle}
-            />
-          </dd>
-        </div>
-        {effort && (
-          <div style={{ gridColumn: "1 / -1" }}>
-            <dt style={dtStyle}>{t.effort(effort.planned, effort.actual)}</dt>
-            <dd style={ddStyle}>
-              <span style={effortBarOuter}>
-                <span
-                  style={{
-                    ...effortBarInner,
-                    width: `${Math.min(100, (effort.actual / Math.max(effort.planned, 1)) * 100)}%`,
-                    backgroundColor:
-                      effort.actual > effort.planned ? "var(--c-amber)" : "var(--c-navy)",
-                  }}
-                />
-              </span>
-            </dd>
-          </div>
-        )}
       </dl>
 
       {reviewer.findings && reviewer.findings.length > 0 && (
@@ -509,27 +470,6 @@ const reviewerBadgeStyle: React.CSSProperties = {
   letterSpacing: "0.06em",
   padding: "2px 8px",
   borderRadius: "var(--r-pill)",
-};
-
-const progressStyle: React.CSSProperties = {
-  width: "100%",
-  height: 6,
-  appearance: "none",
-};
-
-const effortBarOuter: React.CSSProperties = {
-  display: "inline-block",
-  width: "100%",
-  height: 6,
-  backgroundColor: "var(--c-ice)",
-  borderRadius: "var(--r-sm)",
-  overflow: "hidden",
-  verticalAlign: "middle",
-};
-
-const effortBarInner: React.CSSProperties = {
-  display: "block",
-  height: "100%",
 };
 
 const findingsListStyle: React.CSSProperties = {

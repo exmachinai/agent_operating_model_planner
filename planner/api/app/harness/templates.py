@@ -72,8 +72,6 @@ def plan_pvm(plan: Plan) -> dict[str, Any]:
     matrix: dict[str, dict[str, str]] = {}
     for m in plan.milestones:
         matrix[m.id] = {rids[r.role]: r.code for r in m.responsibilities if r.role in rids}
-        for a in m.activities:
-            matrix[a.id] = {rids[r.role]: r.code for r in a.responsibilities if r.role in rids}
     return {"ressourcen": ressourcen, "matrix": matrix}
 
 
@@ -93,19 +91,11 @@ def plan_risks(plan: Plan) -> dict[str, Any]:
     }
 
 
-def plan_effort(plan: Plan) -> dict[str, Any]:
-    total_effort = sum(a.effort_pt for m in plan.milestones for a in m.activities)
+def plan_cost(plan: Plan) -> dict[str, Any]:
+    """Kosten je Agent als Token-Budget (v0.6 — keine Personentage mehr)."""
     total_tokens = sum(t.tokens_estimated for t in plan.token_budget)
     return {
-        "aufwand_gesamt_pt": total_effort,
         "token_budget_gesamt": total_tokens,
-        "je_meilenstein": [
-            {
-                "id": m.id,
-                "aufwand_pt": sum(a.effort_pt for a in m.activities),
-            }
-            for m in plan.milestones
-        ],
         "token_budget": [
             {"agent": t.agent, "node": t.node, "tokens": t.tokens_estimated}
             for t in plan.token_budget
@@ -113,20 +103,16 @@ def plan_effort(plan: Plan) -> dict[str, Any]:
     }
 
 
-def plan_activities(m: Milestone) -> dict[str, Any]:
+def plan_milestone(m: Milestone) -> dict[str, Any]:
+    """Meilenstein-Detail: PVM + Meilensteinrisikoliste (v0.6 — ohne Aktivitäten).
+
+    Die konkrete Arbeit zum Erreichen des Zustands übernehmen die Agenten autonom;
+    der Harness-Plan beschreibt nur Ziel-Zustand, Termin, PVM und Risiken."""
     return {
         "meilenstein": m.id,
-        "aktivitaeten": [
-            {
-                "id": a.id,
-                "beschreibung": a.description,
-                "aufwand_pt": a.effort_pt,
-                "start": a.start,
-                "ende": a.end,
-                "pvm": [{"rolle": r.role, "code": r.code} for r in a.responsibilities],
-            }
-            for a in m.activities
-        ],
+        "name": m.name,
+        "geplant": m.planned_date,
+        "pvm": [{"rolle": r.role, "code": r.code} for r in m.responsibilities],
         "mrl": [
             {
                 "id": r.id,
@@ -553,8 +539,13 @@ def guardrails_doc() -> dict[str, Any]:
 
 
 def skill_files(graph: HarnessGraph) -> dict[str, str]:
-    """Erzeugt SKILL.md für jeden referenzierten Skill (deduped)."""
+    """Erzeugt SKILL.md für jeden referenzierten Skill (deduped).
+
+    v0.6 — vom Anwender importierte Skills (`graph.imported_skills`) werden
+    **unverändert** geschrieben (echter Skill); nur für nicht-importierte Skills
+    erzeugen wir die kuratierte Hülle."""
     skills = sorted({s for a in graph.agents for s in a.skills})
+    imported = {s.name: s.content for s in graph.imported_skills}
     out: dict[str, str] = {}
     descriptions = {
         "zgpm-compose": "Komponiert ZGPM-Pläne (Phasen, Meilensteine, PVM).",
@@ -565,6 +556,9 @@ def skill_files(graph: HarnessGraph) -> dict[str, str]:
         "plan-evaluator": "Evaluator-Optimizer-Prüfung des Plans gegen die Regeln.",
     }
     for s in skills:
+        if s in imported:
+            out[f".claude/skills/{s}/SKILL.md"] = imported[s]
+            continue
         desc = descriptions.get(s, f"Skill {s} für den Harness.")
         out[f".claude/skills/{s}/SKILL.md"] = f"""---
 name: {s}

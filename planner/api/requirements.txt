@@ -1,17 +1,17 @@
-fastapi==0.115.0
-uvicorn[standard]==0.32.0
-pydantic==2.9.2
-pydantic-settings==2.5.2
-azure-cosmos==4.7.0
-azure-identity==1.18.0
-azure-storage-blob==12.23.1
-aiohttp==3.13.4
-httpx==0.27.2
-python-multipart==0.0.27
+fastapi==0.136.3
+uvicorn[standard]==0.48.0
+pydantic==2.13.4
+pydantic-settings==2.14.1
+azure-cosmos==4.16.0
+azure-identity==1.25.3
+azure-storage-blob==12.29.0
+aiohttp==3.13.5
+httpx==0.28.1
+python-multipart==0.0.29
 # Schritt 2a — ephemere Kontext-Parser (Fließtext + Tabellen).
-python-docx==1.1.2
+python-docx==1.2.0
 python-pptx==1.0.2
 openpyxl==3.1.5
-pypdf==6.10.2
+pypdf==6.12.2
 # Dev/Test — Harness-Compiler + Router-Tests (WP-1/4/5).
 pytest==9.0.3

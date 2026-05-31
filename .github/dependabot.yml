@@ -1,0 +1,43 @@
+# Dependabot-Konfiguration — AOMP Planner
+#
+# Gruppiert Security-/Versions-Updates pro Ökosystem in gebündelte PRs, statt
+# pro Advisory einen Einzel-PR (bzw. einzelne ungruppierte Alerts) zu erzeugen.
+# Drei Ökosysteme: pip (Backend), npm (Frontend), GitHub Actions (CI/Deploy).
+version: 2
+updates:
+  # Backend — FastAPI/pydantic (planner/api/requirements.txt)
+  - package-ecosystem: "pip"
+    directory: "/planner/api"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      pip-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      pip-minor-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+
+  # Frontend — Next.js / React (planner/package.json)
+  - package-ecosystem: "npm"
+    directory: "/planner"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      npm-minor-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+
+  # CI/Deploy — GitHub Actions (.github/workflows)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]

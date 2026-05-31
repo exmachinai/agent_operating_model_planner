@@ -3,10 +3,12 @@
  *
  * Spec: docs/01_zgpm-method.md + docs/09_process-flow.md (Schritt 6). Macht den
  * Plan auf einen Blick beurteilbar — statt flacher Tabellen:
- *  - Gantt: Zeitachse aus planned_date + Aktivitäts-Fenstern, Ampel-Balken, KW-Raster.
+ *  - Gantt: Zeitachse aus Meilenstein-Terminen (v0.6 — ohne Aktivitäts-Fenster),
+ *    Ampel-Balken, KW-Raster.
  *  - RACI/PVM-Matrix: Rolle × Meilenstein mit Inline-Konsistenzprüfung (≥1 A, genau 1 F/L).
  *  - Risk-Heatmap: 5×5 P×A-Raster mit Ampel-Zonen und Scoring-Erklärung.
- *  - Token-Live-Zähler: laufende Summe je Agent gegen Richtwert mit Warnschwelle.
+ *  - Token-Live-Zähler: laufende Summe je Agent gegen Richtwert mit Warnschwelle
+ *    (v0.6 — Kosten = Token je Agent, keine Personentage).
  *
  * Bewusst SVG/Box-Layout, keine Drittanbieter-Bibliothek. Formulierungen
  * „nachweisbar / audit-ready", keine 100%-Claims (Constitution).
@@ -22,11 +24,6 @@ const AMPEL_COLOR: Record<RiskAmpel, string> = {
   gelb: "var(--c-amber)",
   gruen: "var(--c-green)",
 };
-
-/** Aufwand-PT für die Anzeige runden (Float-Summen wie 7.000000000000001 vermeiden). */
-function fmtPt(n: number): string {
-  return Number(n.toFixed(1)).toLocaleString("de-DE");
-}
 
 /** Risk-Matrix-Score (Eintritt × Auswirkung) → Ampel. Spiegelt das Backend. */
 function ampelForScore(score: number): RiskAmpel {
@@ -44,17 +41,24 @@ function isoWeek(d: Date): number {
 }
 
 // ---------------------------------------------------------------------------
-// Gantt
+// Gantt — v0.6: Meilenstein-Termine (kein Aktivitäts-Fenster mehr)
 // ---------------------------------------------------------------------------
 
 export function GanttChart({ plan }: { plan: Plan }): React.ReactElement {
+  // v0.6 — Bearbeitungsfenster aus den Meilenstein-Terminen ableiten: Start =
+  // Termin des Vorgängers (sonst Termin − 14 Tage), Ende = eigener Termin.
+  const plannedById = new Map(
+    plan.milestones.map((m) => [m.id, new Date(m.planned_date).getTime()]),
+  );
   const rows = plan.milestones.map((m) => {
-    const starts = m.activities.map((a) => new Date(a.start).getTime());
-    const ends = m.activities.map((a) => new Date(a.end).getTime());
     const planned = new Date(m.planned_date).getTime();
-    const start = starts.length ? Math.min(...starts) : planned - 14 * 86400000;
-    const end = Math.max(planned, ...(ends.length ? ends : [planned]));
-    return { m, start, end };
+    const predDates = m.predecessors
+      .map((id) => plannedById.get(id))
+      .filter((t): t is number => typeof t === "number");
+    const start = predDates.length
+      ? Math.max(...predDates)
+      : planned - 14 * 86400000;
+    return { m, start: Math.min(start, planned), end: planned };
   });
   if (rows.length === 0) return <p style={mutedStyle}>Keine Meilensteine.</p>;
 
@@ -263,62 +267,6 @@ function heatBg(amp: RiskAmpel): string {
   if (amp === "rot") return "rgba(195, 66, 63, 0.16)";
   if (amp === "gelb") return "rgba(214, 158, 46, 0.16)";
   return "rgba(56, 142, 60, 0.12)";
-}
-
-// ---------------------------------------------------------------------------
-// Auslastung je Agent (Summe Aufwand PT)
-// ---------------------------------------------------------------------------
-
-export function UtilizationBars({ plan }: { plan: Plan }): React.ReactElement {
-  // Aufwand wird der ausführenden Rolle (PVM-Code "A") je Aktivität zugerechnet;
-  // hat eine Aktivität kein "A", fällt der Aufwand auf die erste Verantwortliche.
-  const byRole = new Map<string, number>();
-  for (const r of plan.pvm_roles) byRole.set(r, 0);
-  for (const m of plan.milestones) {
-    for (const a of m.activities) {
-      const doer =
-        a.responsibilities.find((x) => x.code === "A")?.role ??
-        a.responsibilities[0]?.role;
-      if (!doer) continue;
-      byRole.set(doer, (byRole.get(doer) ?? 0) + a.effort_pt);
-    }
-  }
-  const rows = [...byRole.entries()]
-    .filter(([, pt]) => pt > 0)
-    .sort((x, y) => y[1] - x[1]);
-  const max = Math.max(1, ...rows.map(([, pt]) => pt));
-  const total = rows.reduce((s, [, pt]) => s + pt, 0);
-
-  if (rows.length === 0) return <p style={mutedStyle}>Keine Aufwände zugeordnet.</p>;
-
-  return (
-    <div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-1)" }}>
-        {rows.map(([role, pt]) => (
-          <div key={role} style={tokenRowStyle}>
-            <span style={tokenLabelStyle}>{role}</span>
-            <span style={tokenBarOuter}>
-              <span
-                style={{
-                  ...tokenBarInner,
-                  width: `${(pt / max) * 100}%`,
-                  backgroundColor: "var(--c-navy)",
-                }}
-              />
-            </span>
-            <span style={tokenNumStyle}>{fmtPt(pt)} PT</span>
-            <span style={{ ...tokenNumStyle, color: "var(--c-text-muted)" }}>
-              {Math.round((pt / total) * 100)}%
-            </span>
-          </div>
-        ))}
-      </div>
-      <p style={legendStyle}>
-        Aufwand je ausführender Rolle (PVM-Code „A“). Summe {fmtPt(total)} PT über{" "}
-        {rows.length} Agenten — zeigt Engpässe auf einen Blick.
-      </p>
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------

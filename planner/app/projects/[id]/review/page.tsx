@@ -24,7 +24,6 @@ import {
   type RiskAmpel,
   type ReviewerStatus,
   type MilestonePatch,
-  type ActivityPatch,
   type RiskPatch,
 } from "../../../../lib/api";
 
@@ -32,6 +31,11 @@ const AMPEL_COLOR: Record<RiskAmpel, string> = {
   rot: "var(--c-red)",
   gelb: "var(--c-amber)",
   gruen: "var(--c-green)",
+};
+const AMPEL_LABEL: Record<RiskAmpel, string> = {
+  rot: "Rot",
+  gelb: "Gelb",
+  gruen: "Grün",
 };
 const REVIEWER_COLOR: Record<ReviewerStatus, string> = {
   PASS: "var(--c-green)",
@@ -43,10 +47,16 @@ function isoToDateInput(iso: string): string {
   return new Date(iso).toISOString().slice(0, 10);
 }
 
+/** Risk-Matrix-Score (Eintritt × Auswirkung) → Ampel. Spiegelt das Backend (_ampel_for). */
+function ampelForScore(score: number): RiskAmpel {
+  if (score >= 15) return "rot";
+  if (score >= 8) return "gelb";
+  return "gruen";
+}
+
 /** Lokaler, editierbarer Entwurf — nur die fachlich änderbaren Felder. */
 interface Draft {
   milestones: Record<string, { name: string; planned_date: string }>;
-  activities: Record<string, { description: string; effort_pt: number }>;
   risks: Record<
     string,
     { description: string; probability: number; impact: number; mitigation: string }
@@ -54,15 +64,12 @@ interface Draft {
 }
 
 function buildDraft(plan: Plan): Draft {
-  const d: Draft = { milestones: {}, activities: {}, risks: {} };
+  const d: Draft = { milestones: {}, risks: {} };
   for (const m of plan.milestones) {
     d.milestones[m.id] = {
       name: m.name,
       planned_date: isoToDateInput(m.planned_date),
     };
-    for (const a of m.activities) {
-      d.activities[a.id] = { description: a.description, effort_pt: a.effort_pt };
-    }
     for (const r of m.mrl) {
       d.risks[r.id] = {
         description: r.description,
@@ -86,7 +93,6 @@ function buildDraft(plan: Plan): Draft {
 /** Erzeugt aus Plan + Draft die minimalen Patches (nur geänderte Felder). */
 function diffToPatches(plan: Plan, draft: Draft) {
   const milestones: MilestonePatch[] = [];
-  const activities: ActivityPatch[] = [];
   const risks: RiskPatch[] = [];
 
   for (const m of plan.milestones) {
@@ -97,14 +103,6 @@ function diffToPatches(plan: Plan, draft: Draft) {
       patch.planned_date = d.planned_date;
     if (patch.name !== undefined || patch.planned_date !== undefined)
       milestones.push(patch);
-    for (const a of m.activities) {
-      const da = draft.activities[a.id];
-      const ap: ActivityPatch = { id: a.id };
-      if (da.description !== a.description) ap.description = da.description;
-      if (da.effort_pt !== a.effort_pt) ap.effort_pt = da.effort_pt;
-      if (ap.description !== undefined || ap.effort_pt !== undefined)
-        activities.push(ap);
-    }
   }
   const allRisks = [...plan.prl, ...plan.milestones.flatMap((m) => m.mrl)];
   for (const r of allRisks) {
@@ -116,7 +114,7 @@ function diffToPatches(plan: Plan, draft: Draft) {
     if (dr.mitigation !== r.mitigation) rp.mitigation = dr.mitigation;
     if (Object.keys(rp).length > 1) risks.push(rp);
   }
-  return { milestones, activities, risks };
+  return { milestones, risks };
 }
 
 interface DiffLine {
@@ -154,16 +152,6 @@ function diffVersions(prev: Plan, curr: Plan): DiffLine[] {
       });
     if (p.ampel !== m.ampel)
       lines.push({ label: `${m.id} Ampel`, from: p.ampel, to: m.ampel });
-    const pa = new Map(p.activities.map((a) => [a.id, a]));
-    for (const a of m.activities) {
-      const q = pa.get(a.id);
-      if (q && q.effort_pt !== a.effort_pt)
-        lines.push({
-          label: `${a.id} Aufwand`,
-          from: `${q.effort_pt} PT`,
-          to: `${a.effort_pt} PT`,
-        });
-    }
     const pr = new Map(p.mrl.map((r) => [r.id, r]));
     for (const r of m.mrl) {
       const q = pr.get(r.id);
@@ -229,9 +217,8 @@ export default function ReviewPage(): React.ReactElement {
 
   const frozen = project?.gate2_approved_at != null;
   const patches =
-    plan && draft ? diffToPatches(plan, draft) : { milestones: [], activities: [], risks: [] };
-  const dirty =
-    patches.milestones.length + patches.activities.length + patches.risks.length > 0;
+    plan && draft ? diffToPatches(plan, draft) : { milestones: [], risks: [] };
+  const dirty = patches.milestones.length + patches.risks.length > 0;
 
   async function save(): Promise<void> {
     if (!dirty) return;
@@ -420,63 +407,10 @@ export default function ReviewPage(): React.ReactElement {
               </label>
             </div>
 
-            {m.activities.map((a) => (
-              <div key={a.id} style={fieldRowStyle}>
-                <label style={fieldStyle}>
-                  <span style={fieldLabelStyle}>Aktivität {a.id}</span>
-                  <input
-                    style={inputStyle}
-                    value={draft.activities[a.id].description}
-                    disabled={frozen}
-                    onChange={(e) =>
-                      setDraft((d) =>
-                        d && {
-                          ...d,
-                          activities: {
-                            ...d.activities,
-                            [a.id]: {
-                              ...d.activities[a.id],
-                              description: e.target.value,
-                            },
-                          },
-                        },
-                      )
-                    }
-                  />
-                </label>
-                <label style={{ ...fieldStyle, maxWidth: 120 }}>
-                  <span style={fieldLabelStyle}>Aufwand (PT)</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    style={inputStyle}
-                    value={draft.activities[a.id].effort_pt}
-                    disabled={frozen}
-                    onChange={(e) =>
-                      setDraft((d) =>
-                        d && {
-                          ...d,
-                          activities: {
-                            ...d.activities,
-                            [a.id]: {
-                              ...d.activities[a.id],
-                              effort_pt: Number(e.target.value),
-                            },
-                          },
-                        },
-                      )
-                    }
-                  />
-                </label>
-              </div>
-            ))}
-
             {m.mrl.map((r) => (
               <RiskEditor
                 key={r.id}
                 rid={r.id}
-                ampel={r.ampel}
                 draft={draft}
                 setDraft={setDraft}
                 frozen={frozen}
@@ -494,7 +428,6 @@ export default function ReviewPage(): React.ReactElement {
           <RiskEditor
             key={r.id}
             rid={r.id}
-            ampel={r.ampel}
             draft={draft}
             setDraft={setDraft}
             frozen={frozen}
@@ -516,7 +449,7 @@ export default function ReviewPage(): React.ReactElement {
           </label>
           <div style={{ ...subMetaStyle, marginTop: "var(--sp-2)" }}>
             {dirty
-              ? `${patches.milestones.length + patches.activities.length + patches.risks.length} Änderung(en) bereit zum Speichern.`
+              ? `${patches.milestones.length + patches.risks.length} Änderung(en) bereit zum Speichern.`
               : "Keine ungespeicherten Änderungen."}
           </div>
         </div>
@@ -590,14 +523,12 @@ export default function ReviewPage(): React.ReactElement {
 
 function RiskEditor({
   rid,
-  ampel,
   draft,
   setDraft,
   frozen,
   label,
 }: {
   rid: string;
-  ampel: RiskAmpel;
   draft: Draft;
   setDraft: React.Dispatch<React.SetStateAction<Draft | null>>;
   frozen: boolean;
@@ -608,49 +539,69 @@ function RiskEditor({
     setDraft((d) =>
       d && { ...d, risks: { ...d.risks, [rid]: { ...d.risks[rid], ...patch } } },
     );
+  // v0.6 — Ampel live aus Eintritt × Auswirkung (clientseitig, gleiche Schwellen
+  // wie der Server). Der Anwender sieht das Ergebnis sofort, ohne erst zu speichern.
+  const score = r.probability * r.impact;
+  const liveAmpel = ampelForScore(score);
   return (
     <div style={riskRowStyle}>
       <div style={{ display: "flex", gap: "var(--sp-2)", alignItems: "center" }}>
-        <span style={{ ...dotSmStyle, backgroundColor: AMPEL_COLOR[ampel] }} />
-        <span style={metaStyle}>{label} · Ampel folgt E×A (Server)</span>
+        <span style={{ ...dotSmStyle, backgroundColor: AMPEL_COLOR[liveAmpel] }} />
+        <span style={metaStyle}>{label}</span>
       </div>
+      <label style={fieldStyle}>
+        <span style={fieldLabelStyle}>Beschreibung</span>
+        <input
+          style={inputStyle}
+          value={r.description}
+          disabled={frozen}
+          onChange={(e) => upd({ description: e.target.value })}
+        />
+      </label>
       <div style={fieldRowStyle}>
-        <label style={fieldStyle}>
-          <span style={fieldLabelStyle}>Beschreibung</span>
-          <input
-            style={inputStyle}
-            value={r.description}
-            disabled={frozen}
-            onChange={(e) => upd({ description: e.target.value })}
-          />
-        </label>
-        <label style={{ ...fieldStyle, maxWidth: 90 }}>
-          <span style={fieldLabelStyle}>Eintritt</span>
-          <input
-            type="number"
-            min={1}
-            max={5}
+        <label style={{ ...fieldStyle, maxWidth: 130 }}>
+          <span style={fieldLabelStyle}>Eintritt (1–5)</span>
+          <select
             style={inputStyle}
             value={r.probability}
             disabled={frozen}
             onChange={(e) => upd({ probability: Number(e.target.value) })}
-          />
+          >
+            {[1, 2, 3, 4, 5].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
         </label>
-        <label style={{ ...fieldStyle, maxWidth: 90 }}>
-          <span style={fieldLabelStyle}>Auswirkung</span>
-          <input
-            type="number"
-            min={1}
-            max={5}
+        <label style={{ ...fieldStyle, maxWidth: 130 }}>
+          <span style={fieldLabelStyle}>Auswirkung (1–5)</span>
+          <select
             style={inputStyle}
             value={r.impact}
             disabled={frozen}
             onChange={(e) => upd({ impact: Number(e.target.value) })}
-          />
+          >
+            {[1, 2, 3, 4, 5].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
         </label>
+        <div style={{ ...fieldStyle, justifyContent: "flex-end" }}>
+          <span style={fieldLabelStyle}>Ergebnis</span>
+          <span style={{ ...scorePillStyle, color: AMPEL_COLOR[liveAmpel], borderColor: AMPEL_COLOR[liveAmpel] }}>
+            {r.probability} × {r.impact} = {score} → {AMPEL_LABEL[liveAmpel]}
+          </span>
+        </div>
       </div>
+      <p style={scoringHintStyle}>
+        Risiko-Score = Eintritt × Auswirkung. Ampel: grün &lt; 8 · gelb 8–14 · rot ≥ 15.
+        Die Ampel wird beim Speichern serverseitig genauso neu abgeleitet.
+      </p>
       <label style={fieldStyle}>
-        <span style={fieldLabelStyle}>Maßnahme</span>
+        <span style={fieldLabelStyle}>Mitigations-Maßnahme</span>
         <input
           style={inputStyle}
           value={r.mitigation}
@@ -754,6 +705,24 @@ const riskRowStyle: React.CSSProperties = {
   paddingTop: "var(--sp-3)",
   marginTop: "var(--sp-3)",
   borderTop: "1px solid var(--c-border)",
+};
+
+const scorePillStyle: React.CSSProperties = {
+  alignSelf: "flex-start",
+  padding: "2px var(--sp-2)",
+  fontSize: 13,
+  fontWeight: 700,
+  fontVariantNumeric: "tabular-nums",
+  border: "1px solid",
+  borderRadius: "var(--r-pill)",
+  whiteSpace: "nowrap",
+};
+
+const scoringHintStyle: React.CSSProperties = {
+  fontSize: "var(--fs-caption)",
+  color: "var(--c-text-muted)",
+  margin: "var(--sp-1) 0 0",
+  lineHeight: 1.5,
 };
 
 const plainListStyle: React.CSSProperties = {

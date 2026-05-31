@@ -5,9 +5,13 @@ Spec: docs/01_zgpm-method.md (Kerneinheiten) + docs/02_architecture-option-b.md
 
 Methodentreue (nicht verwässern, siehe docs/01):
 - Meilenstein ist ein *Zustand* (Verb im Perfekt), keine Aufgabe.
-- Genau ein `F`/`L` pro Meilenstein und Aktivität; mindestens ein `A`.
-- Ampel propagiert nach oben (Aktivität/MRL -> Meilenstein -> Projekt).
+- Genau ein `F`/`L` pro Meilenstein; mindestens ein `A`.
+- Ampel propagiert nach oben (MRL -> Meilenstein -> Projekt).
 - ZGPM ist Methodik nach Glasner et al. (PwC) — keine Marken-Suggestion.
+
+v0.6 — Aktivitäten & Personentage (effort_pt) entfernt: Agenten übernehmen die
+Aktivitäten autonom; der Plan endet auf Meilenstein-Ebene (Name + Datum + PVM +
+Risiken). Kosten werden als Token-Budget je Agent geführt, nicht in Personentagen.
 """
 
 from __future__ import annotations
@@ -47,39 +51,13 @@ class Risk(BaseModel):
     mitigation: str
 
 
-class ToolSuggestion(BaseModel):
-    """Werkzeug-/MCP-Vorschlag für eine Aktivität (Schritt 6b).
-
-    Bewusst laienverständlich: Klartext, was das Werkzeug tut, warum es hier
-    vorgeschlagen wird und welcher Trust-Hinweis (Least-Privilege) gilt. Wird in
-    Schritt 6b angeboten und beim Agenten-Bau (Schritt 8) je Agent gebunden.
-    """
-
-    id: str
-    name: str  # technischer Name/Slug, z. B. "github-mcp"
-    kind: Literal["tool", "mcp"] = "tool"
-    label: str  # Anzeigename, z. B. "GitHub (Code & Repos)"
-    what_it_does: str  # eine Klartext-Zeile für Laien
-    why_suggested: str  # Bezug zur Aktivität
-    trust_note: str  # Daten-/Rechte-Hinweis (Least-Privilege)
-    accepted: bool = False
-
-
-class Activity(BaseModel):
-    """Konkrete Arbeit, die vor Erreichen des Meilensteins erledigt sein muss."""
-
-    id: str
-    description: str
-    effort_pt: float = Field(ge=0, description="Geplanter Aufwand in Personentagen")
-    start: datetime
-    end: datetime
-    responsibilities: list[Responsibility]
-    # v0.5 — abgeleitete Werkzeug-/MCP-Bedarfe (Schritt 6b), editierbar (annehmen/verwerfen).
-    tool_suggestions: list[ToolSuggestion] = Field(default_factory=list)
-
-
 class Milestone(BaseModel):
-    """Zustand, der bis zu einem Datum erreicht sein muss (Verb im Perfekt)."""
+    """Zustand, der bis zu einem Datum erreicht sein muss (Verb im Perfekt).
+
+    v0.6 — kein `activities`-Feld mehr: die konkrete Arbeit übernehmen die Agenten
+    autonom im Betrieb. Der Plan beschreibt nur noch den Ziel-Zustand, das Datum,
+    die Verantwortlichkeiten (PVM) und die Meilensteinrisiken (MRL).
+    """
 
     id: str
     name: str
@@ -89,7 +67,6 @@ class Milestone(BaseModel):
     predecessors: list[str] = Field(default_factory=list)
     ampel: RiskAmpel
     responsibilities: list[Responsibility]
-    activities: list[Activity]
     # Meilensteinrisikoliste (MRL) — eine pro Meilenstein.
     mrl: list[Risk] = Field(default_factory=list)
 
@@ -157,14 +134,6 @@ class RiskPatch(BaseModel):
     mitigation: str | None = None
 
 
-class ActivityPatch(BaseModel):
-    """Teil-Update einer Aktivität, adressiert über die Activity-ID."""
-
-    id: str
-    description: str | None = None
-    effort_pt: float | None = Field(default=None, ge=0)
-
-
 class MilestonePatch(BaseModel):
     """Teil-Update eines Meilensteins, adressiert über die Milestone-ID."""
 
@@ -177,15 +146,14 @@ class PlanRevisionRequest(BaseModel):
     """Schritt 7 — eine Sammlung von Inline-Edits, die eine neue Version erzeugt."""
 
     milestones: list[MilestonePatch] = Field(default_factory=list)
-    activities: list[ActivityPatch] = Field(default_factory=list)
     risks: list[RiskPatch] = Field(default_factory=list)
     note: str | None = Field(default=None, max_length=2000)
 
 
-# --- Schritt 6a/6b: geführte Edit-Operationen (Wizard) -----------------------
-# Der Anwender (oft Laie) bearbeitet *vorgeschlagene* Meilensteine/Aktivitäten:
-# umbenennen, löschen, hinzufügen, neu sortieren. PVM/Risiken bleiben den ZGPM-
-# Regeln vorbehalten und werden nach jeder Operation neu abgeleitet (recompute).
+# --- Schritt 6a: geführte Edit-Operationen (Wizard) --------------------------
+# Der Anwender (oft Laie) bearbeitet *vorgeschlagene* Meilensteine: umbenennen,
+# löschen, hinzufügen, neu sortieren. PVM/Risiken bleiben den ZGPM-Regeln
+# vorbehalten und werden nach jeder Operation neu abgeleitet (recompute).
 
 EditOp = Literal["add", "update", "delete", "reorder"]
 
@@ -199,21 +167,6 @@ class MilestoneOp(BaseModel):
     planned_date: datetime | None = None  # add/update
     # reorder: vollständige Liste der Milestone-IDs in neuer Reihenfolge.
     order: list[str] | None = None
-
-
-class ActivityOp(BaseModel):
-    """Eine Operation auf den Aktivitäten eines Meilensteins (Schritt 6b)."""
-
-    op: EditOp
-    milestone_id: str  # zu welchem Meilenstein die Aktivität gehört
-    id: str | None = None  # bei update/delete erforderlich
-    description: str | None = None  # add/update
-    effort_pt: float | None = Field(default=None, ge=0)  # add/update
-    # reorder: Activity-IDs des Meilensteins in neuer Reihenfolge.
-    order: list[str] | None = None
-    # Werkzeug-Vorschlag annehmen/verwerfen (op="update", tool_id gesetzt).
-    tool_id: str | None = None
-    tool_accepted: bool | None = None
 
 
 class Plan(BaseModel):

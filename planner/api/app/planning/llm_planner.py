@@ -3,10 +3,12 @@
 Spec: docs/09_process-flow.md (Schritt 6), docs/12_tools-mcp-suggestions.md.
 
 Leitprinzip (User-Vorgabe): Der Anwender ist oft Laie. Der LLM liefert eine
-projektspezifische **Gliederung** (Meilenstein-Namen im Perfekt + je Meilenstein
-konkrete Aktivitätstexte in einfacher Sprache) sowie eine qualitative Gesamt-
-risiko-Begründung. Aus dieser Gliederung baut der `zgpm_composer` einen voll
-ZGPM-konformen Plan (PVM-Matrix, Risiken, Termine, Werkzeug-Vorschläge).
+projektspezifische **Gliederung** (Meilenstein-Namen im Perfekt + Phasenname)
+sowie eine qualitative Gesamtrisiko-Begründung. Aus dieser Gliederung baut der
+`zgpm_composer` einen voll ZGPM-konformen Plan (PVM-Matrix, Risiken, Termine).
+
+v0.6 — Aktivitäten entfallen: der Plan endet auf Meilenstein-Ebene, die konkrete
+Arbeit übernehmen die Agenten autonom im Betrieb.
 
 Robust wie das Interview: Ist Foundry nicht konfiguriert oder schlägt der Call/
 Parse fehl, fällt alles auf den deterministischen Composer zurück — die Plan-
@@ -27,7 +29,6 @@ logger = logging.getLogger("aegira.planner.api.planning.llm")
 
 # Plausibilitäts-Grenzen für die LLM-Gliederung (gegen Ausreißer).
 _MIN_MS, _MAX_MS = 3, 8
-_MIN_ACT, _MAX_ACT = 2, 5
 
 
 _SYSTEM = """Du bist ein erfahrener Projektplaner und arbeitest nach der ZGPM-\
@@ -41,8 +42,8 @@ Anwender danach bearbeiten kann.
 REGELN:
 - Meilensteine sind ZUSTÄNDE im Perfekt (z. B. „Konzept freigegeben"), KEINE \
 Aufgaben. 3–6 Meilensteine, logisch aufeinander aufbauend.
-- Je Meilenstein GENAU 3 konkrete Aktivitäten (was getan werden muss, damit der \
-Zustand erreicht ist). Aktivitäten sind Tätigkeiten (Verb), kurz und klar.
+- KEINE Aktivitäten/Arbeitspakete — die konkrete Arbeit übernehmen die Agenten \
+autonom. Plane nur die Ziel-Zustände und ihre Reihenfolge.
 - Eine qualitative Gesamtrisiko-Einschätzung in 2–4 Sätzen: Was ist das größte \
 Risiko, warum, und wie lässt es sich mildern. Kein Methoden-Jargon.
 
@@ -51,8 +52,7 @@ ANTWORTFORMAT — gib AUSSCHLIESSLICH ein JSON-Objekt zurück, ohne Markdown:
   "milestones": [
     {
       "name": "<Zustand im Perfekt>",
-      "phase": "<kurzer Phasenname, z. B. Discovery / Konzeption / Umsetzung>",
-      "activities": ["<Tätigkeit 1>", "<Tätigkeit 2>", "<Tätigkeit 3>"]
+      "phase": "<kurzer Phasenname, z. B. Discovery / Konzeption / Umsetzung>"
     }
   ],
   "risk_narrative": "<2–4 Sätze qualitative Gesamtrisiko-Begründung>"
@@ -78,7 +78,7 @@ def _render_user(project: Project, context_text: str) -> str:
         lines.append(f"\nKONTEXT (ephemer, nicht zitieren):\n{context_text.strip()[:6000]}")
     lines.append(
         "\nErzeuge jetzt die Gliederung als JSON gemäß Vorgabe. "
-        "3–6 Meilensteine (Zustände im Perfekt), je genau 3 Aktivitäten."
+        "3–6 Meilensteine (Zustände im Perfekt), ohne Aktivitäten."
     )
     return "\n".join(lines)
 
@@ -109,16 +109,10 @@ def _parse_outline(raw: str) -> tuple[list[dict], str]:
         name = str(m.get("name", "")).strip()
         if not name:
             continue
-        acts_raw = m.get("activities") or []
-        acts = [str(a).strip() for a in acts_raw if str(a).strip()]
-        if not acts:
-            continue
-        acts = acts[:_MAX_ACT]
         outline.append(
             {
                 "name": name,
                 "phase_name": str(m.get("phase", name)).strip() or name,
-                "activities": acts,
             }
         )
 
@@ -135,7 +129,7 @@ async def generate_plan(
     """Schritt 6 — Plan generieren: LLM-Gliederung, sonst deterministisch.
 
     Der LLM liefert nur die Gliederung + Risiko-Narrativ; den voll ZGPM-konformen
-    Plan (PVM/Risiken/Termine/Werkzeuge) baut der deterministische Composer daraus.
+    Plan (PVM/Risiken/Termine) baut der deterministische Composer daraus.
     """
     if not foundry.is_configured():
         return zgpm_composer.compose(project, version=version, plan_id=plan_id)

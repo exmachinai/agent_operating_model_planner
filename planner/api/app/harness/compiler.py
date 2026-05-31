@@ -31,6 +31,7 @@ from ..schemas.harness import (
     HarnessGraph,
     HarnessNode,
     ReviseCommand,
+    SkillImport,
 )
 from ..schemas.plan import Plan
 from ..schemas.project import Project
@@ -54,6 +55,30 @@ def slugify(text: str) -> str:
     )
     text = re.sub(r"[^a-z0-9]+", "-", text).strip("-")
     return text or "harness"
+
+
+# v0.6 — minimaler Frontmatter-Check für importierte SKILL.md (name + description).
+_FM_NAME = re.compile(r"^name\s*:\s*\S", re.MULTILINE)
+_FM_DESC = re.compile(r"^description\s*:\s*\S", re.MULTILINE)
+
+
+def _validate_skill_frontmatter(content: str) -> None:
+    """Stellt sicher, dass eine importierte SKILL.md gültiges Frontmatter hat.
+
+    Erwartet einen `---`-Block am Dateianfang mit den Pflichtfeldern `name:` und
+    `description:` (Claude-Code-Skill-Spec). Wirft `ValueError` (→ HTTP 422), wenn
+    etwas fehlt — so wird Freitext nie als Skill durchgereicht."""
+    text = content.lstrip("﻿").lstrip()
+    if not text.startswith("---"):
+        raise ValueError("SKILL.md braucht ein YAML-Frontmatter (--- am Anfang).")
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        raise ValueError("SKILL.md-Frontmatter ist nicht geschlossen (zweites --- fehlt).")
+    front = parts[1]
+    if not _FM_NAME.search(front):
+        raise ValueError("SKILL.md-Frontmatter braucht ein nicht-leeres Feld `name:`.")
+    if not _FM_DESC.search(front):
+        raise ValueError("SKILL.md-Frontmatter braucht ein nicht-leeres Feld `description:`.")
 
 
 # PVM-Rolle → Agenten-Bauplan. `None` = keine autonome Agentendatei (z. B. nur
@@ -171,11 +196,8 @@ def _tasks_for(name: str, plan: Plan) -> list[str]:
     if name == "hitl-projektleiter":
         return [f"{m.id} {m.name}: Freigabe" for m in plan.milestones]
     if name in ("architecture-agent", "methodology-agent"):
-        return [
-            f"{m.id} · {a.description}"
-            for m in plan.milestones
-            for a in m.activities
-        ][:8]
+        return [f"{m.id} · {m.name} (autonome Umsetzung bis Zustand erreicht)"
+                for m in plan.milestones][:8]
     if name == "risk-agent":
         return [
             f"{r.id}: {r.description} (E{r.probability}×A{r.impact})"
@@ -409,6 +431,7 @@ def apply_command(graph: HarnessGraph, cmd: ReviseCommand) -> HarnessGraph:
         )
 
     agents = [a.model_copy(deep=True) for a in graph.agents]
+    imported_skills = [s.model_copy(deep=True) for s in graph.imported_skills]
 
     if cmd.command in ("sequence", "parallel"):
         parallel = cmd.command == "parallel"
@@ -419,10 +442,20 @@ def apply_command(graph: HarnessGraph, cmd: ReviseCommand) -> HarnessGraph:
         target = next((a for a in agents if a.id == cmd.agent_id), None)
         if target is None:
             raise ValueError(f"Agent '{cmd.agent_id}' nicht gefunden.")
+        skill_slug = slugify(cmd.skill)
         if cmd.remove:
-            target.skills = [s for s in target.skills if s != cmd.skill]
-        elif cmd.skill not in target.skills:
-            target.skills.append(cmd.skill)
+            target.skills = [s for s in target.skills if s != skill_slug]
+        else:
+            # v0.6 — echter SKILL.md-Import: Inhalt validieren und unverändert ablegen.
+            if cmd.skill_content is not None:
+                _validate_skill_frontmatter(cmd.skill_content)
+                imported_skills = [s for s in imported_skills if s.name != skill_slug]
+                imported_skills.append(SkillImport(name=skill_slug, content=cmd.skill_content))
+            if skill_slug not in target.skills:
+                target.skills.append(skill_slug)
+        # Importierte Skills ohne referenzierenden Agenten verwerfen (kein Waisen-File).
+        referenced = {s for a in agents for s in a.skills}
+        imported_skills = [s for s in imported_skills if s.name in referenced]
         nodes = [n.model_copy(deep=True) for n in graph.nodes]
     elif cmd.command == "tool":
         # v0.5 — Werkzeug/MCP je Agent binden (aus den in Schritt 6b akzeptierten
@@ -481,6 +514,7 @@ def apply_command(graph: HarnessGraph, cmd: ReviseCommand) -> HarnessGraph:
         update={
             "agents": agents,
             "nodes": nodes,
+            "imported_skills": imported_skills,
             "findings": findings,
             "iteration": graph.iteration + 1,
             "artifacts": [],  # nach Revision neu zu kompilieren
@@ -554,12 +588,12 @@ def build_files(graph: HarnessGraph, plan: Plan, project: Project) -> dict[str, 
     files["plan/msp.yaml"] = yaml_emit.dump(templates.plan_msp(plan))
     files["plan/pvm.yaml"] = yaml_emit.dump(templates.plan_pvm(plan))
     files["plan/risks.yaml"] = yaml_emit.dump(templates.plan_risks(plan))
-    files["plan/effort.yaml"] = yaml_emit.dump(templates.plan_effort(plan))
+    files["plan/cost.yaml"] = yaml_emit.dump(templates.plan_cost(plan))
     files["plan/_version.json"] = templates.plan_version_json(
         plan, _SCHEMA_VERSION, _COMPILER_ID, graph.created_at
     )
     for m in plan.milestones:
-        files[f"plan/activities/{m.id}.yaml"] = yaml_emit.dump(templates.plan_activities(m))
+        files[f"plan/milestones/{m.id}.yaml"] = yaml_emit.dump(templates.plan_milestone(m))
 
     # v0.4 — Orchestrierung (Stages/Muster) + Guardrails (Trust-Layer)
     files["orchestration.yaml"] = yaml_emit.dump(templates.orchestration(graph))

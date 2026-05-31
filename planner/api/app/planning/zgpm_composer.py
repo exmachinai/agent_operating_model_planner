@@ -17,8 +17,6 @@ import json
 from datetime import datetime, timedelta, timezone
 
 from ..schemas.plan import (
-    Activity,
-    ActivityPatch,
     EvidenceSource,
     Milestone,
     MilestonePatch,
@@ -35,7 +33,6 @@ from ..schemas.plan import (
     TokenBudgetEntry,
 )
 from ..schemas.project import Project
-from . import tool_catalog
 
 # Phasen je Projektart. Meilenstein-Namen stehen im Perfekt (ZGPM-Konvention).
 _PHASES: dict[str, list[tuple[str, str]]] = {
@@ -155,36 +152,26 @@ def _nature(project: Project) -> str:
 
 
 def _default_outline(project: Project) -> list[dict]:
-    """Deterministische Gliederung (Meilenstein-Namen + 4 Aktivitätstexte je MS).
+    """Deterministische Gliederung (Meilenstein-Namen + Phasenname).
 
     Quelle für den regelbasierten Pfad und Fallback, wenn der LLM-Planner keine
-    Gliederung liefert. `phase_name` steuert die Default-Aktivitätstexte."""
+    Gliederung liefert. v0.6 — keine Aktivitätstexte mehr: der Plan endet auf
+    Meilenstein-Ebene, die konkrete Arbeit übernehmen die Agenten autonom."""
     nature = _nature(project)
-    outline: list[dict] = []
-    for phase_name, ms_name in _PHASES[nature]:
-        outline.append(
-            {
-                "name": ms_name,
-                "phase_name": phase_name,
-                "activities": [
-                    f"{phase_name} planen und Anforderungen/Scope schärfen.",
-                    f"Arbeitspaket {phase_name} durchführen und Ergebnis sichern.",
-                    f"Ergebnis {phase_name} prüfen und Nachweise dokumentieren (audit-ready).",
-                    f"{phase_name}: HITL-Review vorbereiten und Meilenstein-Freigabe einholen.",
-                ],
-            }
-        )
-    return outline
+    return [
+        {"name": ms_name, "phase_name": phase_name}
+        for phase_name, ms_name in _PHASES[nature]
+    ]
 
 
 def _build_milestones_from_outline(
     project: Project, anchor: datetime, outline: list[dict]
 ) -> list[Milestone]:
-    """Baut regelkonforme Meilensteine aus einer Gliederung (Namen + Aktivitätstexte).
+    """Baut regelkonforme Meilensteine aus einer Gliederung (Namen + Phasen).
 
-    PVM, MRL, Termine, Streams und Werkzeug-Vorschläge werden hier deterministisch
-    ergänzt — egal ob die Gliederung vom LLM-Planner oder aus `_default_outline`
-    stammt. So bleibt die ZGPM-Methodentreue unabhängig von der Vorschlagsquelle."""
+    PVM, MRL, Termine und Streams werden hier deterministisch ergänzt — egal ob die
+    Gliederung vom LLM-Planner oder aus `_default_outline` stammt. v0.6 — keine
+    Aktivitäten mehr: der Plan endet auf Meilenstein-Ebene."""
     nature = _nature(project)
     streams = _STREAMS[nature]
     phase_agents = _PHASE_AGENTS[nature]
@@ -195,14 +182,12 @@ def _build_milestones_from_outline(
     for idx, item in enumerate(outline):
         ms_name = item.get("name") or f"Meilenstein {idx + 1}"
         phase_name = item.get("phase_name") or ms_name
-        act_texts = item.get("activities") or []
         phase_id = f"PH{idx + 1:02d}"
         ms_id = f"M{idx + 1:02d}"
         stream = streams[idx % len(streams)]
         # v0.4.1 — ausführender Spezialist dieser Phase (bekommt `A`).
         lead = phase_agents[idx % len(phase_agents)]
         planned = anchor + timedelta(days=14 * (idx + 1))
-        win_start = anchor + timedelta(days=14 * idx)
 
         # MRL: ein Risiko je Meilenstein. Eintritt/Auswirkung variieren
         # deterministisch über den Phasenindex; Ampel folgt der Risk-Matrix.
@@ -224,26 +209,6 @@ def _build_milestones_from_outline(
         # E beim Projektleiter (Entscheidung häufiger früh & auf MS-Ebene).
         ms_resp = _default_ms_responsibilities(lead)
 
-        # v0.4 — mehrere editierbare Aktivitätsvorschläge je Meilenstein (docs/11).
-        # PVM Aktivität: ein F (PMO steuert Fortschritt), ein A (Lead-Worker).
-        base_pt = float(3 + 2 * (idx % 3))
-        n_acts = len(act_texts) or 1
-        # Aufwand auf die vorhandenen Aktivitäten verteilen (Summe ~ base_pt).
-        weights = (0.3, 0.4, 0.2, 0.1)
-        activities = [
-            Activity(
-                id=f"{ms_id}-A{i + 1}",
-                description=desc,
-                effort_pt=round(base_pt * (weights[i] if i < len(weights) else 1.0 / n_acts), 1),
-                start=win_start,
-                end=planned,
-                responsibilities=_default_act_responsibilities(lead),
-                # v0.5 — abgeleitete Werkzeug-/MCP-Vorschläge (Schritt 6b).
-                tool_suggestions=tool_catalog.suggest_for_text(desc, f"{ms_id}-A{i + 1}"),
-            )
-            for i, desc in enumerate(act_texts)
-        ]
-
         milestones.append(
             Milestone(
                 id=ms_id,
@@ -254,7 +219,6 @@ def _build_milestones_from_outline(
                 predecessors=[prev_id] if prev_id else [],
                 ampel=_worst([r.ampel for r in mrl]),
                 responsibilities=ms_resp,
-                activities=activities,
                 mrl=mrl,
             )
         )
@@ -455,8 +419,6 @@ def review(
 
     for ms in milestones:
         findings += _check_pvm(f"Meilenstein {ms.id}", ms.responsibilities)
-        for act in ms.activities:
-            findings += _check_pvm(f"Aktivität {act.id}", act.responsibilities)
         # Keine Auto-Grün ohne MRL-Eintrag (docs/01).
         if ms.ampel == "gruen" and not ms.mrl:
             findings.append(
@@ -626,7 +588,6 @@ def revise(
     """
     now = datetime.now(timezone.utc)
     ms_patch = {p.id: p for p in revision.milestones}
-    act_patch = {p.id: p for p in revision.activities}
     risk_patch = {p.id: p for p in revision.risks}
 
     # PRL: Risiken auf Projektebene patchen.
@@ -639,28 +600,9 @@ def revise(
             _apply_risk_patch(r, risk_patch[r.id]) if r.id in risk_patch else r
             for r in ms.mrl
         ]
-        activities = []
-        for act in ms.activities:
-            if act.id in act_patch:
-                ap = act_patch[act.id]
-                activities.append(
-                    act.model_copy(
-                        update={
-                            "description": ap.description
-                            if ap.description is not None
-                            else act.description,
-                            "effort_pt": ap.effort_pt
-                            if ap.effort_pt is not None
-                            else act.effort_pt,
-                        }
-                    )
-                )
-            else:
-                activities.append(act)
 
         update: dict = {
             "mrl": mrl,
-            "activities": activities,
             "ampel": _worst([r.ampel for r in mrl]) if mrl else ms.ampel,
         }
         if ms.id in ms_patch:
@@ -724,15 +666,15 @@ def revise(
     )
 
 
-# --- Schritt 6a/6b: geführte Edit-Operationen + Recompute --------------------
-# Der Anwender bearbeitet vorgeschlagene Meilensteine/Aktivitäten (umbenennen,
-# löschen, hinzufügen, sortieren). PVM-Struktur und Risiken bleiben den ZGPM-
-# Regeln vorbehalten: hinzugefügte Knoten erhalten regelkonforme Default-PVM, und
-# nach jeder Operation werden Gantt-Termine, Token-Budget, Ampel-Propagation und
-# das Risiko-Narrativ neu abgeleitet (`recompute`). Append-only: jede Op erzeugt
+# --- Schritt 6a: geführte Edit-Operationen + Recompute -----------------------
+# Der Anwender bearbeitet vorgeschlagene Meilensteine (umbenennen, löschen,
+# hinzufügen, sortieren). PVM-Struktur und Risiken bleiben den ZGPM-Regeln
+# vorbehalten: hinzugefügte Knoten erhalten regelkonforme Default-PVM, und nach
+# jeder Operation werden Gantt-Termine, Token-Budget, Ampel-Propagation und das
+# Risiko-Narrativ neu abgeleitet (`recompute`). Append-only: jede Op erzeugt
 # eine neue Version.
 
-from ..schemas.plan import ActivityOp, MilestoneOp  # noqa: E402  (zyklusfrei, am Ende)
+from ..schemas.plan import MilestoneOp  # noqa: E402  (zyklusfrei, am Ende)
 
 
 def _default_ms_responsibilities(lead: str) -> list[Responsibility]:
@@ -746,58 +688,25 @@ def _default_ms_responsibilities(lead: str) -> list[Responsibility]:
     ]
 
 
-def _default_act_responsibilities(lead: str) -> list[Responsibility]:
-    """Regelkonforme PVM für eine Aktivität (genau ein F, ein A)."""
-    return [
-        Responsibility(role=lead, code="A"),
-        Responsibility(role=_PMO, code="F"),
-        Responsibility(role="Fachbereich", code="V"),
-    ]
-
-
-def _ms_lead(ms: Milestone) -> str:
-    """Liest den ausführenden Spezialisten (Code A) eines Meilensteins."""
-    for r in ms.responsibilities:
-        if r.code == "A":
-            return r.role
-    return _PMO
-
-
 def _next_ms_id(milestones: list[Milestone]) -> str:
     nums = [int(m.id[1:]) for m in milestones if m.id[1:].isdigit()]
     return f"M{(max(nums) + 1) if nums else 1:02d}"
 
 
-def _next_act_id(ms: Milestone) -> str:
-    nums = [
-        int(a.id.rsplit("A", 1)[-1])
-        for a in ms.activities
-        if a.id.rsplit("A", 1)[-1].isdigit()
-    ]
-    return f"{ms.id}-A{(max(nums) + 1) if nums else 1}"
-
-
 def _regen_gantt(milestones: list[Milestone], anchor: datetime) -> list[Milestone]:
     """Leitet Termine + Vorgänger neu aus der Meilenstein-Reihenfolge ab.
 
-    Jeder Meilenstein bekommt ein 14-Tage-Fenster in Reihenfolge; Aktivitäten
-    erben das Fenster ihres Meilensteins. So bleibt das Gantt nach jeder Edit-Op
-    konsistent (kein verwaister Termin)."""
+    Jeder Meilenstein bekommt ein 14-Tage-Fenster in Reihenfolge. So bleibt das
+    Gantt nach jeder Edit-Op konsistent (kein verwaister Termin)."""
     rebuilt: list[Milestone] = []
     prev_id: str | None = None
     for idx, ms in enumerate(milestones):
-        win_start = anchor + timedelta(days=14 * idx)
         planned = anchor + timedelta(days=14 * (idx + 1))
-        activities = [
-            a.model_copy(update={"start": win_start, "end": planned})
-            for a in ms.activities
-        ]
         rebuilt.append(
             ms.model_copy(
                 update={
                     "planned_date": planned,
                     "predecessors": [prev_id] if prev_id else [],
-                    "activities": activities,
                 }
             )
         )
@@ -903,7 +812,6 @@ def apply_milestone_ops(
                     predecessors=[],
                     ampel=_worst([r.ampel for r in mrl]),
                     responsibilities=_default_ms_responsibilities(lead),
-                    activities=[],
                     mrl=mrl,
                 )
             )
@@ -930,79 +838,4 @@ def apply_milestone_ops(
             notes.append("Meilensteine neu sortiert")
 
     note = "Meilenstein-Bearbeitung (6a): " + ("; ".join(notes) if notes else "keine Änderung")
-    return _rebuild_plan(previous, milestones, project, version, plan_id, note)
-
-
-def apply_activity_ops(
-    previous: Plan, ops: list[ActivityOp], project: Project, version: int, plan_id: str
-) -> Plan:
-    """Wendet Aktivitäts-Operationen an (add/update/delete/reorder/tool) → neue Version."""
-    milestones = list(previous.milestones)
-    notes: list[str] = []
-
-    def _find_ms(mid: str) -> int:
-        return next((i for i, m in enumerate(milestones) if m.id == mid), -1)
-
-    for op in ops:
-        mi = _find_ms(op.milestone_id)
-        if mi < 0:
-            continue
-        ms = milestones[mi]
-        acts = list(ms.activities)
-        lead = _ms_lead(ms)
-
-        if op.op == "add":
-            new_id = _next_act_id(ms)
-            desc = op.description or "Neue Aktivität"
-            acts.append(
-                Activity(
-                    id=new_id,
-                    description=desc,
-                    effort_pt=op.effort_pt if op.effort_pt is not None else 1.0,
-                    start=ms.planned_date,
-                    end=ms.planned_date,
-                    responsibilities=_default_act_responsibilities(lead),
-                    tool_suggestions=tool_catalog.suggest_for_text(desc, new_id),
-                )
-            )
-            notes.append(f"Aktivität {new_id} hinzugefügt")
-        elif op.op == "update" and op.id:
-            for j, a in enumerate(acts):
-                if a.id == op.id:
-                    upd: dict = {}
-                    if op.description is not None:
-                        upd["description"] = op.description
-                        # Werkzeug-Vorschläge an neuen Text anpassen, akzeptierte behalten.
-                        accepted = [t for t in a.tool_suggestions if t.accepted]
-                        fresh = tool_catalog.suggest_for_text(op.description, a.id)
-                        keep_names = {t.name for t in accepted}
-                        upd["tool_suggestions"] = accepted + [
-                            t for t in fresh if t.name not in keep_names
-                        ]
-                    if op.effort_pt is not None:
-                        upd["effort_pt"] = op.effort_pt
-                    # Werkzeug annehmen/verwerfen.
-                    if op.tool_id is not None and op.tool_accepted is not None:
-                        tools = upd.get("tool_suggestions", list(a.tool_suggestions))
-                        tools = [
-                            t.model_copy(update={"accepted": op.tool_accepted})
-                            if t.id == op.tool_id else t
-                            for t in tools
-                        ]
-                        upd["tool_suggestions"] = tools
-                    acts[j] = a.model_copy(update=upd)
-                    notes.append(f"Aktivität {op.id} geändert")
-                    break
-        elif op.op == "delete" and op.id:
-            acts = [a for a in acts if a.id != op.id]
-            notes.append(f"Aktivität {op.id} gelöscht")
-        elif op.op == "reorder" and op.order:
-            by_id = {a.id: a for a in acts}
-            acts = [by_id[i] for i in op.order if i in by_id]
-            acts += [a for a in by_id.values() if a.id not in op.order]
-            notes.append(f"Aktivitäten von {ms.id} neu sortiert")
-
-        milestones[mi] = ms.model_copy(update={"activities": acts})
-
-    note = "Aktivitäts-Bearbeitung (6b): " + ("; ".join(notes) if notes else "keine Änderung")
     return _rebuild_plan(previous, milestones, project, version, plan_id, note)

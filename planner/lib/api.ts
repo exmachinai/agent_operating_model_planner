@@ -83,9 +83,8 @@ export interface Project {
   plan_hash: string | null;
   gate1_approved_at: string | null;
   guardrails_cleared_at: string | null;
-  // v0.5 — geführte Plan-DONE-Gates (Schritt 6a/6b).
+  // v0.6 — geführtes Plan-DONE-Gate (Schritt 6a); 6b-Aktivitätsstufe entfällt.
   milestones_done_at: string | null;
-  activities_done_at: string | null;
   gate2_approved_at: string | null;
   approved_plan_version: number | null;
   gate3_approved_at: string | null;
@@ -176,28 +175,8 @@ export interface Risk {
   mitigation: string;
 }
 
-/** v0.5 — Werkzeug-/MCP-Vorschlag für eine Aktivität (Schritt 6b), laienverständlich. */
-export interface ToolSuggestion {
-  id: string;
-  name: string;
-  kind: "tool" | "mcp";
-  label: string;
-  what_it_does: string;
-  why_suggested: string;
-  trust_note: string;
-  accepted: boolean;
-}
-
-export interface Activity {
-  id: string;
-  description: string;
-  effort_pt: number;
-  start: string;
-  end: string;
-  responsibilities: Responsibility[];
-  tool_suggestions: ToolSuggestion[];
-}
-
+// v0.6 — Aktivitäten & Personentage entfernt: der Plan endet auf Meilenstein-
+// Ebene; die konkrete Arbeit übernehmen die Agenten autonom.
 export interface Milestone {
   id: string;
   name: string;
@@ -207,7 +186,6 @@ export interface Milestone {
   predecessors: string[];
   ampel: RiskAmpel;
   responsibilities: Responsibility[];
-  activities: Activity[];
   mrl: Risk[];
 }
 
@@ -243,7 +221,7 @@ export interface EvidenceSource {
   frozen_at: string | null;
 }
 
-// v0.5 — geführte Edit-Operationen (Schritt 6a/6b).
+// v0.6 — geführte Edit-Operationen (Schritt 6a, nur Meilensteine).
 export type EditOp = "add" | "update" | "delete" | "reorder";
 
 export interface MilestoneOp {
@@ -252,17 +230,6 @@ export interface MilestoneOp {
   name?: string;
   planned_date?: string;
   order?: string[];
-}
-
-export interface ActivityOp {
-  op: EditOp;
-  milestone_id: string;
-  id?: string;
-  description?: string;
-  effort_pt?: number;
-  order?: string[];
-  tool_id?: string;
-  tool_accepted?: boolean;
 }
 
 export interface Plan {
@@ -298,12 +265,6 @@ export interface RiskPatch {
   mitigation?: string;
 }
 
-export interface ActivityPatch {
-  id: string;
-  description?: string;
-  effort_pt?: number;
-}
-
 export interface MilestonePatch {
   id: string;
   name?: string;
@@ -312,7 +273,6 @@ export interface MilestonePatch {
 
 export interface PlanRevisionRequest {
   milestones?: MilestonePatch[];
-  activities?: ActivityPatch[];
   risks?: RiskPatch[];
   note?: string;
 }
@@ -403,6 +363,12 @@ export interface HarnessFileMap {
   files: HarnessFile[];
 }
 
+/** v0.6 — ein vom Anwender importierter echter Skill (unveränderte SKILL.md). */
+export interface SkillImport {
+  name: string;
+  content: string;
+}
+
 export interface HarnessGraph {
   id: string;
   projectId: string;
@@ -412,6 +378,7 @@ export interface HarnessGraph {
   iteration: number;
   agents: AgentSpec[];
   nodes: HarnessNode[];
+  imported_skills: SkillImport[];
   hitl_points: string[];
   artifacts: ArtifactRef[];
   findings: HarnessFinding[];
@@ -426,6 +393,8 @@ export interface ReviseCommand {
   nodes?: string[];
   agent_id?: string;
   skill?: string;
+  // v0.6 — unveränderter SKILL.md-Inhalt beim echten Skill-Import.
+  skill_content?: string;
   tool?: string;
   remove?: boolean;
   op?: "add" | "update" | "delete";
@@ -559,28 +528,15 @@ export const api = {
   approvePlan: (id: string): Promise<Project> =>
     request<Project>(`/v1/projects/${id}/approve-plan`, { method: "POST" }),
 
-  // --- Schritt 6a/6b: geführter Plan-Wizard (v0.5) ------------------------
+  // --- Schritt 6a: geführter Plan-Wizard (v0.6, nur Meilensteine) ----------
   editMilestones: (id: string, ops: MilestoneOp[]): Promise<Plan> =>
     request<Plan>(`/v1/projects/${id}/plan/milestones/op`, {
       method: "POST",
       body: JSON.stringify(ops),
     }),
 
-  editActivities: (id: string, ops: ActivityOp[]): Promise<Plan> =>
-    request<Plan>(`/v1/projects/${id}/plan/activities/op`, {
-      method: "POST",
-      body: JSON.stringify(ops),
-    }),
-
-  /** Schritt 8 — in Schritt 6b angenommene Werkzeuge/MCP (für Agenten-Bindung). */
-  getAcceptedTools: (id: string): Promise<ToolSuggestion[]> =>
-    request<ToolSuggestion[]>(`/v1/projects/${id}/plan/accepted-tools`),
-
   milestonesDone: (id: string): Promise<Project> =>
     request<Project>(`/v1/projects/${id}/plan/milestones/done`, { method: "POST" }),
-
-  activitiesDone: (id: string): Promise<Project> =>
-    request<Project>(`/v1/projects/${id}/plan/activities/done`, { method: "POST" }),
 
   listContext: (id: string): Promise<ContextSource[]> =>
     request<ContextSource[]>(`/v1/projects/${id}/context`),

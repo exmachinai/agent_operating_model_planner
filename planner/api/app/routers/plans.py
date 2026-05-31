@@ -17,11 +17,9 @@ from ..db.plans_repo import get_plans_repo
 from ..db.projects_repo import get_projects_repo
 from ..planning import llm_planner, zgpm_composer
 from ..schemas.plan import (
-    ActivityOp,
     MilestoneOp,
     Plan,
     PlanRevisionRequest,
-    ToolSuggestion,
 )
 from ..schemas.project import Project
 
@@ -75,9 +73,8 @@ async def generate_plan(project_id: str) -> Plan:
             "status": "reviewing",
             "current_iteration": version,
             "plan_hash": plan.plan_hash,
-            # Geführte Plan-DONE-Gates für die neue Version zurücksetzen (6a/6b).
+            # Geführtes Plan-DONE-Gate für die neue Version zurücksetzen (6a).
             "milestones_done_at": None,
-            "activities_done_at": None,
             "updated_at": plan.created_at,
         }
     )
@@ -93,25 +90,6 @@ async def get_plan(project_id: str) -> Plan:
     if plan is None:
         raise HTTPException(status_code=404, detail="noch kein Plan erzeugt")
     return plan
-
-
-@router.get("/{project_id}/plan/accepted-tools", response_model=list[ToolSuggestion])
-async def accepted_tools(project_id: str) -> list[ToolSuggestion]:
-    """Schritt 8 — die in Schritt 6b angenommenen Werkzeuge/MCP (dedupliziert).
-
-    Quelle für die Werkzeug-Bindung je Agent im Harness-Canvas. Liefert je
-    eindeutigem Werkzeug-Slug genau einen Eintrag (erster Treffer gewinnt)."""
-    await _load_project(project_id)
-    plan = await get_plans_repo().latest(project_id)
-    if plan is None:
-        return []
-    seen: dict[str, ToolSuggestion] = {}
-    for ms in plan.milestones:
-        for act in ms.activities:
-            for t in act.tool_suggestions:
-                if t.accepted and t.name not in seen:
-                    seen[t.name] = t
-    return list(seen.values())
 
 
 @router.get("/{project_id}/plan/versions", response_model=list[Plan])
@@ -155,7 +133,7 @@ async def revise_plan(project_id: str, revision: PlanRevisionRequest) -> Plan:
     return plan
 
 
-# --- Schritt 6a/6b: geführte Plan-Bearbeitung (Wizard) -----------------------
+# --- Schritt 6a: geführte Plan-Bearbeitung (Wizard) --------------------------
 
 
 async def _persist_new_version(project: Project, plan: Plan) -> Plan:
@@ -197,38 +175,11 @@ async def edit_milestones(project_id: str, ops: list[MilestoneOp]) -> Plan:
     return await _persist_new_version(project, plan)
 
 
-@router.post("/{project_id}/plan/activities/op", response_model=Plan, status_code=201)
-async def edit_activities(project_id: str, ops: list[ActivityOp]) -> Plan:
-    """Schritt 6b — Aktivitäten bearbeiten (add/update/delete/reorder, Tools), neue Version.
-
-    Erst nach Meilenstein-DONE und vor Aktivitäts-DONE/Gate 2."""
-    plans = get_plans_repo()
-    project = await _load_project(project_id)
-    if project.gate2_approved_at is not None:
-        raise HTTPException(status_code=409, detail="Plan nach Gate 2 eingefroren.")
-    if project.milestones_done_at is None:
-        raise HTTPException(
-            status_code=409,
-            detail="Zuerst die Meilensteine bestätigen (Schritt 6a, DONE).",
-        )
-    if project.activities_done_at is not None:
-        raise HTTPException(
-            status_code=409,
-            detail="Aktivitäten sind bereits bestätigt (DONE) — Bearbeitung gesperrt.",
-        )
-    previous = await plans.latest(project_id)
-    if previous is None:
-        raise HTTPException(status_code=404, detail="noch kein Plan erzeugt")
-    version = await plans.next_version(project_id)
-    plan = zgpm_composer.apply_activity_ops(
-        previous, ops, project, version=version, plan_id="plan_" + uuid.uuid4().hex[:12]
-    )
-    return await _persist_new_version(project, plan)
-
-
 @router.post("/{project_id}/plan/milestones/done", response_model=Project)
 async def milestones_done(project_id: str) -> Project:
-    """Schritt 6a — DONE: Meilensteine bestätigen, schaltet den Aktivitäts-Screen frei."""
+    """Schritt 6a — DONE: Meilensteine bestätigen, schaltet Gantt/Risiko + Review frei.
+
+    v0.6 — danach folgt direkt das 6c-Ergebnis (keine Aktivitäts-Stufe mehr)."""
     projects = get_projects_repo()
     project = await _load_project(project_id)
     if project.gate2_approved_at is not None:
@@ -238,23 +189,6 @@ async def milestones_done(project_id: str) -> Project:
         raise HTTPException(status_code=404, detail="noch kein Plan erzeugt")
     now = datetime.now(timezone.utc)
     updated = project.model_copy(update={"milestones_done_at": now, "updated_at": now})
-    return await projects.replace(updated)
-
-
-@router.post("/{project_id}/plan/activities/done", response_model=Project)
-async def activities_done(project_id: str) -> Project:
-    """Schritt 6b — DONE: Aktivitäten bestätigen, schaltet Gantt/Risiko + Review frei."""
-    projects = get_projects_repo()
-    project = await _load_project(project_id)
-    if project.gate2_approved_at is not None:
-        raise HTTPException(status_code=409, detail="Plan nach Gate 2 eingefroren.")
-    if project.milestones_done_at is None:
-        raise HTTPException(
-            status_code=409,
-            detail="Zuerst die Meilensteine bestätigen (Schritt 6a, DONE).",
-        )
-    now = datetime.now(timezone.utc)
-    updated = project.model_copy(update={"activities_done_at": now, "updated_at": now})
     return await projects.replace(updated)
 
 

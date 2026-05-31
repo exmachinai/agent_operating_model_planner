@@ -107,6 +107,19 @@ class CatalogAgent(BaseModel):
     subtypes: list[str] = Field(default_factory=list)
 
 
+class SkillImport(BaseModel):
+    """Ein vom Anwender importierter Claude-Code-Skill (v0.6, Schritt 8).
+
+    `content` ist der **unveränderte** Inhalt einer hochgeladenen `SKILL.md`
+    (inkl. Frontmatter `name:`/`description:`). Beim Kompilieren wird er 1:1 unter
+    `.claude/skills/<name>/SKILL.md` ins Zip geschrieben — statt der generierten
+    Hülle. So funktioniert der referenzierte Skill real, nicht nur als Platzhalter.
+    """
+
+    name: str  # Slug = Ordnername unter .claude/skills/<name>/
+    content: str
+
+
 class HarnessNode(BaseModel):
     """Ein Knoten im Preflight-Graph (PMO-Orchestrator → Worker → Reviewer → HITL)."""
 
@@ -173,6 +186,9 @@ class HarnessGraph(BaseModel):
     iteration: int = Field(default=1, ge=1)
     agents: list[AgentSpec]
     nodes: list[HarnessNode]
+    # v0.6 — vom Anwender importierte echte SKILL.md-Inhalte (je Skill-Slug einmal).
+    # Überschreiben beim Kompilieren die generierte Hülle in templates.skill_files.
+    imported_skills: list[SkillImport] = Field(default_factory=list)
     # HITL-Punkte als lesbare Liste (Meilenstein, rotes Risiko, neuer Skill, Budget).
     hitl_points: list[str] = Field(default_factory=list)
     artifacts: list[ArtifactRef] = Field(default_factory=list)
@@ -193,7 +209,8 @@ class ReviseCommand(BaseModel):
     - `sequence`/`parallel`: ordnet die genannten Worker-Knoten seriell bzw.
       parallel an (`nodes`).
     - `skill`: fügt einem Agenten einen Skill hinzu/entfernt ihn (`agent_id`,
-      `skill`, `remove`).
+      `skill`, `remove`). v0.6 — mit `skill_content` (Inhalt einer hochgeladenen
+      `SKILL.md`) wird ein **echter** Skill importiert statt einer generierten Hülle.
     - `agent`: Agent-CRUD über `op` (`add`/`update`/`delete`) und `agent`.
     """
 
@@ -201,6 +218,8 @@ class ReviseCommand(BaseModel):
     nodes: list[str] = Field(default_factory=list)
     agent_id: str | None = None
     skill: str | None = None
+    # v0.6 — unveränderter SKILL.md-Inhalt beim Import (Frontmatter wird validiert).
+    skill_content: str | None = None
     tool: str | None = None
     remove: bool = False
     op: Literal["add", "update", "delete"] | None = None

@@ -114,7 +114,7 @@ export function MilestoneEditor({
                     onBlur={() => commit(m)}
                   />
                 </label>
-                <span style={tagStyle}>{m.activities.length} Aktivität(en)</span>
+                <span style={tagStyle}>{m.mrl.length} Risiko(en)</span>
                 <span style={tagStyle}>{m.stream_code}</span>
               </div>
             </div>

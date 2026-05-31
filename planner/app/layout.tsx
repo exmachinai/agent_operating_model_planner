@@ -19,6 +19,9 @@ export const viewport: Viewport = {
   themeColor: "#1E2761",
   width: "device-width",
   initialScale: 1,
+  // v0.5 — Zoom erlauben (A11y/iOS Safari), aber moderat begrenzen.
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({

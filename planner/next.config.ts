@@ -6,7 +6,12 @@ const nextConfig: NextConfig = {
   // Standalone output produziert eine schlanke .next/standalone/ folder
   // ohne node_modules — ideal für Docker-Multi-Stage-Builds.
   output: "standalone",
-  typedRoutes: true,
+  // typedRoutes bewusst AUS (v0.5): Die App navigiert durchgängig über
+  // interpolierte dynamische Routen (`/projects/${id}/...`). Mit typedRoutes meldet
+  // der Typchecker auf jeder dieser Stellen einen RouteImpl-Fehlalarm ohne
+  // Mehrwert. Wieder aktivieren, sobald ein zentraler typisierter Routen-Helfer
+  // statt freier Strings genutzt wird.
+  typedRoutes: false,
   async headers() {
     return [
       {

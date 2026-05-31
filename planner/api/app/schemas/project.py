@@ -104,6 +104,11 @@ class Project(BaseModel):
     gate1_approved_at: datetime | None = None
     # Schritt 5 — Leitplanken vom Anwender quittiert (Front-loaded Discovery).
     guardrails_cleared_at: datetime | None = None
+    # Schritt 6a/6b — geführte Plan-DONE-Gates (Meilensteine, dann Aktivitäten).
+    # Erst nach milestones_done_at ist der Aktivitäts-Screen frei; erst nach
+    # activities_done_at die abgeleitete Gantt/Risiko-Ansicht + Review.
+    milestones_done_at: datetime | None = None
+    activities_done_at: datetime | None = None
     # Gate 2 — Plan-Freigabe (Schritt 7). Friert die freigegebene Planversion ein.
     gate2_approved_at: datetime | None = None
     approved_plan_version: int | None = None

@@ -201,3 +201,39 @@ HITL an festen Punkten · End-State-Evaluation. Anti-Muster (vom Reviewer hart g
 vage Delegation, Über-Spawning, Routing im Prompt, eine LLM-Antwort für Guardrail+Inhalt,
 fehlendes Retry/Checkpoint, sequenziell statt parallel, Endlosschleifen, zu breit
 triggernde Skills, relative Pfade, ungeprüfte Token-Budgets.
+
+---
+
+## Nachtrag v0.5 — Schritt 6 als geführter Wizard (6a → 6b → 6c)
+
+Ab v0.5 ist Schritt 6 (PLANEN) ein **geführter, mehrstufiger Wizard**. Leitprinzip:
+Der Anwender ist oft Laie — das System **schlägt zuerst vor**, der Anwender
+**ändert/löscht/ergänzt/sortiert** und bestätigt jeden Schritt mit **DONE**.
+Vorschläge kommen vom **LLM** (Azure Foundry, `planning/llm_planner.py`); ohne
+Creds oder bei Fehler greift der deterministische `zgpm_composer` (Fallback, App
+bricht nie). PVM-Matrix und Risiken bleiben den ZGPM-Regeln vorbehalten und werden
+nach jeder Bearbeitung neu abgeleitet (`recompute`) — der Anwender editiert sie nicht.
+
+### 6a — Meilensteine (`/projects/[id]/plan/milestones`)
+- Vorgeschlagene Meilensteine (Zustände im Perfekt). Editierbar: **Name, Zieltermin**.
+  Löschen, Hinzufügen, **Reihenfolge** per Drag&Drop oder Hoch/Runter (touch-fähig).
+- API: `POST /plan/milestones/op` (`add`/`update`/`delete`/`reorder`).
+- **DONE:** `POST /plan/milestones/done` → setzt `milestones_done_at`, schaltet 6b frei.
+
+### 6b — Aktivitäten + Werkzeuge (`/projects/[id]/plan/activities`)
+- Je Meilenstein vorgeschlagene Aktivitäten (Default 3). Editierbar: **Beschreibung,
+  Aufwand (PT)**. Löschen, Hinzufügen, Reihenfolge wie in 6a.
+- Je Aktivität abgeleitete **Werkzeug-/MCP-Vorschläge** (Klartext „?"-Erklärung,
+  annehmen/verwerfen). Quelle: `planning/tool_catalog.py` (Fallback) bzw. LLM. Details
+  in `docs/13_tools-mcp-suggestions.md`. Bindung je Agent erfolgt im Harness (Schritt 8).
+- API: `POST /plan/activities/op` (inkl. `tool_id`/`tool_accepted`).
+- Gating: erst nach `milestones_done_at`. **DONE:** `POST /plan/activities/done`
+  → setzt `activities_done_at`, schaltet 6c frei.
+
+### 6c — Ergebnis (`/projects/[id]/plan`)
+- **Abgeleitet** aus 6a/6b: Gantt, RACI/PVM, Risk-Heatmap, Token-Budget, Auslastung.
+- **Qualitatives Gesamtrisiko** (`plan.risk_narrative`): Klartext-Begründung zusätzlich
+  zur reinen Ampel-Propagation („schlechteste Einzelampel gewinnt"). Benennt Treiber +
+  Maßnahme; im LLM-Pfad reicher formuliert.
+- Gating: erst nach `activities_done_at`; sonst Redirect in den offenen Wizard-Schritt.
+- Danach unverändert: Review (Schritt 7) → Gate 2 → Harness (Schritt 8).

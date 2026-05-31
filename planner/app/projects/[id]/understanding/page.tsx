@@ -164,7 +164,7 @@ export default function Understanding(): React.ReactElement {
       <div style={{ ...cardStyle, ...formStyle }}>
         <div>
           <label style={labelStyle}>Projektart</label>
-          <div style={{ display: "flex", gap: "var(--sp-3)", marginBottom: "var(--sp-2)" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--sp-2) var(--sp-4)", marginBottom: "var(--sp-2)" }}>
             {([
               { v: "it", label: "IT-Projekt" },
               { v: "non-it", label: "Non-IT-Projekt (z. B. Konzepte)" },
@@ -172,7 +172,8 @@ export default function Understanding(): React.ReactElement {
               <label
                 key={o.v}
                 style={{
-                  display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14,
+                  display: "inline-flex", alignItems: "center", gap: 8, fontSize: 15,
+                  minHeight: 44,
                   cursor: locked ? "default" : "pointer", fontWeight: ptype === o.v ? 600 : 400,
                 }}
               >
@@ -238,7 +239,7 @@ export default function Understanding(): React.ReactElement {
         {saved && !locked ? <p style={savedStyle}>Gespeichert.</p> : null}
 
         {!locked ? (
-          <div style={actionsStyle}>
+          <div className="aegira-actions" style={actionsStyle}>
             <Button variant="secondary" onClick={save} disabled={busy}>
               {busy ? "Speichere…" : "Speichern"}
             </Button>
@@ -252,7 +253,7 @@ export default function Understanding(): React.ReactElement {
             </Button>
           </div>
         ) : (
-          <div style={actionsStyle}>
+          <div className="aegira-actions" style={actionsStyle}>
             <Button variant="secondary" onClick={() => router.push("/")}>
               Zur Übersicht
             </Button>
@@ -281,10 +282,9 @@ const formStyle: React.CSSProperties = {
   gap: "var(--sp-4)",
 };
 
+// Layout (Stapeln auf Mobil) kommt aus .aegira-actions; hier nur Feinjustage.
 const actionsStyle: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "flex-end",
-  gap: "var(--sp-2)",
+  marginTop: "var(--sp-2)",
 };
 
 const gateBannerStyle: React.CSSProperties = {

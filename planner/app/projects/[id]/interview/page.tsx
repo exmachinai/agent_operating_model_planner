@@ -20,6 +20,7 @@ import {
   type InterviewMessage,
   type Suggestion,
 } from "../../../../lib/api";
+import { filesFromClipboard, filesFromDataTransfer } from "../../../../lib/dropFiles";
 
 const ACCEPT = ".docx,.md,.pdf,.txt,.pptx,.xlsx,.png,.jpg,.jpeg,.gif,.webp";
 
@@ -43,6 +44,7 @@ export default function Interview(): React.ReactElement {
   const [sources, setSources] = React.useState<ContextSource[]>([]);
   const [uploading, setUploading] = React.useState(false);
   const [folderNote, setFolderNote] = React.useState<string | null>(null);
+  const [drag, setDrag] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const folderRef = React.useRef<HTMLInputElement>(null);
   const endRef = React.useRef<HTMLDivElement>(null);
@@ -75,37 +77,20 @@ export default function Interview(): React.ReactElement {
       });
   }, [id]);
 
-  async function onUpload(files: FileList | null): Promise<void> {
-    if (!files || files.length === 0 || uploading) return;
+  // Gemeinsamer Upload-Pfad für ALLE Quellen (Datei-Button, Ordner-Button,
+  // Drag&Drop, Einfügen). Nicht unterstützte Formate und die 20-Dokumente-Grenze
+  // werden still übersprungen; der Inhalt wird ephemer geparst. Spec: docs/10.
+  async function addFiles(incoming: File[]): Promise<void> {
+    if (incoming.length === 0 || uploading) return;
     setUploading(true);
     setError(null);
-    try {
-      for (const file of Array.from(files)) {
-        const src = await api.uploadContext(id, file);
-        setSources((s) => [...s, src]);
-      }
-    } catch (e: unknown) {
-      setError(e instanceof ApiError ? e.message : "Upload fehlgeschlagen.");
-    } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  }
-
-  // Feature A — eine ganze lokale Ordnerstruktur einlesen (ohne Dropbox). Nutzt
-  // denselben ephemeren Upload-Pfad; nicht unterstützte Dateien werden still
-  // übersprungen, die 20-Dokumente-Grenze gilt. Spec: docs/10.
-  async function onUploadFolder(files: FileList | null): Promise<void> {
-    if (!files || files.length === 0 || uploading) return;
-    setUploading(true);
-    setError(null);
-    setFolderNote("Lese Ordner…");
+    setFolderNote("Lese Dateien…");
     const exts = ACCEPT.split(",");
-    const supported = Array.from(files).filter((f) =>
+    const supported = incoming.filter((f) =>
       exts.some((ext) => f.name.toLowerCase().endsWith(ext)),
     );
     let added = 0;
-    let skipped = files.length - supported.length;
+    let skipped = incoming.length - supported.length;
     try {
       for (const file of supported) {
         if (sources.length + added >= 20) {
@@ -121,13 +106,38 @@ export default function Interview(): React.ReactElement {
         }
       }
       setFolderNote(
-        `${added} Datei(en) aus Ordner eingelesen` +
+        `${added} Datei(en) hinzugefügt` +
           (skipped ? `, ${skipped} übersprungen` : "") +
-          " ✓",
+          (added || skipped ? " ✓" : ""),
       );
     } finally {
       setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
       if (folderRef.current) folderRef.current.value = "";
+    }
+  }
+
+  // Button-Auswahl (Datei oder Ordner) → gemeinsamer Pfad.
+  function onPick(files: FileList | null): void {
+    if (files) void addFiles(Array.from(files));
+  }
+
+  // Drag&Drop / Einfügen — funktioniert AUCH, wenn der Browser Datei-Dialoge per
+  // Richtlinie blockiert (kein Dialog nötig). Ordner werden rekursiv aufgelöst.
+  async function onDrop(e: React.DragEvent): Promise<void> {
+    e.preventDefault();
+    setDrag(false);
+    if (done || uploading) return;
+    const files = await filesFromDataTransfer(e.dataTransfer);
+    await addFiles(files);
+  }
+
+  function onPaste(e: React.ClipboardEvent): void {
+    if (done || uploading) return;
+    const files = filesFromClipboard(e.clipboardData);
+    if (files.length > 0) {
+      e.preventDefault();
+      void addFiles(files);
     }
   }
 
@@ -205,7 +215,7 @@ export default function Interview(): React.ReactElement {
                   multiple
                   style={{ display: "none" }}
                   disabled={uploading || sources.length >= 20}
-                  onChange={(e) => void onUpload(e.target.files)}
+                  onChange={(e) => onPick(e.target.files)}
                 />
               </label>
               <label
@@ -219,7 +229,7 @@ export default function Interview(): React.ReactElement {
                   multiple
                   style={{ display: "none" }}
                   disabled={uploading || sources.length >= 20}
-                  onChange={(e) => void onUploadFolder(e.target.files)}
+                  onChange={(e) => onPick(e.target.files)}
                 />
               </label>
             </>
@@ -234,6 +244,27 @@ export default function Interview(): React.ReactElement {
           Quelle (Name + Hash), bei Gate 1 eingefroren. Quellen: Einzeldateien oder
           ein ganzer <strong>lokaler Ordner</strong> (ohne Cloud, alle Browser).
         </p>
+        {!done ? (
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (!uploading) setDrag(true);
+            }}
+            onDragLeave={() => setDrag(false)}
+            onDrop={(e) => void onDrop(e)}
+            onPaste={onPaste}
+            tabIndex={0}
+            role="button"
+            aria-label="Dateien oder Ordner hierher ziehen oder einfügen"
+            style={{ ...dropZoneStyle, ...(drag ? dropZoneActiveStyle : {}) }}
+          >
+            <strong>Dateien oder Ordner hierher ziehen</strong> — oder hierher
+            klicken und mit <kbd style={kbdStyle}>Strg/Cmd</kbd>+
+            <kbd style={kbdStyle}>V</kbd> einfügen. Dieser Weg braucht{" "}
+            <em>keinen</em> Dateidialog und funktioniert auch, wenn der Browser
+            Datei-Dialoge per Richtlinie blockiert.
+          </div>
+        ) : null}
         {folderNote ? <p style={ctxHintStyle}>{folderNote}</p> : null}
         {sources.length > 0 ? (
           <ul style={ctxListStyle}>
@@ -418,6 +449,36 @@ const ctxHintStyle: React.CSSProperties = {
   fontSize: 12,
   lineHeight: 1.5,
   marginBottom: "var(--sp-3)",
+};
+
+const dropZoneStyle: React.CSSProperties = {
+  border: "1.5px dashed var(--c-border-strong)",
+  borderRadius: "var(--r-md)",
+  padding: "var(--sp-4)",
+  textAlign: "center",
+  fontSize: 13,
+  lineHeight: 1.6,
+  color: "var(--c-text-muted)",
+  background: "var(--c-surface, transparent)",
+  cursor: "pointer",
+  outline: "none",
+  marginBottom: "var(--sp-3)",
+  transition: "border-color 0.15s, background 0.15s",
+};
+
+const dropZoneActiveStyle: React.CSSProperties = {
+  borderColor: "var(--c-gold)",
+  background: "rgba(193, 154, 75, 0.08)",
+  color: "var(--c-text)",
+};
+
+const kbdStyle: React.CSSProperties = {
+  fontFamily: "var(--font-mono, monospace)",
+  fontSize: 11,
+  padding: "1px 5px",
+  border: "1px solid var(--c-border-strong)",
+  borderRadius: 4,
+  background: "var(--c-vellum, #fff)",
 };
 
 const ctxListStyle: React.CSSProperties = {

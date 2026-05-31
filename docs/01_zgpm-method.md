@@ -134,3 +134,16 @@ ZGPM ist die Methodik **von PwC**. Wir nutzen sie methodisch und nennen sie korr
 - gut: „Goal-Oriented Project Management (Methodik nach Glasner et al., PwC)"
 - gut: „ZGPM-kompatibler Plan"
 - nicht ok: „ZGPM™ Software", „PwC-Methodik" als eigene Marke führen
+
+---
+
+## Nachtrag v0.5 — Editierbarkeit vs. Methodentreue
+
+Im geführten Plan-Wizard (Schritt 6a/6b, siehe `docs/09`) bearbeitet der Anwender
+nur die **fachliche Substanz**: Meilenstein-Namen/Termine/Reihenfolge und
+Aktivitäts-Beschreibung/Aufwand/Reihenfolge. Die **PVM-Matrix** und die
+**Risiko-Listen** (MRL/PRL) bleiben den ZGPM-Regeln vorbehalten: Neu angelegte
+Knoten erhalten regelkonforme Default-PVM (genau ein `F`/`L`, mindestens ein `A`),
+und nach jeder Bearbeitung werden Ampeln neu propagiert sowie der Reviewer erneut
+ausgeführt (`zgpm_composer.recompute`). So bleibt die Methode konsistent, ohne den
+Laien mit PVM-Codes zu überladen.

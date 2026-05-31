@@ -50,6 +50,19 @@ function isAbort(e: unknown): boolean {
   return e instanceof DOMException && e.name === "AbortError";
 }
 
+/**
+ * Heuristik gegen blockierte Datei-Dialoge: Eine Unternehmens-/MDM-Richtlinie
+ * (`AllowFileSelectionDialogs=Disabled`) lehnt den Picker SOFORT mit AbortError
+ * ab — der Dialog erscheint nie. Echtes Abbrechen durch den Nutzer braucht eine
+ * Interaktion und dauert spürbar länger. Lehnt der Picker also nahezu instantan
+ * ab, behandeln wir das als „blockiert" und fallen auf den Standard-Download
+ * zurück, statt stillschweigend nichts zu tun.
+ */
+const PICKER_BLOCK_MS = 250;
+function nowMs(): number {
+  return typeof performance !== "undefined" ? performance.now() : 0;
+}
+
 function triggerDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -65,6 +78,7 @@ function triggerDownload(blob: Blob, filename: string): void {
 export async function saveZip(blob: Blob, suggestedName: string): Promise<SaveResult> {
   const w = picker();
   if (typeof w.showSaveFilePicker === "function") {
+    const t0 = nowMs();
     try {
       const handle = await w.showSaveFilePicker({
         suggestedName,
@@ -75,8 +89,10 @@ export async function saveZip(blob: Blob, suggestedName: string): Promise<SaveRe
       await writable.close();
       return "saved";
     } catch (e) {
-      if (isAbort(e)) return "cancelled";
-      // sonst: auf Standard-Download zurückfallen
+      // Echtes Abbrechen nur, wenn der Dialog lange genug offen war; ein
+      // instantaner AbortError = Policy-Block → Standard-Download.
+      if (isAbort(e) && nowMs() - t0 > PICKER_BLOCK_MS) return "cancelled";
+      // sonst (Policy-Block oder anderer Fehler): auf Standard-Download zurückfallen
     }
   }
   triggerDownload(blob, suggestedName);
@@ -96,11 +112,15 @@ export async function saveUnzipped(
   const w = picker();
   if (typeof w.showDirectoryPicker !== "function") return "unsupported";
   let dir: DirHandleLike;
+  const t0 = nowMs();
   try {
     dir = await w.showDirectoryPicker({ mode: "readwrite" });
   } catch (e) {
-    if (isAbort(e)) return "cancelled";
-    throw e;
+    // Echtes Abbrechen → cancelled; instantaner Abort (Policy-Block) oder anderer
+    // Fehler → "unsupported", damit der Aufrufer auf den Zip-Download zurückfällt
+    // (statt einer harten Exception).
+    if (isAbort(e) && nowMs() - t0 > PICKER_BLOCK_MS) return "cancelled";
+    return "unsupported";
   }
   // Benennbarer neuer Ordner im gewählten Verzeichnis (Default = Harness-Slug).
   const folder = (newFolderName?.trim() || root).replace(/[\\/]+/g, "-");

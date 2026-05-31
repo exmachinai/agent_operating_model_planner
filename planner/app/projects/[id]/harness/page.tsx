@@ -424,7 +424,7 @@ function SaveExport({ id, graph }: { id: string; graph: HarnessGraph }): React.R
         {fsCap === null
           ? null
           : fsCap
-            ? "✓ Dieser Browser (Chrome/Edge) unterstützt „Speichern unter“ mit freier Ort- und Ordnerwahl."
+            ? "✓ Dieser Browser (Chrome/Edge) unterstützt „Speichern unter“ mit freier Ort- und Ordnerwahl. Blockiert eine Unternehmensrichtlinie den Dateidialog, wird automatisch der Standard-Download genutzt."
             : "ℹ Dieser Browser (Firefox/Safari) erlaubt nur den Standard-Download. Freie Ort-/Ordnerwahl und entpacktes Speichern gehen in Chrome/Edge."}
       </p>
 

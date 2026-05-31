@@ -76,16 +76,33 @@ export default function PlanPage(): React.ReactElement {
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
+    // v0.5 — Gating: das Plan-Ergebnis (Gantt/Risiken) ist erst nach den geführten
+    // Schritten 6a (Meilensteine) und 6b (Aktivitäten) sinnvoll. Fehlt eine
+    // Bestätigung, leiten wir in den passenden Wizard-Schritt um.
     api
-      .getPlan(id)
-      .then(setPlan)
-      .catch((e: unknown) => {
-        // 404 = noch kein Plan erzeugt; kein Fehler, sondern Startzustand.
-        if (e instanceof ApiError && e.status === 404) return;
-        setError(e instanceof ApiError ? e.message : "Plan nicht ladbar.");
+      .getProject(id)
+      .then((proj) => {
+        if (proj.milestones_done_at == null) {
+          router.replace(`/projects/${id}/plan/milestones`);
+          return;
+        }
+        if (proj.activities_done_at == null) {
+          router.replace(`/projects/${id}/plan/activities`);
+          return;
+        }
+        return api
+          .getPlan(id)
+          .then(setPlan)
+          .catch((e: unknown) => {
+            if (e instanceof ApiError && e.status === 404) return;
+            setError(e instanceof ApiError ? e.message : "Plan nicht ladbar.");
+          });
       })
+      .catch((e: unknown) =>
+        setError(e instanceof ApiError ? e.message : "Projekt nicht ladbar."),
+      )
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, router]);
 
   async function generate(): Promise<void> {
     setBusy(true);
@@ -197,7 +214,27 @@ export default function PlanPage(): React.ReactElement {
           </span>{" "}
           — Begründung
         </div>
-        <p style={{ fontSize: 14, lineHeight: 1.6, margin: "var(--sp-2) 0 0" }}>
+        {/* v0.5 — qualitative Klartext-Begründung (LLM oder deterministisch). */}
+        {plan.risk_narrative ? (
+          <p
+            style={{
+              fontSize: 14,
+              lineHeight: 1.6,
+              margin: "var(--sp-2) 0 0",
+              whiteSpace: "pre-line",
+            }}
+          >
+            {plan.risk_narrative}
+          </p>
+        ) : null}
+        <p
+          style={{
+            fontSize: 13,
+            lineHeight: 1.6,
+            margin: "var(--sp-3) 0 0",
+            color: "var(--c-text-muted)",
+          }}
+        >
           Die Gesamt-Ampel folgt der ZGPM-Ampel-Propagation: die{" "}
           <strong>schlechteste Einzel-Ampel</strong> (Meilenstein-Risiko MRL bzw.
           Projektrisiko PRL) bestimmt das Gesamtbild.{" "}

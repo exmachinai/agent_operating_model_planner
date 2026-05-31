@@ -90,6 +90,12 @@
   --nav-height: 56px;
   --side-nav-width: 240px;
   --side-nav-collapsed: 56px;
+
+  /* ---------- Breakpoints (v0.5 — Mobile/UX) ----------
+   * sm 640 · md 768 · lg 1024. Inline-Styles können kein @media — daher die
+   * responsiven Layouts über die Utility-Klassen weiter unten. Touch-Mindestgröße
+   * 44px (WCAG 2.5.5 / Apple HIG). */
+  --tap-min: 44px;
 }
 
 [data-theme="dark"] {
@@ -121,6 +127,12 @@ html,
 body {
   margin: 0;
   padding: 0;
+  /* v0.5 — verhindert zuverlässig horizontales Scrollen der GANZEN Seite, wenn ein
+   * breites Kind (z. B. die PVM-Matrix) über die Viewport-Breite ragt. `clip` statt
+   * `hidden`, damit position:sticky nicht bricht. Innere `.aegira-scroll-x`-Regionen
+   * scrollen weiterhin eigenständig. Auf html UND body, weil scrollWidth an beiden hängt. */
+  overflow-x: clip;
+  max-width: 100%;
   font-family: var(--font-body);
   font-size: var(--fs-body);
   line-height: var(--lh-body);
@@ -176,4 +188,118 @@ kbd {
 }
 .aegira-hairline-strong {
   border: 1px solid var(--c-border-strong);
+}
+
+/* =============================================================================
+ * v0.5 — Responsive Utilities (Desktop + Mobile, iPhone 15 Plus ~430px)
+ *
+ * Inline-Styles (React.CSSProperties) können keine Media-Queries. Layouts, die
+ * sich am Breakpoint ändern, nutzen daher diese Klassen statt Inline-Styles.
+ * ============================================================================= */
+
+/* Seitenrahmen: mobil volle Breite + fluides Padding, ab md zentriert auf 880px. */
+.aegira-shell {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: clamp(16px, 4vw, 32px) clamp(12px, 4vw, 24px);
+  /* Verhindert versehentliches horizontales Scrollen der GANZEN Seite, falls ein
+   * Kind (z. B. die breite PVM-Matrix) über die Viewport-Breite hinausragt. Die
+   * inneren `.aegira-scroll-x`-Regionen scrollen weiterhin eigenständig. `clip`
+   * (statt `hidden`) bricht kein position:sticky. */
+  overflow-x: clip;
+}
+@media (min-width: 768px) {
+  .aegira-shell {
+    max-width: var(--content-max);
+    padding: var(--sp-8) var(--sp-4);
+  }
+}
+
+/* Touch-Targets: Buttons/Inputs/Links mind. 44px hoch (komfortabel mit Finger). */
+.aegira-tap {
+  min-height: var(--tap-min);
+}
+
+/* Zwei-Spalten-Raster, das mobil auf eine Spalte zusammenfällt. */
+.aegira-cols-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-3);
+}
+@media (min-width: 768px) {
+  .aegira-cols-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Horizontale Aktionsleiste: mobil gestapelt (volle Breite), ab sm nebeneinander. */
+.aegira-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.aegira-actions > * {
+  width: 100%;
+}
+@media (min-width: 640px) {
+  .aegira-actions {
+    flex-direction: row;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  .aegira-actions > * {
+    width: auto;
+  }
+}
+
+/* Breite Datenansichten (Gantt/RACI): unter md horizontal scrollbar statt zu quetschen. */
+.aegira-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+/* Mobil ausblenden / nur mobil zeigen — für Palette-Sheet vs. Desktop-Spalte. */
+.aegira-hide-sm {
+  display: none;
+}
+@media (min-width: 768px) {
+  .aegira-hide-sm {
+    display: revert;
+  }
+}
+.aegira-only-sm {
+  display: revert;
+}
+@media (min-width: 768px) {
+  .aegira-only-sm {
+    display: none;
+  }
+}
+
+/* Kleinere Überschrift auf schmalen Viewports (H1 30px → 24px). */
+@media (max-width: 639px) {
+  h1 {
+    font-size: 24px;
+    line-height: 30px;
+  }
+  h2 {
+    font-size: 19px;
+    line-height: 26px;
+  }
+}
+
+/* Orchestrierungs-Canvas (Schritt 8): mobil Palette ÜBER den Lanes (eine Spalte),
+ * ab md die Palette als 200px-Seitenspalte. Die Lanes scrollen intern horizontal. */
+.aegira-canvas-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-3);
+  align-items: start;
+}
+@media (min-width: 768px) {
+  .aegira-canvas-grid {
+    grid-template-columns: 200px 1fr;
+  }
 }

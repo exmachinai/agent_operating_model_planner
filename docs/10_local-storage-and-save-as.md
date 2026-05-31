@@ -71,3 +71,29 @@ im Compiler (gleiche Dateien inkl. `checksums.txt`, gleiche Hashes). Der
   prinzipiell nicht; nur clientseitig via File System Access API).
 - Keine Persistenz von Dateiinhalten auf dem Server (Ephemeralität bleibt).
 - Kein OAuth/Cloud-Ausbau hier — Dropbox bleibt wie in `09_process-flow.md`.
+
+## Nachtrag (v0.4.5) — Browser-Richtlinie blockiert Dateidialoge
+
+**Problem (Feldbefund):** In manchen Unternehmens-Chrome-Profilen ist die Policy
+`AllowFileSelectionDialogs=Disabled` (MDM) gesetzt. Dann öffnet **weder**
+`<input type="file">` (auch nicht als natives `<label>`) **noch** die File System
+Access API (`showSaveFilePicker`/`showDirectoryPicker`) einen Dialog — der Klick
+wirkt „tot". Der reine Blob-Download (`<a download>`) ist davon **nicht** betroffen.
+
+**Robuste Pfade (kein Dialog nötig):**
+
+- **Einlesen (Feature A):** zusätzlich zu den Buttons ein **Drag&Drop-Feld** plus
+  **Einfügen (Strg/Cmd+V)**. Ordner werden über die Entry-API
+  (`DataTransferItem.webkitGetAsEntry()`) rekursiv aufgelöst. Implementierung:
+  `planner/lib/dropFiles.ts` (`filesFromDataTransfer`, `filesFromClipboard`),
+  verdrahtet in `interview/page.tsx` (`addFiles`, `onDrop`, `onPaste`).
+- **Speichern (Feature B):** Ist der Picker durch die Policy blockiert, lehnt er
+  **instantan** mit `AbortError` ab. `saveHarness.ts` unterscheidet jetzt per
+  Zeit-Heuristik (`PICKER_BLOCK_MS`) echtes Abbrechen (langsam) vom Policy-Block
+  (instantan) und fällt im Block-Fall automatisch auf den **Standard-Download**
+  zurück (entpackt → Zip-Download), statt stillschweigend nichts zu tun.
+
+**Leitsatz-Ergänzung:** Ein blockierter Dateidialog ist nie eine Sackgasse —
+Einlesen geht per Drag&Drop/Paste, Speichern per Download-Fallback. Eine App kann
+den System-Dialog nicht erzwingen; das ist Browser-/Policy-Ebene
+(`chrome://policy` → `AllowFileSelectionDialogs`).

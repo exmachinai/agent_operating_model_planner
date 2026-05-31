@@ -14,4 +14,4 @@ python-pptx==1.0.2
 openpyxl==3.1.5
 pypdf==6.10.2
 # Dev/Test — Harness-Compiler + Router-Tests (WP-1/4/5).
-pytest==8.3.3
+pytest==9.0.3

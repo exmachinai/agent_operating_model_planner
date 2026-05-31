@@ -74,7 +74,7 @@ export default function ActivitiesPage(): React.ReactElement {
         Zu jedem Meilenstein schlagen wir konkrete <strong>Aktivitäten</strong> vor
         und welche <strong>Werkzeuge</strong> dabei helfen. Passe die Aktivitäten an
         (Text, Aufwand, Reihenfolge) und wähle die Werkzeuge, die du nutzen möchtest
-        — tippe auf „?", um zu sehen, was ein Werkzeug macht. Mit{" "}
+        — tippe auf „?“, um zu sehen, was ein Werkzeug macht. Mit{" "}
         <strong>DONE</strong> erstellen wir daraus Zeitplan (Gantt) und Risiken.
       </p>
 

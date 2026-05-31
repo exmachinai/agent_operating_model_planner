@@ -232,6 +232,13 @@ kbd {
     grid-template-columns: 1fr 1fr;
   }
 }
+/* min-width:0 ist zwingend: ohne das wächst eine 1fr-Spalte auf die Inhaltsbreite
+ * ihres breitesten Kindes (z. B. der Token-Budget-Zähler) und ragt rechts aus der
+ * Karte heraus / wird abgeschnitten. So bleibt jede Spalte in ihrer Hälfte und
+ * lange Inhalte umbrechen bzw. scrollen intern. */
+.aegira-cols-2 > * {
+  min-width: 0;
+}
 
 /* Horizontale Aktionsleiste: mobil gestapelt (volle Breite), ab sm nebeneinander. */
 .aegira-actions {
@@ -301,5 +308,57 @@ kbd {
 @media (min-width: 768px) {
   .aegira-canvas-grid {
     grid-template-columns: 200px 1fr;
+  }
+}
+
+/* Stage-Lanes (Schritt 8): v0.5.1 — Stages werden UNTEREINANDER gestapelt (volle
+ * Breite), statt horizontal zu scrollen und rechts abgeschnitten zu werden. Jede
+ * Lane ist eine eigene Reihe; die sequenzielle Reihenfolge bleibt durch die
+ * „Stage N"-Köpfe + ↓-Konnektoren lesbar. Ab lg (1024px) — wo genug Breite da ist —
+ * dürfen die Lanes wieder nebeneinander fließen (umbrechend, nie abgeschnitten). */
+.aegira-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.aegira-lanes > .aegira-lane {
+  width: 100%;
+  min-width: 0;
+}
+@media (min-width: 1024px) {
+  .aegira-lanes {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+  .aegira-lanes > .aegira-lane {
+    flex: 1 1 240px;
+    width: auto;
+  }
+}
+/* Konnektor zwischen gestapelten Stages — nur auf schmalen Viewports sichtbar. */
+.aegira-lane-connector {
+  text-align: center;
+  color: var(--c-text-muted);
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 0;
+}
+@media (min-width: 1024px) {
+  .aegira-lane-connector {
+    display: none;
+  }
+}
+
+/* Agenten-Karten innerhalb einer Stage: nebeneinander, wenn Platz ist, sonst
+ * umbrechend (parallel = gleiche Stage). Mobil volle Breite je Karte. */
+.aegira-lane-nodes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+@media (min-width: 1024px) {
+  .aegira-lane-nodes {
+    flex-direction: column;
   }
 }

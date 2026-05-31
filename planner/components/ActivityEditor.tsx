@@ -21,8 +21,9 @@ import {
   type Plan,
   type ToolSuggestion,
 } from "../lib/api";
-import { Button, cardStyle, inputStyle } from "./ui";
+import { Button, inputStyle } from "./ui";
 import { SortableList } from "./SortableList";
+import { Accordion } from "./Accordion";
 
 export function ActivityEditor({
   id,
@@ -79,12 +80,12 @@ export function ActivityEditor({
     <div>
       {error ? <p style={errorStyle}>{error}</p> : null}
       {plan.milestones.map((m: Milestone) => (
-        <div key={m.id} style={{ ...cardStyle, marginBottom: "var(--sp-4)" }}>
-          <div style={msHeadStyle}>
-            <span style={msNameStyle}>{m.name}</span>
-            <span style={msMetaStyle}>{m.activities.length} Aktivität(en)</span>
-          </div>
-
+        <Accordion
+          key={m.id}
+          title={m.name}
+          subtitle={`${m.activities.length} Aktivität(en)`}
+          defaultOpen
+        >
           <SortableList
             items={m.activities}
             disabled={disabled || busy}
@@ -179,7 +180,7 @@ export function ActivityEditor({
               + Aktivität hinzufügen
             </Button>
           </div>
-        </div>
+        </Accordion>
       ))}
     </div>
   );
@@ -252,18 +253,6 @@ function ToolChip({
     </span>
   );
 }
-
-const msHeadStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: "var(--sp-2)",
-  marginBottom: "var(--sp-3)",
-  paddingBottom: "var(--sp-2)",
-  borderBottom: "1px solid var(--c-border)",
-};
-const msNameStyle: React.CSSProperties = { fontWeight: 600, fontSize: 15 };
-const msMetaStyle: React.CSSProperties = { fontSize: 12, color: "var(--c-text-muted)" };
 
 const topRowStyle: React.CSSProperties = {
   display: "flex",

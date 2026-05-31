@@ -13,6 +13,7 @@ import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import { PageShell } from "../../../../components/PageShell";
+import { Accordion } from "../../../../components/Accordion";
 import { Button, cardStyle } from "../../../../components/ui";
 import {
   GanttChart,
@@ -267,8 +268,7 @@ export default function PlanPage(): React.ReactElement {
       </div>
 
       {plan.reviewer_findings.length > 0 ? (
-        <div style={{ ...cardStyle, marginBottom: "var(--sp-4)" }}>
-          <div style={sectionLabel}>Reviewer-Befunde</div>
+        <Accordion title={`Reviewer-Befunde (${plan.reviewer_findings.length})`} defaultOpen>
           <ul style={plainListStyle}>
             {plan.reviewer_findings.map((f, i) => (
               <li key={i} style={{ fontSize: 14 }}>
@@ -295,12 +295,12 @@ export default function PlanPage(): React.ReactElement {
               </li>
             ))}
           </ul>
-        </div>
+        </Accordion>
       ) : null}
 
-      {/* Meilensteinplan */}
-      <div style={sectionLabel}>Meilensteinplan ({plan.milestones.length})</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)", marginBottom: "var(--sp-6)" }}>
+      {/* Meilensteinplan — v0.5.1 als Accordion (offen). */}
+      <Accordion title={`Meilensteinplan (${plan.milestones.length})`} defaultOpen>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
         {plan.milestones.map((m) => (
           <div key={m.id} style={cardStyle}>
             <div style={msHeaderStyle}>
@@ -349,49 +349,40 @@ export default function PlanPage(): React.ReactElement {
             ))}
           </div>
         ))}
-      </div>
+        </div>
+      </Accordion>
 
-      {/* Gantt — Zeitachse */}
-      <div style={sectionLabel}>Zeitplan (Gantt)</div>
-      <div style={{ ...cardStyle, marginBottom: "var(--sp-6)" }}>
+      {/* Zeitplan (Gantt) */}
+      <Accordion title="Zeitplan (Gantt)">
         <GanttChart plan={plan} />
-      </div>
+      </Accordion>
 
-      {/* RACI / PVM-Matrix */}
-      <div style={sectionLabel}>Verantwortlichkeiten (PVM-Matrix)</div>
-      <div style={{ ...cardStyle, marginBottom: "var(--sp-6)" }}>
+      {/* Verantwortlichkeiten (PVM-Matrix) */}
+      <Accordion title="Verantwortlichkeiten (PVM-Matrix)">
         <RaciMatrix plan={plan} />
-      </div>
+      </Accordion>
 
-      <div style={twoColStyle}>
-        {/* Risk-Heatmap (PRL + MRL) */}
-        <div style={cardStyle}>
-          <div style={sectionLabel}>Risiko-Heatmap (P×A)</div>
-          <RiskHeatmap plan={plan} />
-        </div>
+      {/* Risiko-Heatmap — eigene volle Breite (kein twoCol-Overflow mehr). */}
+      <Accordion title="Risiko-Heatmap (P×A)">
+        <RiskHeatmap plan={plan} />
+      </Accordion>
 
-        {/* Token-Live-Zähler */}
-        <div style={cardStyle}>
-          <div style={sectionLabel}>Token-Budget je Agent (laufende Summe)</div>
-          <TokenLiveCounter plan={plan} />
-          <div style={subMetaStyle}>
-            Geschätzter Gesamtaufwand: {totalEffort} Personentage ·{" "}
-            {totalTokens.toLocaleString("de-DE")} Token gesamt.
-          </div>
+      {/* Token-Budget — eigene volle Breite, damit der Zähler nicht abgeschnitten wird. */}
+      <Accordion title="Token-Budget je Agent (laufende Summe)">
+        <TokenLiveCounter plan={plan} />
+        <div style={subMetaStyle}>
+          Geschätzter Gesamtaufwand: {totalEffort} Personentage ·{" "}
+          {totalTokens.toLocaleString("de-DE")} Token gesamt.
         </div>
-      </div>
+      </Accordion>
 
       {/* Auslastung je Agent */}
-      <div style={sectionLabel}>Auslastung je Agent (Aufwand PT)</div>
-      <div style={{ ...cardStyle, marginBottom: "var(--sp-4)" }}>
+      <Accordion title="Auslastung je Agent (Aufwand PT)">
         <UtilizationBars plan={plan} />
-      </div>
+      </Accordion>
 
       {plan.evidence_sources.length > 0 ? (
-        <div style={{ ...cardStyle, marginBottom: "var(--sp-4)" }}>
-          <div style={sectionLabel}>
-            Quellen-Nachweis ({plan.evidence_sources.length})
-          </div>
+        <Accordion title={`Quellen-Nachweis (${plan.evidence_sources.length})`}>
           <p style={subMetaStyle}>
             In die Schärfung eingeflossen, bei Gate 1 eingefroren. Nur Nachweis
             (Name + Hash) — der Inhalt wurde ephemer verarbeitet und verworfen.
@@ -409,7 +400,7 @@ export default function PlanPage(): React.ReactElement {
               </li>
             ))}
           </ul>
-        </div>
+        </Accordion>
       ) : null}
 
       {error ? <p style={errorStyle}>{error}</p> : null}
@@ -528,13 +519,6 @@ const mrlStyle: React.CSSProperties = {
   fontSize: 13,
   marginTop: "var(--sp-2)",
   color: "var(--c-text)",
-};
-
-const twoColStyle: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: "var(--sp-3)",
-  marginBottom: "var(--sp-4)",
 };
 
 const plainListStyle: React.CSSProperties = {

@@ -199,6 +199,31 @@ export function HarnessCanvas({
     { id: "premium", label: "Premium", hint: "alles Opus — höchste Qualität, teuerster Lauf" },
   ];
 
+  // v0.5.1 — Modus (Manager ↔ Handoff) als echter Umschalter statt nur Text.
+  // Handoff = ein Router/Triage-Agent klassifiziert und reicht weiter; Manager =
+  // ein Orchestrator delegiert an Worker. Abgeleitet aus dem Graphen: existiert ein
+  // Router-Knoten → Handoff. Umschalten fügt den Router hinzu bzw. entfernt ihn.
+  const routerAgents = graph.agents.filter((a) => a.kind === "router");
+  const isHandoff = routerAgents.length > 0;
+  function setMode(mode: "manager" | "handoff"): void {
+    if (frozen || busy) return;
+    if (mode === "handoff" && !isHandoff) {
+      const routerCat = catalog.find((c) => c.kind === "router");
+      if (routerCat) addCatalogToStage(routerCat.id, 0);
+      else setNote("Kein Router/Triage-Agent im Katalog gefunden.");
+    } else if (mode === "manager" && isHandoff) {
+      void run(async () => {
+        for (const a of routerAgents) {
+          await api.reviseHarness(id, { command: "agent", op: "delete", agent_id: a.id });
+        }
+      }, "Modus: Manager ✓");
+    }
+  }
+  const MODES: { id: "manager" | "handoff"; label: string; hint: string }[] = [
+    { id: "manager", label: "Manager", hint: "Ein Orchestrator zerlegt das Vorhaben, delegiert an Worker und synthetisiert die Ergebnisse (Standard)." },
+    { id: "handoff", label: "Handoff", hint: "Ein Router/Triage-Agent klassifiziert die Aufgabe und reicht sie an den passenden Spezialisten weiter." },
+  ];
+
   // Palette nach Klasse gruppiert (vorhandene ausgrauen).
   const present = new Set(graph.agents.map((a) => a.name));
 
@@ -213,14 +238,39 @@ export function HarnessCanvas({
         <Kpi label="Modus" valueText={graph.nodes.some((n) => n.kind === "router") ? "Handoff" : "Manager"} />
       </div>
 
-      {/* v0.4.3 — Modus-Erklärung (war nicht selbsterklärend). */}
-      <p style={hintStyle}>
-        <strong>Modus:</strong>{" "}
-        {graph.nodes.some((n) => n.kind === "router")
-          ? "Handoff — ein Router/Triage-Agent klassifiziert und reicht an den passenden Spezialisten weiter."
-          : "Manager — ein Orchestrator zerlegt das Vorhaben, delegiert an Worker und synthetisiert (Standard)."}{" "}
-        Wechseln: den <em>Router/Triage-Agent</em> aus der Palette in eine Stage ziehen (= Handoff) bzw. entfernen (= Manager).
-      </p>
+      {/* v0.5.1 — Modus als didaktischer Umschalter (Buttons statt Fließtext). */}
+      <div style={{ marginBottom: "var(--sp-3)" }}>
+        <div style={strategyRow}>
+          <span style={{ ...miniLabel, marginBottom: 0 }}>Modus:</span>
+          {MODES.map((mo) => {
+            const active = (mo.id === "handoff") === isHandoff;
+            return (
+              <button
+                key={mo.id}
+                type="button"
+                disabled={frozen || busy}
+                onClick={() => setMode(mo.id)}
+                aria-pressed={active}
+                title={mo.hint}
+                style={{ ...strategyBtn, ...(active ? strategyBtnActive : {}) }}
+              >
+                {mo.label}
+              </button>
+            );
+          })}
+        </div>
+        <p style={hintStyle}>
+          <strong>{isHandoff ? "Handoff" : "Manager"}:</strong>{" "}
+          {MODES.find((mo) => (mo.id === "handoff") === isHandoff)?.hint}{" "}
+          {!frozen ? (
+            <em>
+              {isHandoff
+                ? "Zu „Manager“ wechseln entfernt den Router."
+                : "Zu „Handoff“ wechseln fügt einen Router/Triage-Agent hinzu."}
+            </em>
+          ) : null}
+        </p>
+      </div>
 
       {/* v0.4.3 — globale Modell-Strategie statt fixer Pro-Agent-Badges. */}
       {!frozen ? (
@@ -278,16 +328,21 @@ export function HarnessCanvas({
           </aside>
         ) : null}
 
-        {/* Stage-Lanes */}
-        <div style={lanesScroll}>
-          <div style={lanesRow}>
-            {stages.map((s) => {
-              const ns = nodesByStage.get(s) ?? [];
-              const pat = patternOfStage(s);
-              const isEmpty = ns.length === 0;
-              return (
+        {/* Stage-Lanes — v0.5.1: untereinander gestapelt (volle Breite, nie rechts
+            abgeschnitten). Ab lg fließen sie nebeneinander. Reihenfolge bleibt durch
+            die Stage-Köpfe + ↓-Konnektoren auf schmalen Viewports lesbar. */}
+        <div className="aegira-lanes">
+          {stages.map((s, idx) => {
+            const ns = nodesByStage.get(s) ?? [];
+            const pat = patternOfStage(s);
+            const isEmpty = ns.length === 0;
+            return (
+              <React.Fragment key={s}>
+                {idx > 0 ? (
+                  <div className="aegira-lane-connector" aria-hidden="true">↓</div>
+                ) : null}
                 <div
-                  key={s}
+                  className="aegira-lane"
                   onDragOver={(e) => { if (!frozen) { e.preventDefault(); setDragOverStage(s); } }}
                   onDragLeave={() => setDragOverStage((cur) => (cur === s ? null : cur))}
                   onDrop={(e) => onDropToStage(e, s)}
@@ -302,33 +357,35 @@ export function HarnessCanvas({
                     <span>Stage {s + 1}</span>
                     {pat ? <span style={patternPill}>{PATTERN_LABEL[pat]}</span> : <span style={{ ...patternPill, opacity: 0.5 }}>leer</span>}
                   </div>
-                  {ns.map((n) => {
-                    const a = graph.agents.find((x) => x.id === n.agent_id);
-                    const hiRisk = (catalog.find((c) => c.id === a?.name)?.tools ?? []).some((t) => t.risk === "high");
-                    return (
-                      <div
-                        key={n.id}
-                        draggable={!frozen}
-                        onDragStart={(e) => { if (n.agent_id) e.dataTransfer.setData("agent_id", n.agent_id); }}
-                        onClick={() => setSelected(n.agent_id)}
-                        style={{
-                          ...nodeCard,
-                          borderColor: KIND_COLOR[n.kind],
-                          outline: selected === n.agent_id ? "2px solid var(--c-navy)" : "none",
-                        }}
-                      >
-                        <span style={{ ...dot, background: KIND_COLOR[n.kind] }} />
-                        <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{n.label}</span>
-                        {hiRisk ? <span style={riskBadge} title="High-Risk-Tool → HITL">⚠</span> : null}
-                        <span style={{ fontSize: 10, color: "var(--c-text-muted)" }}>{KIND_LABEL[n.kind]}</span>
-                      </div>
-                    );
-                  })}
+                  <div className="aegira-lane-nodes">
+                    {ns.map((n) => {
+                      const a = graph.agents.find((x) => x.id === n.agent_id);
+                      const hiRisk = (catalog.find((c) => c.id === a?.name)?.tools ?? []).some((t) => t.risk === "high");
+                      return (
+                        <div
+                          key={n.id}
+                          draggable={!frozen}
+                          onDragStart={(e) => { if (n.agent_id) e.dataTransfer.setData("agent_id", n.agent_id); }}
+                          onClick={() => setSelected(n.agent_id)}
+                          style={{
+                            ...nodeCard,
+                            borderColor: KIND_COLOR[n.kind],
+                            outline: selected === n.agent_id ? "2px solid var(--c-navy)" : "none",
+                          }}
+                        >
+                          <span style={{ ...dot, background: KIND_COLOR[n.kind] }} />
+                          <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{n.label}</span>
+                          {hiRisk ? <span style={riskBadge} title="High-Risk-Tool → HITL">⚠</span> : null}
+                          <span style={{ fontSize: 10, color: "var(--c-text-muted)" }}>{KIND_LABEL[n.kind]}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                   {isEmpty ? <div style={dropHint}>hierher ziehen</div> : null}
                 </div>
-              );
-            })}
-          </div>
+              </React.Fragment>
+            );
+          })}
         </div>
       </div>
 
@@ -485,11 +542,9 @@ const strategyBtnActive: React.CSSProperties = { background: "var(--c-navy)", co
 const paletteStyle: React.CSSProperties = { ...cardStyle, padding: "var(--sp-3)", maxHeight: 360, overflowY: "auto" };
 // 44px Touch-Höhe; Cursor „grab" am Desktop, Tippen fügt auf Touch hinzu.
 const paletteCard: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, padding: "8px 10px", marginBottom: 6, minHeight: 44, background: "var(--c-vellum)", border: "1px solid var(--c-border)", borderRadius: "var(--r-md)", cursor: "grab" };
-// minWidth:0 ist zwingend: ohne das wächst die 1fr-Grid-Spalte auf die Inhaltsbreite
-// (Summe aller Lanes) und überlappt die Detail-Spalte. So scrollt sie stattdessen intern.
-const lanesScroll: React.CSSProperties = { overflowX: "auto", padding: "2px", minWidth: 0 };
-const lanesRow: React.CSSProperties = { display: "flex", gap: "var(--sp-3)", alignItems: "stretch", minHeight: 320 };
-const laneStyle: React.CSSProperties = { minWidth: 190, flex: "0 0 190px", border: "1px solid var(--c-border)", borderRadius: "var(--r-md)", padding: "var(--sp-2)", display: "flex", flexDirection: "column", gap: 6 };
+// v0.5.1 — feste Lane-Breite/Scroll entfernt; Stapeln/Fließen macht jetzt die
+// Klasse .aegira-lanes (tokens.css). Lane behält nur Rahmen/Innenabstand/Spalte.
+const laneStyle: React.CSSProperties = { border: "1px solid var(--c-border)", borderRadius: "var(--r-md)", padding: "var(--sp-2)", display: "flex", flexDirection: "column", gap: 6 };
 const laneHead: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--c-steel)", marginBottom: 2 };
 const patternPill: React.CSSProperties = { fontSize: 10, fontWeight: 600, padding: "1px 6px", border: "1px solid var(--c-border-strong)", borderRadius: "var(--r-pill)", color: "var(--c-text-muted)" };
 const nodeCard: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", background: "var(--c-vellum)", border: "1px solid", borderRadius: "var(--r-md)", cursor: "grab", fontWeight: 600 };

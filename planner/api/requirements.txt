@@ -5,13 +5,13 @@ pydantic-settings==2.5.2
 azure-cosmos==4.7.0
 azure-identity==1.18.0
 azure-storage-blob==12.23.1
-aiohttp==3.10.10
+aiohttp==3.13.4
 httpx==0.27.2
-python-multipart==0.0.12
+python-multipart==0.0.27
 # Schritt 2a — ephemere Kontext-Parser (Fließtext + Tabellen).
 python-docx==1.1.2
 python-pptx==1.0.2
 openpyxl==3.1.5
-pypdf==5.1.0
+pypdf==6.10.2
 # Dev/Test — Harness-Compiler + Router-Tests (WP-1/4/5).
 pytest==8.3.3

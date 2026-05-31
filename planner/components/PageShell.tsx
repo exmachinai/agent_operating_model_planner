@@ -22,7 +22,7 @@ export function PageShell({
   children: React.ReactNode;
 }): React.ReactElement {
   return (
-    <main style={pageStyle}>
+    <main className="aegira-shell" style={pageStyle}>
       <header style={headerStyle}>
         <div style={brandRowStyle}>
           <Link href="/" aria-label="AEGIRA — Agent Operating Model Planner · Start">
@@ -44,10 +44,9 @@ export function PageShell({
   );
 }
 
+// Breite/Padding kommen aus der .aegira-shell-Klasse (responsiv: mobil fluides
+// clamp-Padding, ab md zentriert auf --content-max). Inline nur Schrift/Farbe.
 const pageStyle: React.CSSProperties = {
-  maxWidth: "var(--content-max)",
-  margin: "0 auto",
-  padding: "var(--sp-8) var(--sp-4)",
   fontFamily: "var(--font-body)",
   color: "var(--c-text)",
 };

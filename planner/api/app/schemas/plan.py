@@ -47,6 +47,24 @@ class Risk(BaseModel):
     mitigation: str
 
 
+class ToolSuggestion(BaseModel):
+    """Werkzeug-/MCP-Vorschlag für eine Aktivität (Schritt 6b).
+
+    Bewusst laienverständlich: Klartext, was das Werkzeug tut, warum es hier
+    vorgeschlagen wird und welcher Trust-Hinweis (Least-Privilege) gilt. Wird in
+    Schritt 6b angeboten und beim Agenten-Bau (Schritt 8) je Agent gebunden.
+    """
+
+    id: str
+    name: str  # technischer Name/Slug, z. B. "github-mcp"
+    kind: Literal["tool", "mcp"] = "tool"
+    label: str  # Anzeigename, z. B. "GitHub (Code & Repos)"
+    what_it_does: str  # eine Klartext-Zeile für Laien
+    why_suggested: str  # Bezug zur Aktivität
+    trust_note: str  # Daten-/Rechte-Hinweis (Least-Privilege)
+    accepted: bool = False
+
+
 class Activity(BaseModel):
     """Konkrete Arbeit, die vor Erreichen des Meilensteins erledigt sein muss."""
 
@@ -56,6 +74,8 @@ class Activity(BaseModel):
     start: datetime
     end: datetime
     responsibilities: list[Responsibility]
+    # v0.5 — abgeleitete Werkzeug-/MCP-Bedarfe (Schritt 6b), editierbar (annehmen/verwerfen).
+    tool_suggestions: list[ToolSuggestion] = Field(default_factory=list)
 
 
 class Milestone(BaseModel):
@@ -162,6 +182,40 @@ class PlanRevisionRequest(BaseModel):
     note: str | None = Field(default=None, max_length=2000)
 
 
+# --- Schritt 6a/6b: geführte Edit-Operationen (Wizard) -----------------------
+# Der Anwender (oft Laie) bearbeitet *vorgeschlagene* Meilensteine/Aktivitäten:
+# umbenennen, löschen, hinzufügen, neu sortieren. PVM/Risiken bleiben den ZGPM-
+# Regeln vorbehalten und werden nach jeder Operation neu abgeleitet (recompute).
+
+EditOp = Literal["add", "update", "delete", "reorder"]
+
+
+class MilestoneOp(BaseModel):
+    """Eine Operation auf der Meilenstein-Liste (Schritt 6a)."""
+
+    op: EditOp
+    id: str | None = None  # bei update/delete erforderlich
+    name: str | None = None  # add/update
+    planned_date: datetime | None = None  # add/update
+    # reorder: vollständige Liste der Milestone-IDs in neuer Reihenfolge.
+    order: list[str] | None = None
+
+
+class ActivityOp(BaseModel):
+    """Eine Operation auf den Aktivitäten eines Meilensteins (Schritt 6b)."""
+
+    op: EditOp
+    milestone_id: str  # zu welchem Meilenstein die Aktivität gehört
+    id: str | None = None  # bei update/delete erforderlich
+    description: str | None = None  # add/update
+    effort_pt: float | None = Field(default=None, ge=0)  # add/update
+    # reorder: Activity-IDs des Meilensteins in neuer Reihenfolge.
+    order: list[str] | None = None
+    # Werkzeug-Vorschlag annehmen/verwerfen (op="update", tool_id gesetzt).
+    tool_id: str | None = None
+    tool_accepted: bool | None = None
+
+
 class Plan(BaseModel):
     """Eine versionierte, ZGPM-konforme Planausgabe (append-only)."""
 
@@ -180,6 +234,8 @@ class Plan(BaseModel):
     reviewer_status: ReviewerStatus
     reviewer_findings: list[ReviewerFinding]
     reviewer_rounds: int = Field(ge=0)
+    # v0.5 — qualitative Gesamtrisiko-Begründung (Klartext, nicht nur „worst-of").
+    risk_narrative: str = ""
     # Eingefrorene Quellen-Nachweise, die in die Schärfung eingeflossen sind.
     evidence_sources: list[EvidenceSource] = Field(default_factory=list)
     plan_hash: str

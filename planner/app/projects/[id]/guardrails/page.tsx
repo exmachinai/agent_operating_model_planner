@@ -169,7 +169,7 @@ export default function Guardrails(): React.ReactElement {
         {cleared ? (
           <Button
             variant="accent"
-            onClick={() => router.push(`/projects/${id}/plan`)}
+            onClick={() => router.push(`/projects/${id}/plan/milestones`)}
           >
             Weiter zum ZGPM-Plan
           </Button>

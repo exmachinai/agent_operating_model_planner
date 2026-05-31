@@ -70,7 +70,7 @@ export function GanttChart({ plan }: { plan: Plan }): React.ReactElement {
   }
 
   return (
-    <div style={{ overflowX: "auto" }}>
+    <div className="aegira-scroll-x">
       <div style={{ position: "relative", minWidth: 520 }}>
         {/* KW-Raster */}
         <div style={{ position: "relative", height: 18, marginLeft: GANTT_LABEL_W }}>
@@ -127,7 +127,7 @@ const PVM_TITLE: Record<PVMCode, string> = {
 export function RaciMatrix({ plan }: { plan: Plan }): React.ReactElement {
   const roles = plan.pvm_roles;
   return (
-    <div style={{ overflowX: "auto" }}>
+    <div className="aegira-scroll-x">
       <table style={matrixStyle}>
         <thead>
           <tr>
@@ -206,8 +206,8 @@ export function RiskHeatmap({ plan }: { plan: Plan }): React.ReactElement {
     risks.filter((r) => r.probability === p && r.impact === a);
 
   return (
-    <div>
-      <div style={{ display: "flex", gap: "var(--sp-2)" }}>
+    <div className="aegira-scroll-x">
+      <div style={{ display: "flex", gap: "var(--sp-2)", minWidth: 360 }}>
         <div style={yAxisLabelStyle}>Eintritt →</div>
         <table style={heatStyle}>
           <tbody>

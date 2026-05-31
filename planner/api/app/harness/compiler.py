@@ -424,6 +424,19 @@ def apply_command(graph: HarnessGraph, cmd: ReviseCommand) -> HarnessGraph:
         elif cmd.skill not in target.skills:
             target.skills.append(cmd.skill)
         nodes = [n.model_copy(deep=True) for n in graph.nodes]
+    elif cmd.command == "tool":
+        # v0.5 — Werkzeug/MCP je Agent binden (aus den in Schritt 6b akzeptierten
+        # Vorschlägen). Analog zum skill-Kommando; Knoten bleiben unverändert.
+        if not cmd.agent_id or not cmd.tool:
+            raise ValueError("tool-Kommando braucht agent_id und tool.")
+        target = next((a for a in agents if a.id == cmd.agent_id), None)
+        if target is None:
+            raise ValueError(f"Agent '{cmd.agent_id}' nicht gefunden.")
+        if cmd.remove:
+            target.tools = [t for t in target.tools if t != cmd.tool]
+        elif cmd.tool not in target.tools:
+            target.tools.append(cmd.tool)
+        nodes = [n.model_copy(deep=True) for n in graph.nodes]
     elif cmd.command == "agent":
         agents, nodes = _apply_agent_op(graph, agents, cmd)
     elif cmd.command == "layout":

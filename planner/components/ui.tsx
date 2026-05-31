@@ -99,8 +99,10 @@ export const labelStyle: React.CSSProperties = {
 
 export const inputStyle: React.CSSProperties = {
   width: "100%",
+  // v0.5 — Touch-Mindesthöhe; fontSize 16px verhindert iOS-Safari-Auto-Zoom beim Fokus.
+  minHeight: 44,
   padding: "var(--sp-2) var(--sp-3)",
-  fontSize: "var(--fs-body)",
+  fontSize: 16,
   fontFamily: "var(--font-body)",
   color: "var(--c-text)",
   backgroundColor: "var(--c-surface)",

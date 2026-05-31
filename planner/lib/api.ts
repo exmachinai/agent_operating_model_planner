@@ -83,6 +83,9 @@ export interface Project {
   plan_hash: string | null;
   gate1_approved_at: string | null;
   guardrails_cleared_at: string | null;
+  // v0.5 — geführte Plan-DONE-Gates (Schritt 6a/6b).
+  milestones_done_at: string | null;
+  activities_done_at: string | null;
   gate2_approved_at: string | null;
   approved_plan_version: number | null;
   gate3_approved_at: string | null;
@@ -173,6 +176,18 @@ export interface Risk {
   mitigation: string;
 }
 
+/** v0.5 — Werkzeug-/MCP-Vorschlag für eine Aktivität (Schritt 6b), laienverständlich. */
+export interface ToolSuggestion {
+  id: string;
+  name: string;
+  kind: "tool" | "mcp";
+  label: string;
+  what_it_does: string;
+  why_suggested: string;
+  trust_note: string;
+  accepted: boolean;
+}
+
 export interface Activity {
   id: string;
   description: string;
@@ -180,6 +195,7 @@ export interface Activity {
   start: string;
   end: string;
   responsibilities: Responsibility[];
+  tool_suggestions: ToolSuggestion[];
 }
 
 export interface Milestone {
@@ -227,6 +243,28 @@ export interface EvidenceSource {
   frozen_at: string | null;
 }
 
+// v0.5 — geführte Edit-Operationen (Schritt 6a/6b).
+export type EditOp = "add" | "update" | "delete" | "reorder";
+
+export interface MilestoneOp {
+  op: EditOp;
+  id?: string;
+  name?: string;
+  planned_date?: string;
+  order?: string[];
+}
+
+export interface ActivityOp {
+  op: EditOp;
+  milestone_id: string;
+  id?: string;
+  description?: string;
+  effort_pt?: number;
+  order?: string[];
+  tool_id?: string;
+  tool_accepted?: boolean;
+}
+
 export interface Plan {
   id: string;
   projectId: string;
@@ -241,6 +279,8 @@ export interface Plan {
   reviewer_status: ReviewerStatus;
   reviewer_findings: ReviewerFinding[];
   reviewer_rounds: number;
+  // v0.5 — qualitative Gesamtrisiko-Begründung (Klartext).
+  risk_narrative: string;
   evidence_sources: EvidenceSource[];
   plan_hash: string;
   planausgabedatum: string;
@@ -285,7 +325,7 @@ export type HarnessStatus = "draft" | "compiled";
 export type StagePattern =
   | "chain" | "section" | "route" | "vote" | "evaluator-optimizer";
 export type ReviseKind =
-  | "sequence" | "parallel" | "skill" | "agent" | "layout" | "stage-pattern" | "model-strategy";
+  | "sequence" | "parallel" | "skill" | "tool" | "agent" | "layout" | "stage-pattern" | "model-strategy";
 export type ModelStrategy = "balanced" | "economy" | "premium";
 
 // v0.4 — Subagent-Katalog (Tool-Typ + Risk, Modell-Tiering).
@@ -386,6 +426,7 @@ export interface ReviseCommand {
   nodes?: string[];
   agent_id?: string;
   skill?: string;
+  tool?: string;
   remove?: boolean;
   op?: "add" | "update" | "delete";
   agent?: Partial<AgentSpec>;
@@ -517,6 +558,29 @@ export const api = {
 
   approvePlan: (id: string): Promise<Project> =>
     request<Project>(`/v1/projects/${id}/approve-plan`, { method: "POST" }),
+
+  // --- Schritt 6a/6b: geführter Plan-Wizard (v0.5) ------------------------
+  editMilestones: (id: string, ops: MilestoneOp[]): Promise<Plan> =>
+    request<Plan>(`/v1/projects/${id}/plan/milestones/op`, {
+      method: "POST",
+      body: JSON.stringify(ops),
+    }),
+
+  editActivities: (id: string, ops: ActivityOp[]): Promise<Plan> =>
+    request<Plan>(`/v1/projects/${id}/plan/activities/op`, {
+      method: "POST",
+      body: JSON.stringify(ops),
+    }),
+
+  /** Schritt 8 — in Schritt 6b angenommene Werkzeuge/MCP (für Agenten-Bindung). */
+  getAcceptedTools: (id: string): Promise<ToolSuggestion[]> =>
+    request<ToolSuggestion[]>(`/v1/projects/${id}/plan/accepted-tools`),
+
+  milestonesDone: (id: string): Promise<Project> =>
+    request<Project>(`/v1/projects/${id}/plan/milestones/done`, { method: "POST" }),
+
+  activitiesDone: (id: string): Promise<Project> =>
+    request<Project>(`/v1/projects/${id}/plan/activities/done`, { method: "POST" }),
 
   listContext: (id: string): Promise<ContextSource[]> =>
     request<ContextSource[]>(`/v1/projects/${id}/context`),

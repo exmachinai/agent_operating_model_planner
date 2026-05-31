@@ -117,7 +117,33 @@ export function HarnessCanvas({
     return ns && ns.length ? ns[0].pattern : null;
   }
 
-  // --- Drag&Drop ---
+  // --- Agent aus Katalog in eine Stage einfügen (DnD am Desktop, Tippen auf Touch). ---
+  function addCatalogToStage(catId: string, stage: number): void {
+    const cat = catalog.find((c) => c.id === catId);
+    if (!cat) return;
+    void run(async () => {
+      await api.reviseHarness(id, {
+        command: "agent",
+        op: "add",
+        agent: {
+          role: cat.label, name: cat.id, kind: cat.kind, mission: cat.mission,
+          description: cat.description, responsibility: cat.responsibility,
+          skills: cat.skills, tools: cat.tools.map((t) => t.name), model: cat.model,
+          hitl: cat.kind === "hitl",
+        },
+      });
+      const fresh = await api.getHarness(id);
+      const added = fresh.agents.find((a) => a.name === cat.id);
+      if (added) {
+        const stagesMap = { ...currentStages() };
+        for (const n of fresh.nodes) if (n.agent_id) stagesMap[n.agent_id] = n.stage;
+        stagesMap[added.id] = stage;
+        await api.reviseHarness(id, { command: "layout", stages: stagesMap });
+      }
+    }, `${cat.label} hinzugefügt ✓`);
+  }
+
+  // --- Drag&Drop (Desktop) ---
   function onDropToStage(e: React.DragEvent, stage: number): void {
     e.preventDefault();
     setDragOverStage(null);
@@ -127,28 +153,7 @@ export function HarnessCanvas({
       const stagesMap = { ...currentStages(), [agentId]: stage };
       void run(() => api.reviseHarness(id, { command: "layout", stages: stagesMap }), "Verschoben ✓");
     } else if (catId) {
-      const cat = catalog.find((c) => c.id === catId);
-      if (!cat) return;
-      void run(async () => {
-        await api.reviseHarness(id, {
-          command: "agent",
-          op: "add",
-          agent: {
-            role: cat.label, name: cat.id, kind: cat.kind, mission: cat.mission,
-            description: cat.description, responsibility: cat.responsibility,
-            skills: cat.skills, tools: cat.tools.map((t) => t.name), model: cat.model,
-            hitl: cat.kind === "hitl",
-          },
-        });
-        const fresh = await api.getHarness(id);
-        const added = fresh.agents.find((a) => a.name === cat.id);
-        if (added) {
-          const stagesMap = { ...currentStages() };
-          for (const n of fresh.nodes) if (n.agent_id) stagesMap[n.agent_id] = n.stage;
-          stagesMap[added.id] = stage;
-          await api.reviseHarness(id, { command: "layout", stages: stagesMap });
-        }
-      }, `${cat.label} hinzugefügt ✓`);
+      addCatalogToStage(catId, stage);
     }
   }
 
@@ -244,25 +249,30 @@ export function HarnessCanvas({
         </div>
       ) : null}
 
-      <div style={layoutGrid(frozen)}>
-        {/* Palette */}
+      <div className={frozen ? undefined : "aegira-canvas-grid"} style={frozen ? layoutGrid(true) : undefined}>
+        {/* Palette — mobil über den Lanes (volle Breite), ab md als Seitenspalte. */}
         {!frozen ? (
           <aside style={paletteStyle}>
             <div style={sectionLabel}>Agenten-Palette</div>
-            <p style={hintStyle}>In eine Stage ziehen. Farbe = Klasse (Orchestrator/Worker/Reviewer/HITL).</p>
+            <p style={hintStyle}>
+              Auf Touch/Mobil: Karte antippen fügt sie der ersten Stage hinzu; am
+              Desktop in eine Stage ziehen. Farbe = Klasse (Orchestrator/Worker/Reviewer/HITL).
+            </p>
             {catalog.map((c) => (
               <div
                 key={c.id}
                 draggable
                 onDragStart={(e) => { e.dataTransfer.setData("catalog_id", c.id); }}
+                onClick={() => { if (!busy) addCatalogToStage(c.id, 0); }}
                 style={{
                   ...paletteCard,
                   borderLeft: `3px solid ${KIND_COLOR[c.kind]}`,
                   opacity: present.has(c.id) ? 0.45 : 1,
                 }}
-                title={c.description}
+                title={`${c.description} — Tippen: zu Stage 1 hinzufügen`}
               >
                 <span style={{ fontWeight: 600, fontSize: 13 }}>{c.label}</span>
+                <span style={{ fontSize: 16, color: "var(--c-gold)", fontWeight: 700 }} aria-hidden>+</span>
               </div>
             ))}
           </aside>
@@ -350,19 +360,70 @@ export function HarnessCanvas({
               ) : null}
               <Field label="Verantwortung" value={sel.responsibility || "—"} />
               <Field label="Mission" value={sel.mission} />
-              {selCat ? (
-                <>
-                  <div style={miniLabel}>Tools (Typ · Risk)</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
-                    {selCat.tools.map((t) => (
-                      <span key={t.name} style={{ ...toolChip, borderColor: RISK_COLOR[t.risk] }} title={`${t.type} · ${t.risk}`}>
-                        {t.name}
-                      </span>
-                    ))}
-                    {selCat.tools.length === 0 ? <span style={hintStyle}>—</span> : null}
-                  </div>
-                </>
-              ) : null}
+              {/* v0.5 — Werkzeug/MCP-Bindung je Agent (Schritt 6b → Schritt 8).
+                  Gebundene Tools (sel.tools) sind entfernbar; Katalog-Vorschläge des
+                  Agenten lassen sich per Klick hinzufügen. High-Risk = roter Rahmen. */}
+              <div style={miniLabel}>Tools / MCP (je Agent)</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
+                {sel.tools.map((tname) => {
+                  const meta = selCat?.tools.find((t) => t.name === tname);
+                  return (
+                    <span
+                      key={tname}
+                      style={{ ...toolChip, borderColor: meta ? RISK_COLOR[meta.risk] : "var(--c-border-strong)" }}
+                      title={meta ? `${meta.type} · ${meta.risk}` : "gebundenes Werkzeug"}
+                    >
+                      {tname}
+                      {!frozen ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() =>
+                            void run(
+                              () => api.reviseHarness(id, { command: "tool", agent_id: sel.id, tool: tname, remove: true }),
+                              "Werkzeug entfernt ✓",
+                            )
+                          }
+                          style={{ marginLeft: 4, border: 0, background: "transparent", color: "var(--c-red)", cursor: "pointer", fontSize: 12, padding: 0 }}
+                          aria-label={`${tname} entfernen`}
+                        >
+                          ×
+                        </button>
+                      ) : null}
+                    </span>
+                  );
+                })}
+                {sel.tools.length === 0 ? <span style={hintStyle}>—</span> : null}
+              </div>
+              {!frozen && selCat
+                ? (() => {
+                    const addable = selCat.tools.filter((t) => !sel.tools.includes(t.name));
+                    return addable.length > 0 ? (
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={miniLabel}>Vorgeschlagene Werkzeuge hinzufügen</div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                          {addable.map((t) => (
+                            <button
+                              key={t.name}
+                              type="button"
+                              disabled={busy}
+                              onClick={() =>
+                                void run(
+                                  () => api.reviseHarness(id, { command: "tool", agent_id: sel.id, tool: t.name }),
+                                  "Werkzeug gebunden ✓",
+                                )
+                              }
+                              style={{ ...toolChip, borderColor: RISK_COLOR[t.risk], cursor: "pointer", background: "transparent" }}
+                              title={`${t.type} · ${t.risk} — hinzufügen`}
+                            >
+                              + {t.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()
+                : null}
               <div style={miniLabel}>Skills</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>
                 {sel.skills.map((s) => <span key={s} style={skillChip}>{s}</span>)}
@@ -421,8 +482,9 @@ const layoutGrid = (frozen: boolean): React.CSSProperties => ({
 const strategyRow: React.CSSProperties = { display: "flex", alignItems: "center", gap: "var(--sp-2)", flexWrap: "wrap", marginBottom: "var(--sp-3)" };
 const strategyBtn: React.CSSProperties = { fontSize: 13, fontWeight: 600, padding: "4px 12px", border: "1px solid var(--c-border-strong)", borderRadius: "var(--r-pill)", background: "var(--c-surface)", color: "var(--c-text)", cursor: "pointer" };
 const strategyBtnActive: React.CSSProperties = { background: "var(--c-navy)", color: "var(--c-vellum)", borderColor: "var(--c-navy)" };
-const paletteStyle: React.CSSProperties = { ...cardStyle, padding: "var(--sp-3)", maxHeight: 560, overflowY: "auto" };
-const paletteCard: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, padding: "6px 8px", marginBottom: 6, background: "var(--c-vellum)", border: "1px solid var(--c-border)", borderRadius: "var(--r-md)", cursor: "grab" };
+const paletteStyle: React.CSSProperties = { ...cardStyle, padding: "var(--sp-3)", maxHeight: 360, overflowY: "auto" };
+// 44px Touch-Höhe; Cursor „grab" am Desktop, Tippen fügt auf Touch hinzu.
+const paletteCard: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, padding: "8px 10px", marginBottom: 6, minHeight: 44, background: "var(--c-vellum)", border: "1px solid var(--c-border)", borderRadius: "var(--r-md)", cursor: "grab" };
 // minWidth:0 ist zwingend: ohne das wächst die 1fr-Grid-Spalte auf die Inhaltsbreite
 // (Summe aller Lanes) und überlappt die Detail-Spalte. So scrollt sie stattdessen intern.
 const lanesScroll: React.CSSProperties = { overflowX: "auto", padding: "2px", minWidth: 0 };

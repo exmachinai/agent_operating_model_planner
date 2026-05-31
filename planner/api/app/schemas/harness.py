@@ -33,7 +33,7 @@ HarnessStatus = Literal["draft", "compiled"]
 # v0.4: `layout` (Drag&Drop-Stages) + `stage-pattern` (Muster einer Stage setzen).
 # v0.4.3: `model-strategy` setzt die Modell-Tiers aller Agenten in einem Schritt.
 ReviseKind = Literal[
-    "sequence", "parallel", "skill", "agent", "layout", "stage-pattern", "model-strategy"
+    "sequence", "parallel", "skill", "tool", "agent", "layout", "stage-pattern", "model-strategy"
 ]
 
 # v0.4.3 — globale Modell-Strategie: balanced = Opus-Orchestrator + Sonnet-Rest,
@@ -201,6 +201,7 @@ class ReviseCommand(BaseModel):
     nodes: list[str] = Field(default_factory=list)
     agent_id: str | None = None
     skill: str | None = None
+    tool: str | None = None
     remove: bool = False
     op: Literal["add", "update", "delete"] | None = None
     agent: AgentSpec | None = None

@@ -35,7 +35,7 @@ from ..schemas.harness import (
 )
 from ..schemas.plan import Plan
 from ..schemas.project import Project
-from . import catalog, templates, yaml_emit
+from . import catalog, skill_catalog, templates, yaml_emit
 
 _SCHEMA_VERSION = "2.1.0-claude-native"
 _COMPILER_ID = "aegira-planner@0.4.0"
@@ -432,30 +432,41 @@ def apply_command(graph: HarnessGraph, cmd: ReviseCommand) -> HarnessGraph:
 
     agents = [a.model_copy(deep=True) for a in graph.agents]
     imported_skills = [s.model_copy(deep=True) for s in graph.imported_skills]
+    catalog_skills = [c.model_copy(deep=True) for c in graph.catalog_skills]
 
     if cmd.command in ("sequence", "parallel"):
         parallel = cmd.command == "parallel"
         nodes = _build_nodes(agents, parallel=parallel)
     elif cmd.command == "skill":
-        if not cmd.agent_id or not cmd.skill:
-            raise ValueError("skill-Kommando braucht agent_id und skill.")
+        if not cmd.agent_id:
+            raise ValueError("skill-Kommando braucht agent_id.")
         target = next((a for a in agents if a.id == cmd.agent_id), None)
         if target is None:
             raise ValueError(f"Agent '{cmd.agent_id}' nicht gefunden.")
-        skill_slug = slugify(cmd.skill)
-        if cmd.remove:
-            target.skills = [s for s in target.skills if s != skill_slug]
+        if cmd.catalog_id:
+            # v0.7 — Auswahl aus dem kuratierten Repository (mit Trust-Tier/Gate).
+            imported_skills, catalog_skills = _apply_catalog_skill(
+                target, cmd, imported_skills, catalog_skills
+            )
         else:
-            # v0.6 — echter SKILL.md-Import: Inhalt validieren und unverändert ablegen.
-            if cmd.skill_content is not None:
-                _validate_skill_frontmatter(cmd.skill_content)
-                imported_skills = [s for s in imported_skills if s.name != skill_slug]
-                imported_skills.append(SkillImport(name=skill_slug, content=cmd.skill_content))
-            if skill_slug not in target.skills:
-                target.skills.append(skill_slug)
-        # Importierte Skills ohne referenzierenden Agenten verwerfen (kein Waisen-File).
+            # v0.6 — Freitext-/Upload-Pfad (community + user-upload, abwärtskompatibel).
+            if not cmd.skill:
+                raise ValueError("skill-Kommando braucht skill oder catalog_id.")
+            skill_slug = slugify(cmd.skill)
+            if cmd.remove:
+                target.skills = [s for s in target.skills if s != skill_slug]
+            else:
+                # echter SKILL.md-Import: Inhalt validieren und unverändert ablegen.
+                if cmd.skill_content is not None:
+                    _validate_skill_frontmatter(cmd.skill_content)
+                    imported_skills = [s for s in imported_skills if s.name != skill_slug]
+                    imported_skills.append(SkillImport(name=skill_slug, content=cmd.skill_content))
+                if skill_slug not in target.skills:
+                    target.skills.append(skill_slug)
+        # Verwaiste Skill-Inhalte ohne referenzierenden Agenten verwerfen (kein Waisen-File).
         referenced = {s for a in agents for s in a.skills}
         imported_skills = [s for s in imported_skills if s.name in referenced]
+        catalog_skills = [c for c in catalog_skills if c.slug in referenced]
         nodes = [n.model_copy(deep=True) for n in graph.nodes]
     elif cmd.command == "tool":
         # v0.5 — Werkzeug/MCP je Agent binden (aus den in Schritt 6b akzeptierten
@@ -515,11 +526,47 @@ def apply_command(graph: HarnessGraph, cmd: ReviseCommand) -> HarnessGraph:
             "agents": agents,
             "nodes": nodes,
             "imported_skills": imported_skills,
+            "catalog_skills": catalog_skills,
             "findings": findings,
             "iteration": graph.iteration + 1,
             "artifacts": [],  # nach Revision neu zu kompilieren
         }
     )
+
+
+def _apply_catalog_skill(target, cmd, imported_skills, catalog_skills):  # noqa: ANN001
+    """v0.7 — wendet eine Auswahl aus dem Skill-Repository auf einen Agenten an.
+
+    Resolviert den Katalog-Skill, erzwingt das Security-Gate (community/
+    experimental/has_scripts → HITL-Quittung `confirm_gate`), hydriert Inhalt +
+    `content_sha256` und legt ihn — wie ein importierter Skill — unter seinem
+    `slug` ab. Der Audit-Eintrag (Trust-Tier, Quelle, sha256) wandert in
+    `catalog_skills` (→ `.claude/skills/_manifest.json`)."""
+    cs = skill_catalog.by_id(cmd.catalog_id)
+    if cs is None:
+        raise ValueError(f"Skill '{cmd.catalog_id}' nicht im Katalog.")
+    slug = cs.slug
+    if cmd.remove:
+        target.skills = [s for s in target.skills if s != slug]
+        return imported_skills, catalog_skills
+
+    # Security-Gate (docs/15 §4.6): ungeprüft/experimentell oder skript-tragend.
+    if cs.needs_gate and not cmd.confirm_gate:
+        scripts = ", trägt Skripte" if cs.has_scripts else ""
+        raise RuntimeError(
+            f"„{cs.title}“ ({cs.trust_tier.value}{scripts}) braucht eine "
+            "HITL-Freigabe (confirm_gate) vor Aufnahme."
+        )
+
+    hydrated = skill_catalog.hydrate(cs)
+    _validate_skill_frontmatter(hydrated.content or "")
+    imported_skills = [s for s in imported_skills if s.name != slug]
+    imported_skills.append(SkillImport(name=slug, content=hydrated.content or ""))
+    catalog_skills = [c for c in catalog_skills if c.catalog_id != cs.catalog_id]
+    catalog_skills.append(hydrated)
+    if slug not in target.skills:
+        target.skills.append(slug)
+    return imported_skills, catalog_skills
 
 
 def _apply_agent_op(

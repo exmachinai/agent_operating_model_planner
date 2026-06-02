@@ -369,6 +369,44 @@ export interface SkillImport {
   content: string;
 }
 
+// --- v0.7 — Skill-Repository (kuratiert, klassifiziert) --------------------
+
+export type SkillTrustTier =
+  | "anthropic-vetted" | "aegira-certified" | "world-top" | "community" | "experimental";
+
+/** Ein kuratierter, klassifizierter Skill aus dem Repository (docs/15 §4.1). */
+export interface CatalogSkill {
+  catalog_id: string;
+  slug: string;
+  title: string;
+  description: string;
+  author: string;
+  source: string;
+  trust_tier: SkillTrustTier;
+  license: string | null;
+  domain: string;
+  project_types: string[];
+  subtypes: string[];
+  agent_ids: string[];
+  version: string;
+  released_at: string | null;
+  updated_at: string | null;
+  deprecated: boolean;
+  required_tools: string[];
+  required_mcps: string[];
+  model_tier: string | null;
+  risk: "low" | "medium" | "high";
+  has_scripts: boolean;
+  content_sha256: string | null;
+  content: string | null;
+}
+
+/** Empfehlungen je erkanntem Agenten-Set: vorselektiert vs. angeboten. */
+export interface RecommendedSkills {
+  preselected: CatalogSkill[];
+  offered: CatalogSkill[];
+}
+
 export interface HarnessGraph {
   id: string;
   projectId: string;
@@ -379,6 +417,8 @@ export interface HarnessGraph {
   agents: AgentSpec[];
   nodes: HarnessNode[];
   imported_skills: SkillImport[];
+  // v0.7 — aus dem Repository gewählte Skills (Trust-Tier, Herkunft, sha256).
+  catalog_skills: CatalogSkill[];
   hitl_points: string[];
   artifacts: ArtifactRef[];
   findings: HarnessFinding[];
@@ -395,6 +435,9 @@ export interface ReviseCommand {
   skill?: string;
   // v0.6 — unveränderter SKILL.md-Inhalt beim echten Skill-Import.
   skill_content?: string;
+  // v0.7 — Auswahl aus dem Repository (statt Freitext) + HITL-Gate-Quittung.
+  catalog_id?: string;
+  confirm_gate?: boolean;
   tool?: string;
   remove?: boolean;
   op?: "add" | "update" | "delete";
@@ -405,6 +448,50 @@ export interface ReviseCommand {
   stage?: number;
   pattern?: StagePattern;
   strategy?: ModelStrategy;
+}
+
+// --- Multi-User-Auth (Registrierung + E-Mail-Bestätigung + TOTP-2FA) -------
+
+/** Registrierungs-Ergebnis. `verify_url` nur im Dev-Stub-Mailmodus gesetzt. */
+export interface RegisterResult {
+  status: string;
+  verify_url: string | null;
+}
+
+export type LoginStatus = "totp_enroll" | "totp_required";
+
+/** Faktor-1-Antwort: zweiter Faktor nötig; beim ersten Mal mit QR zum Enrollment. */
+export interface LoginResponse {
+  status: LoginStatus;
+  otpauth_uri: string | null;
+  qr_svg: string | null; // data:image/svg+xml;base64,…
+  issuer: string | null;
+  account: string | null;
+}
+
+/** Faktor-1+2 erfolgreich: signiertes Session-Token + Ablauf (Unix-Sekunden). */
+export interface UnlockResult {
+  status: string;
+  token: string;
+  expires_at: number;
+  is_admin: boolean;
+}
+
+export interface SessionState {
+  valid: boolean;
+  email: string | null;
+  is_admin: boolean;
+}
+
+/** Nutzer-Sicht im Adminbereich (ohne Geheimnisse). */
+export interface AdminUser {
+  email: string;
+  email_verified: boolean;
+  totp_enrolled: boolean;
+  is_admin: boolean;
+  disabled: boolean;
+  created_at: string;
+  last_login_at: string | null;
 }
 
 const API_BASE =
@@ -443,6 +530,70 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  // --- Multi-User-Auth ------------------------------------------------------
+  /** Selbst-Registrierung. Verschickt einen Magic-Link (Dev-Stub: verify_url gesetzt). */
+  authRegister: (email: string, password: string): Promise<RegisterResult> =>
+    request<RegisterResult>("/v1/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+
+  /** Bestätigt die E-Mail über den Magic-Link-Token. */
+  authVerify: (token: string): Promise<{ status: string; email: string }> =>
+    request<{ status: string; email: string }>("/v1/auth/verify", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    }),
+
+  /** Bestätigungs-Mail erneut anfordern. */
+  authResend: (email: string): Promise<{ status: string; verify_url: string | null }> =>
+    request<{ status: string; verify_url: string | null }>("/v1/auth/resend", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+
+  /** Faktor 1 (Email+Passwort). 401 falsch · 403 unbestätigt/gesperrt. */
+  authLogin: (email: string, password: string): Promise<LoginResponse> =>
+    request<LoginResponse>("/v1/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+
+  /** Faktor 1+2 (Email+Passwort+TOTP-Code) → Session-Token. ApiError(401) sonst. */
+  authUnlock: (email: string, password: string, code: string): Promise<UnlockResult> =>
+    request<UnlockResult>("/v1/auth/unlock", {
+      method: "POST",
+      body: JSON.stringify({ email, password, code }),
+    }),
+
+  /** Prüft ein Session-Token (Reload „noch angemeldet?"). */
+  authSession: (token: string): Promise<SessionState> =>
+    request<SessionState>("/v1/auth/session", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  // --- Adminbereich (Bearer-Token eines Admins) -----------------------------
+  adminListUsers: (token: string): Promise<AdminUser[]> =>
+    request<AdminUser[]>("/v1/auth/admin/users", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  adminUserAction: (
+    token: string,
+    email: string,
+    action: "disable" | "enable" | "reset-2fa",
+  ): Promise<AdminUser> =>
+    request<AdminUser>(`/v1/auth/admin/users/${encodeURIComponent(email)}/${action}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  adminDeleteUser: (token: string, email: string): Promise<{ status: string }> =>
+    request<{ status: string }>(`/v1/auth/admin/users/${encodeURIComponent(email)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
   listProjects: (): Promise<Project[]> => request<Project[]>("/v1/projects"),
 
   getProject: (id: string): Promise<Project> =>
@@ -624,6 +775,15 @@ export const api = {
   /** v0.4 — Guardrail-Schicht (Trust-Layer, Katalog). */
   getCatalogGuardrails: (): Promise<Guardrail[]> =>
     request<Guardrail[]>(`/v1/catalog/guardrails`),
+
+  /** v0.7 — vollständiger Skill-Katalog (klassifiziert, mit Trust-Tier). */
+  getSkills: (): Promise<CatalogSkill[]> => request<CatalogSkill[]>(`/v1/skills`),
+
+  /** v0.7 — Empfehlungen je erkanntem Agenten-Set (vorselektiert vs. angeboten). */
+  getRecommendedSkills: (agentIds: string[]): Promise<RecommendedSkills> =>
+    request<RecommendedSkills>(
+      `/v1/skills/recommended?agents=${encodeURIComponent(agentIds.join(","))}`,
+    ),
 
   /** Schritt 8 — Kommando anwenden (Sequenz/Parallel/Skill/Agent-CRUD). */
   reviseHarness: (id: string, body: ReviseCommand): Promise<HarnessGraph> =>

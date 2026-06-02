@@ -244,6 +244,18 @@ module backendApi 'modules/containerApp.bicep' = {
       { name: 'SESSION_HARD_LOCK_BACKGROUND_SEC', value: '1800' }
       { name: 'MAX_TOKENS_PER_RUN', value: '1000000' }
       { name: 'LOG_LEVEL', value: 'info' }
+      // --- Multi-User-Auth (Registrierung + E-Mail-Bestätigung + TOTP-2FA) ---
+      { name: 'AUTH_ADMIN_EMAIL', value: 'zgpm@aegira.ai' }
+      { name: 'AUTH_PUBLIC_APP_URL', value: 'https://zgpm.${customDomain}' }
+      // E-Mail-Versand: 'stub' zeigt den Bestätigungslink nur an/loggt ihn (kein
+      // echter Versand). Für echten Versand auf 'smtp'/'acs' stellen, sobald der
+      // Provider im Code verdrahtet ist (app/auth/email.py).
+      { name: 'AUTH_EMAIL_MODE', value: 'stub' }
+      // ⚠️ AUTH_SESSION_SECRET (HMAC-Schlüssel für Session-/Magic-Link-Token) NICHT
+      // hier im Klartext setzen. Als Container-App-Secret hinterlegen, z. B.:
+      //   az containerapp secret set -n <api> -g <rg> --secrets auth-session-secret=<random>
+      //   az containerapp update  -n <api> -g <rg> --set-env-vars AUTH_SESSION_SECRET=secretref:auth-session-secret
+      // Ohne Override greift der Dev-Default aus config.py (NICHT für Prod geeignet).
     ]
   }
   // Implicit dependencies via env-var output references (cosmos, storage, observability).
@@ -274,6 +286,10 @@ module frontend 'modules/containerApp.bicep' = {
       { name: 'NEXT_PUBLIC_ENTRA_TENANT_ID', value: entraTenantId }
       { name: 'NEXT_PUBLIC_ENTRA_APP_ID', value: entraAppId }
       { name: 'NEXT_PUBLIC_APP_ENV', value: environment }
+      // HINWEIS: NEXT_PUBLIC_* wird zur BUILD-Zeit ins Frontend gebacken — diese
+      // Laufzeit-Variablen wirken NICHT auf den Client-Bundle. Der Lockscreen-Idle
+      // wird über das Docker-Build-Arg NEXT_PUBLIC_LOCK_IDLE_SEC gesetzt (Default
+      // 900 s, siehe planner/Dockerfile + deploy.yml). Hier nur als Referenz/Doku.
       { name: 'NEXT_PUBLIC_LOCK_IDLE_WORKSPACE_SEC', value: '900' }
       { name: 'NEXT_PUBLIC_LOCK_IDLE_ADMIN_SEC', value: '300' }
     ]

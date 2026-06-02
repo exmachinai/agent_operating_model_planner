@@ -34,6 +34,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # "API nicht erreichbar" im Browser. Default = prod-API; per --build-arg übersteuerbar.
 ARG NEXT_PUBLIC_API_BASE_URL=https://api.zgpm.aegira.ai
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+# Lockscreen-Idle (Sekunden). MUSS hier zur Build-Zeit gesetzt werden — eine
+# Laufzeit-Container-Variable greift bei NEXT_PUBLIC_* NICHT. Default 900 s.
+ARG NEXT_PUBLIC_LOCK_IDLE_SEC=900
+ENV NEXT_PUBLIC_LOCK_IDLE_SEC=$NEXT_PUBLIC_LOCK_IDLE_SEC
 RUN npm run build
 
 # -----------------------------------------------------------------------------

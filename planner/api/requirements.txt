@@ -2,6 +2,8 @@ fastapi==0.115.0
 uvicorn[standard]==0.32.0
 pydantic==2.9.2
 pydantic-settings==2.5.2
+# E-Mail-Validierung (pydantic EmailStr) — Multi-User-Auth.
+email-validator==2.2.0
 azure-cosmos==4.7.0
 azure-identity==1.18.0
 azure-storage-blob==12.23.1
@@ -13,5 +15,7 @@ python-docx==1.1.2
 python-pptx==1.0.2
 openpyxl==3.1.5
 pypdf==6.10.2
+# Lockscreen-2FA — QR-Code (Core-Matrix, pure-python; kein PIL/lxml nötig).
+qrcode==7.4.2
 # Dev/Test — Harness-Compiler + Router-Tests (WP-1/4/5).
 pytest==9.0.3

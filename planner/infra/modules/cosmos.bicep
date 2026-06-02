@@ -1,5 +1,5 @@
 // =============================================================================
-// modules/cosmos.bicep — Cosmos DB Account + 5 containers + CMK + Private Endpoint
+// modules/cosmos.bicep — Cosmos DB Account + 6 containers + CMK + Private Endpoint
 //
 // Containers per docs/02 §4 and docs/06 §7:
 //   projects   PK=/tenantId
@@ -150,6 +150,18 @@ resource sessionsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/c
       id: 'sessions'
       partitionKey: { paths: [ '/projectId' ], kind: 'Hash' }
       defaultTtl: -1
+    }
+  }
+}
+
+resource usersContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = {
+  parent: db
+  name: 'users'
+  properties: {
+    resource: {
+      // Multi-User-Auth: ein Dokument je Nutzer; id == E-Mail (klein) == PartitionKey.
+      id: 'users'
+      partitionKey: { paths: [ '/id' ], kind: 'Hash' }
     }
   }
 }

@@ -1,0 +1,322 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - link "AEGIRA — Agent Operating Model Planner · Start" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img "AEGIRA — Agent Operating Model Planner" [ref=e6]
+        - generic [ref=e7]: ·
+        - generic [ref=e8]: Harness · Schritt 8
+      - button "Hilfe zu diesem Schritt" [ref=e9] [cursor=pointer]:
+        - generic [ref=e10]: "?"
+        - text: Hilfe
+    - generic [ref=e13]:
+      - heading "Agent-Harness · Iteration 1" [level=1] [ref=e14]
+      - generic [ref=e15]: Entwurf · editierbar
+      - generic [ref=e16]: Plan v1
+    - paragraph [ref=e17]: 7 Agenten · 7 Knoten · 6 HITL-Punkte. Der Plan ist die Single Source of Truth; der Harness setzt ihn um.
+    - generic [ref=e18]: Orchestrierungs-Canvas
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - generic [ref=e22]: Agenten
+          - generic [ref=e23]: "7"
+        - generic [ref=e24]:
+          - generic [ref=e25]: Stages
+          - generic [ref=e26]: "4"
+        - generic [ref=e27]:
+          - generic [ref=e28]: HITL-Punkte
+          - generic [ref=e29]: "6"
+        - generic [ref=e30]:
+          - generic [ref=e31]: Findings
+          - generic [ref=e32]: "1"
+        - generic [ref=e33]:
+          - generic [ref=e34]: Modus
+          - generic [ref=e35]: Manager
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - generic [ref=e38]: "Modus:"
+          - button "Manager" [pressed] [ref=e39] [cursor=pointer]
+          - button "Handoff" [ref=e40] [cursor=pointer]
+        - paragraph [ref=e41]:
+          - strong [ref=e42]: "Manager:"
+          - text: Ein Orchestrator zerlegt das Vorhaben, delegiert an Worker und synthetisiert die Ergebnisse (Standard).
+          - emphasis [ref=e43]: Zu „Handoff“ wechseln fügt einen Router/Triage-Agent hinzu.
+      - generic [ref=e44]:
+        - generic [ref=e45]: "Modell-Strategie:"
+        - button "Ausgewogen" [ref=e46] [cursor=pointer]
+        - button "Sparsam" [ref=e47] [cursor=pointer]
+        - button "Premium" [ref=e48] [cursor=pointer]
+        - generic [ref=e49]: "aktuell: gemischt (pro Agent im Detail überschrieben)"
+      - generic [ref=e50]:
+        - complementary [ref=e51]:
+          - generic [ref=e52]: Agenten-Palette
+          - paragraph [ref=e53]: "Auf Touch/Mobil: Karte antippen fügt sie der ersten Stage hinzu; am Desktop in eine Stage ziehen. Farbe = Klasse (Orchestrator/Worker/Reviewer/HITL)."
+          - 'generic "Zerlegt das Vorhaben, delegiert an Spezialisten (Manager-Pattern) und synthetisiert die Ergebnisse; wacht über Budget und Gates. — Tippen: zu Stage 1 hinzufügen" [ref=e54]':
+            - generic [ref=e55]: PMO-Orchestrator
+            - generic [ref=e56]: +
+          - 'generic "Klassifiziert eingehende Aufgaben und übergibt (Handoff) an den richtigen Spezialisten — für Decentralized/Handoff-Orchestrierung. — Tippen: zu Stage 1 hinzufügen" [ref=e57]':
+            - generic [ref=e58]: Router/Triage-Agent
+            - generic [ref=e59]: +
+          - 'generic "Entwirft System-/Lösungsarchitektur, Schnittstellen und Technologie-Entscheidungen mit Trade-offs. — Tippen: zu Stage 1 hinzufügen" [ref=e60]':
+            - generic [ref=e61]: Architektur-Agent
+            - generic [ref=e62]: +
+          - 'generic "Datenmodell, Pipelines, Lineage und Datenqualität. — Tippen: zu Stage 1 hinzufügen" [ref=e63]':
+            - generic [ref=e64]: Daten-Agent
+            - generic [ref=e65]: +
+          - 'generic "Threat-Modeling, IAM, Secrets, Härtung; markiert Hochrisiko-Aktionen. — Tippen: zu Stage 1 hinzufügen" [ref=e66]':
+            - generic [ref=e67]: Security-Agent
+            - generic [ref=e68]: +
+          - 'generic "API-Verträge, Schnittstellen, Idempotenz und Fehlersemantik. — Tippen: zu Stage 1 hinzufügen" [ref=e69]':
+            - generic [ref=e70]: Integrations-Agent
+            - generic [ref=e71]: +
+          - 'generic "CI/CD, IaC, Deploy-Pfade; Deploys sind Hochrisiko-Aktionen (HITL). — Tippen: zu Stage 1 hinzufügen" [ref=e72]':
+            - generic [ref=e73]: DevOps/Deploy-Agent
+            - generic [ref=e74]: +
+          - 'generic "Setzt Features inkrementell um und verifiziert End-to-End (nie fertig ohne Test). — Tippen: zu Stage 1 hinzufügen" [ref=e75]':
+            - generic [ref=e76]: Implementierungs-Agent
+            - generic [ref=e77]: +
+          - 'generic "UX-Flows, Wireframes, visuelle Konsistenz und Accessibility. — Tippen: zu Stage 1 hinzufügen" [ref=e78]':
+            - generic [ref=e79]: UX/Design-Agent
+            - generic [ref=e80]: +
+          - 'generic "Sichert ZGPM-Methodentreue (MECE, Pyramid, Hypothesen, PVM). — Tippen: zu Stage 1 hinzufügen" [ref=e81]':
+            - generic [ref=e82]: Methodik-Agent
+            - generic [ref=e83]: +
+          - 'generic "AIMS (ISO 42001 × CMMI) und EU-AI-Act-Konformität; Audit-Evidenz. — Tippen: zu Stage 1 hinzufügen" [ref=e84]':
+            - generic [ref=e85]: Compliance-Agent
+            - generic [ref=e86]: +
+          - 'generic "Risiken identifizieren, P×A-Scoring (Ampel) und Mitigationen. — Tippen: zu Stage 1 hinzufügen" [ref=e87]':
+            - generic [ref=e88]: Risiko-Agent
+            - generic [ref=e89]: +
+          - 'generic "Breite Recherche/Quellenarbeit mit Zitaten — leicht & parallelisierbar (Haiku). — Tippen: zu Stage 1 hinzufügen" [ref=e90]':
+            - generic [ref=e91]: Research/Analyse-Agent
+            - generic [ref=e92]: +
+          - 'generic "Prozess-Mapping, Operating-Model, Soll/Ist und Engpässe. — Tippen: zu Stage 1 hinzufügen" [ref=e93]':
+            - generic [ref=e94]: Prozess-Agent
+            - generic [ref=e95]: +
+          - 'generic "Stakeholder-Map, Change-Story, Adoption und Enablement. — Tippen: zu Stage 1 hinzufügen" [ref=e96]':
+            - generic [ref=e97]: Change/Org-Agent
+            - generic [ref=e98]: +
+          - 'generic "Strukturierte Dokumentation, Handover und Audit-Pakete. — Tippen: zu Stage 1 hinzufügen" [ref=e99]':
+            - generic [ref=e100]: Doku-Agent
+            - generic [ref=e101]: +
+          - 'generic "Bewertet Worker-Ergebnisse gegen Kriterien und gibt Feedback (Evaluator-Optimizer-Schleife). — Tippen: zu Stage 1 hinzufügen" [ref=e102]':
+            - generic [ref=e103]: Reviewer/QA-Agent
+            - generic [ref=e104]: +
+          - 'generic "Verifiziert Funktion End-to-End wie ein echter Nutzer (Browser/Tools), nie nur Unit. — Tippen: zu Stage 1 hinzufügen" [ref=e105]':
+            - generic [ref=e106]: Test-Agent (E2E)
+            - generic [ref=e107]: +
+          - 'generic "Adversariale Prüfung: versucht, Annahmen und Ergebnisse zu widerlegen (Voting/Diversität). — Tippen: zu Stage 1 hinzufügen" [ref=e108]':
+            - generic [ref=e109]: Red-Team/Critic-Agent
+            - generic [ref=e110]: +
+          - 'generic "Menschlicher Checkpoint an Gates, High-Risk-Aktionen und roten Risiken. — Tippen: zu Stage 1 hinzufügen" [ref=e111]':
+            - generic [ref=e112]: Projektleiter (HITL)
+            - generic [ref=e113]: +
+        - generic [ref=e114]:
+          - generic [ref=e115]:
+            - generic [ref=e116]:
+              - generic [ref=e117]: Stage 1
+              - generic [ref=e118]: Routing
+            - generic [ref=e120]:
+              - generic [ref=e122]: PMO-Orchestrator
+              - generic [ref=e123]: Orchestrator
+          - generic [ref=e124]: ↓
+          - generic [ref=e125]:
+            - generic [ref=e126]:
+              - generic [ref=e127]: Stage 2
+              - generic [ref=e128]: Parallel
+            - generic [ref=e129]:
+              - generic [ref=e130]:
+                - generic [ref=e132]: Methodik-Agent
+                - generic [ref=e133]: Worker
+              - generic [ref=e134]:
+                - generic [ref=e136]: Risiko-Agent
+                - generic [ref=e137]: Worker
+              - generic [ref=e138]:
+                - generic [ref=e140]: Research/Analyse-Agent
+                - generic [ref=e141]: Worker
+              - generic [ref=e142]:
+                - generic [ref=e144]: Change/Org-Agent
+                - generic [ref=e145]: Worker
+          - generic [ref=e146]: ↓
+          - generic [ref=e147]:
+            - generic [ref=e148]:
+              - generic [ref=e149]: Stage 3
+              - generic [ref=e150]: Evaluator-Optimizer
+            - generic [ref=e152]:
+              - generic [ref=e154]: Reviewer/QA-Agent
+              - generic [ref=e155]: Reviewer
+          - generic [ref=e156]: ↓
+          - generic [ref=e157]:
+            - generic [ref=e158]:
+              - generic [ref=e159]: Stage 4
+              - generic [ref=e160]: Sequenziell
+            - generic [ref=e162]:
+              - generic [ref=e164]: Projektleiter (HITL)
+              - generic [ref=e165]: HITL ◆
+          - generic [ref=e166]: ↓
+          - generic [ref=e167]:
+            - generic [ref=e168]:
+              - generic [ref=e169]: Stage 5
+              - generic [ref=e170]: leer
+            - generic [ref=e171]: hierher ziehen
+      - complementary [ref=e172]:
+        - generic [ref=e173]: Detail
+        - paragraph [ref=e174]: Eine Agenten-Karte anklicken, um Mission, Verantwortung, Tools (mit Risk) und Modell-Tier zu sehen.
+    - generic [ref=e175]: Architektur-Check (Preflight, docs/04)
+    - generic [ref=e176]:
+      - paragraph [ref=e177]:
+        - text: Read-only-Validierung der Agenten-Topologie gegen die Best-Practice-Anti-Muster. Agenten bearbeitest du oben in der
+        - strong [ref=e178]: Orchestrierungs-Canvas
+        - text: bzw. unten in den Agenten-Karten.
+      - generic [ref=e179]:
+        - generic [ref=e180]: Orchestrator · 1
+        - generic [ref=e182]: Worker · 4
+        - generic [ref=e184]: Reviewer · 1
+        - generic [ref=e186]: HITL ◆ · 1
+      - generic [ref=e188]:
+        - generic [ref=e189]: "Worker anordnen:"
+        - button "Parallel" [ref=e190] [cursor=pointer]
+        - button "Sequenziell" [ref=e191] [cursor=pointer]
+    - generic [ref=e192]: Preflight-Befunde (docs/04)
+    - list [ref=e194]:
+      - listitem [ref=e195]:
+        - generic [ref=e196]: info
+        - code [ref=e197]: harness.preflight-ok
+        - text: "— Preflight ohne Anti-Muster: Orchestrator-Worker mit HITL & Evaluator."
+    - generic [ref=e198]: Agenten (7)
+    - generic [ref=e199]:
+      - generic [ref=e200]:
+        - generic [ref=e201]:
+          - strong [ref=e203]:
+            - text: PMO-Orchestrator
+            - generic [ref=e204]: · Orchestrator
+          - code [ref=e205]: pmo-orchestrator.md
+        - paragraph [ref=e206]: Plan in Teilaufgaben zerlegen, an die passenden Worker delegieren, Ergebnisse zu einem kohärenten Ganzen synthetisieren und das Token-/Zeitbudget überwachen.
+        - generic [ref=e207]:
+          - generic [ref=e208]:
+            - text: plan-sync
+            - button "×" [ref=e209] [cursor=pointer]
+          - generic [ref=e210]:
+            - text: budget-guard
+            - button "×" [ref=e211] [cursor=pointer]
+          - generic [ref=e212]:
+            - text: synthesis
+            - button "×" [ref=e213] [cursor=pointer]
+        - generic [ref=e214]:
+          - button "+ SKILL.md importieren" [ref=e215] [cursor=pointer]
+          - button "Bearbeiten" [ref=e216] [cursor=pointer]
+          - button "Löschen" [ref=e217] [cursor=pointer]
+      - generic [ref=e218]:
+        - generic [ref=e219]:
+          - strong [ref=e221]:
+            - text: Methodik-Agent
+            - generic [ref=e222]: · Worker
+          - code [ref=e223]: methodology-agent.md
+        - paragraph [ref=e224]: Plan/Arbeit gegen ZGPM + McKinsey-Prinzipien prüfen (MECE, Pyramid, Hypothesen, PVM-Konsistenz).
+        - generic [ref=e225]:
+          - generic [ref=e226]:
+            - text: zgpm-validate
+            - button "×" [ref=e227] [cursor=pointer]
+          - generic [ref=e228]:
+            - text: mece
+            - button "×" [ref=e229] [cursor=pointer]
+        - generic [ref=e230]:
+          - button "+ SKILL.md importieren" [ref=e231] [cursor=pointer]
+          - button "Bearbeiten" [ref=e232] [cursor=pointer]
+          - button "Löschen" [ref=e233] [cursor=pointer]
+      - generic [ref=e234]:
+        - generic [ref=e235]:
+          - strong [ref=e237]:
+            - text: Risiko-Agent
+            - generic [ref=e238]: · Worker
+          - code [ref=e239]: risk-agent.md
+        - paragraph [ref=e240]: Risiken erfassen, mit Eintritt×Auswirkung scoren (Ampel), Mitigationen vorschlagen.
+        - generic [ref=e242]:
+          - text: risk-traffic-light
+          - button "×" [ref=e243] [cursor=pointer]
+        - generic [ref=e244]:
+          - button "+ SKILL.md importieren" [ref=e245] [cursor=pointer]
+          - button "Bearbeiten" [ref=e246] [cursor=pointer]
+          - button "Löschen" [ref=e247] [cursor=pointer]
+      - generic [ref=e248]:
+        - generic [ref=e249]:
+          - strong [ref=e251]:
+            - text: Research/Analyse-Agent
+            - generic [ref=e252]: · Worker
+          - code [ref=e253]: research-agent.md
+        - paragraph [ref=e254]: Breit recherchieren, Quellen sichten und mit Zitaten verdichten; Start breit, dann schmal.
+        - generic [ref=e255]:
+          - generic [ref=e256]:
+            - text: source-citation
+            - button "×" [ref=e257] [cursor=pointer]
+          - generic [ref=e258]:
+            - text: synthesis
+            - button "×" [ref=e259] [cursor=pointer]
+        - generic [ref=e260]:
+          - button "+ SKILL.md importieren" [ref=e261] [cursor=pointer]
+          - button "Bearbeiten" [ref=e262] [cursor=pointer]
+          - button "Löschen" [ref=e263] [cursor=pointer]
+      - generic [ref=e264]:
+        - generic [ref=e265]:
+          - strong [ref=e267]:
+            - text: Change/Org-Agent
+            - generic [ref=e268]: · Worker
+          - code [ref=e269]: change-agent.md
+        - paragraph [ref=e270]: Stakeholder mappen, Change-Story und Adoptionsmaßnahmen entwerfen.
+        - generic [ref=e271]:
+          - generic [ref=e272]:
+            - text: stakeholder-map
+            - button "×" [ref=e273] [cursor=pointer]
+          - generic [ref=e274]:
+            - text: adoption
+            - button "×" [ref=e275] [cursor=pointer]
+        - generic [ref=e276]:
+          - button "+ SKILL.md importieren" [ref=e277] [cursor=pointer]
+          - button "Bearbeiten" [ref=e278] [cursor=pointer]
+          - button "Löschen" [ref=e279] [cursor=pointer]
+      - generic [ref=e280]:
+        - generic [ref=e281]:
+          - strong [ref=e283]:
+            - text: Reviewer/QA-Agent
+            - generic [ref=e284]: · Reviewer
+          - code [ref=e285]: reviewer-agent.md
+        - paragraph [ref=e286]: Ergebnisse gegen klare Kriterien bewerten, Mängel benennen, Verbesserung anstoßen (Schleife) — PASS/NEEDS_REVISION/FAIL.
+        - generic [ref=e287]:
+          - generic [ref=e288]:
+            - text: pvm-validate
+            - button "×" [ref=e289] [cursor=pointer]
+          - generic [ref=e290]:
+            - text: rubric-eval
+            - button "×" [ref=e291] [cursor=pointer]
+        - generic [ref=e292]:
+          - button "+ SKILL.md importieren" [ref=e293] [cursor=pointer]
+          - button "Bearbeiten" [ref=e294] [cursor=pointer]
+          - button "Löschen" [ref=e295] [cursor=pointer]
+      - generic [ref=e296]:
+        - generic [ref=e297]:
+          - strong [ref=e299]:
+            - text: Projektleiter (HITL)
+            - generic [ref=e300]: · HITL ◆
+          - code [ref=e301]: hitl-projektleiter.md
+        - paragraph [ref=e302]: An Meilenstein-Gates, High-Risk-Tools und roten Risiken bewusst freigeben oder eskalieren.
+        - generic [ref=e304]: keine Skills
+        - generic [ref=e305]:
+          - button "+ SKILL.md importieren" [ref=e306] [cursor=pointer]
+          - button "Bearbeiten" [ref=e307] [cursor=pointer]
+          - button "Löschen" [ref=e308] [cursor=pointer]
+    - button "+ Agent hinzufügen" [ref=e310] [cursor=pointer]
+    - generic [ref=e311]: Human-in-the-Loop (6)
+    - list [ref=e313]:
+      - listitem [ref=e314]: ◆ M01 Discovery abgeschlossen — Meilenstein-Freigabe (HITL-PM)
+      - listitem [ref=e315]: ◆ M02 Konzept ausgearbeitet — Meilenstein-Freigabe (HITL-PM)
+      - listitem [ref=e316]: ◆ M03 Konzept validiert — Meilenstein-Freigabe (HITL-PM)
+      - listitem [ref=e317]: ◆ M04 Konzept freigegeben — Meilenstein-Freigabe (HITL-PM)
+      - listitem [ref=e318]: ◆ Token-Budget > 80% — HITL-PM bestätigt Fortsetzung
+      - listitem [ref=e319]: ◆ Neuer Skill eingeführt — HITL-PM-Review vor Nutzung
+    - generic [ref=e320]:
+      - button "Zurück zum Review" [ref=e321] [cursor=pointer]
+      - button "Freigeben & kompilieren (Gate 3)" [ref=e322] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e328] [cursor=pointer]:
+    - img [ref=e329]
+  - alert [ref=e12]

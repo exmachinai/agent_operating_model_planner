@@ -1,0 +1,798 @@
+{
+  "generated": "2026-06-02",
+  "count": 33,
+  "skills": [
+    {
+      "catalog_id": "docx-export_skill",
+      "slug": "docx",
+      "title": "Word-Dokumente erstellen/bearbeiten",
+      "author": "Anthropic",
+      "source": "https://github.com/anthropics/skills",
+      "trust_tier": "anthropic-vetted",
+      "domain": "output",
+      "agent_ids": [
+        "doc-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "file_io"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/docx-export_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "pptx-export_skill",
+      "slug": "pptx",
+      "title": "Praesentationen erstellen",
+      "author": "Anthropic",
+      "source": "https://github.com/anthropics/skills",
+      "trust_tier": "anthropic-vetted",
+      "domain": "output",
+      "agent_ids": [
+        "doc-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "file_io"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/pptx-export_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "pdf-toolkit_skill",
+      "slug": "pdf",
+      "title": "PDF verarbeiten",
+      "author": "Anthropic",
+      "source": "https://github.com/anthropics/skills",
+      "trust_tier": "anthropic-vetted",
+      "domain": "output",
+      "agent_ids": [
+        "doc-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "file_io"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/pdf-toolkit_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "xlsx-sheets_skill",
+      "slug": "xlsx",
+      "title": "Excel-Tabellen",
+      "author": "Anthropic",
+      "source": "https://github.com/anthropics/skills",
+      "trust_tier": "anthropic-vetted",
+      "domain": "output",
+      "agent_ids": [
+        "doc-agent",
+        "data-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "file_io"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/xlsx-sheets_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "brand-guidelines_skill",
+      "slug": "brand-guidelines",
+      "title": "Markenrichtlinien anwenden",
+      "author": "Anthropic",
+      "source": "https://github.com/anthropics/skills",
+      "trust_tier": "anthropic-vetted",
+      "domain": "output",
+      "agent_ids": [
+        "doc-agent",
+        "ux-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "doc"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/brand-guidelines_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "canvas-design_skill",
+      "slug": "canvas-design",
+      "title": "Visuelles Design (PNG/PDF)",
+      "author": "Anthropic",
+      "source": "https://github.com/anthropics/skills",
+      "trust_tier": "anthropic-vetted",
+      "domain": "output",
+      "agent_ids": [
+        "ux-agent",
+        "doc-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "image",
+        "pdf"
+      ],
+      "required_mcps": [],
+      "has_scripts": true,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/canvas-design_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "readme-gen_skill",
+      "slug": "readme-generator",
+      "title": "README erzeugen",
+      "author": "Community",
+      "source": "https://github.com/VoltAgent/awesome-agent-skills",
+      "trust_tier": "community",
+      "domain": "output",
+      "agent_ids": [
+        "doc-agent",
+        "implementation-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "file_io"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/readme-gen_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "changelog-gen_skill",
+      "slug": "changelog-generator",
+      "title": "Changelog erzeugen",
+      "author": "Community",
+      "source": "https://github.com/VoltAgent/awesome-agent-skills",
+      "trust_tier": "community",
+      "domain": "output",
+      "agent_ids": [
+        "doc-agent",
+        "implementation-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "file_io"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/changelog-gen_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "webapp-testing_skill",
+      "slug": "webapp-testing",
+      "title": "Web-App End-to-End testen",
+      "author": "Anthropic",
+      "source": "https://github.com/anthropics/skills",
+      "trust_tier": "anthropic-vetted",
+      "domain": "engineering",
+      "agent_ids": [
+        "implementation-agent",
+        "test-agent"
+      ],
+      "version": "n/v",
+      "risk": "medium",
+      "required_tools": [
+        "browser"
+      ],
+      "required_mcps": [
+        "playwright"
+      ],
+      "has_scripts": true,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/webapp-testing_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "mcp-builder_skill",
+      "slug": "mcp-builder",
+      "title": "MCP-Server bauen",
+      "author": "Anthropic",
+      "source": "https://github.com/anthropics/skills",
+      "trust_tier": "anthropic-vetted",
+      "domain": "engineering",
+      "agent_ids": [
+        "integration-agent",
+        "architecture-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "code"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/mcp-builder_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "git-commit_skill",
+      "slug": "git-commit-writer",
+      "title": "Commit-Messages schreiben",
+      "author": "Community",
+      "source": "https://github.com/VoltAgent/awesome-agent-skills",
+      "trust_tier": "community",
+      "domain": "engineering",
+      "agent_ids": [
+        "implementation-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "git"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/git-commit_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "pr-description_skill",
+      "slug": "pr-description-writer",
+      "title": "PR-Beschreibung schreiben",
+      "author": "Community",
+      "source": "https://github.com/VoltAgent/awesome-agent-skills",
+      "trust_tier": "community",
+      "domain": "engineering",
+      "agent_ids": [
+        "implementation-agent",
+        "reviewer-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "scm"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/pr-description_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "env-doctor_skill",
+      "slug": "env-doctor",
+      "title": "Umgebung diagnostizieren",
+      "author": "Community",
+      "source": "https://github.com/VoltAgent/awesome-agent-skills",
+      "trust_tier": "community",
+      "domain": "engineering",
+      "agent_ids": [
+        "implementation-agent",
+        "devops-agent"
+      ],
+      "version": "n/v",
+      "risk": "medium",
+      "required_tools": [
+        "shell",
+        "read"
+      ],
+      "required_mcps": [],
+      "has_scripts": true,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/env-doctor_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "terraform-iac_skill",
+      "slug": "terraform",
+      "title": "Terraform IaC",
+      "author": "HashiCorp",
+      "source": "https://github.com/hashicorp/agent-skills",
+      "trust_tier": "world-top",
+      "domain": "devops",
+      "agent_ids": [
+        "devops-agent"
+      ],
+      "version": "n/v",
+      "risk": "high",
+      "required_tools": [
+        "iac"
+      ],
+      "required_mcps": [],
+      "has_scripts": true,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/terraform-iac_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "packer-build_skill",
+      "slug": "packer",
+      "title": "Packer Images",
+      "author": "HashiCorp",
+      "source": "https://github.com/hashicorp/agent-skills",
+      "trust_tier": "world-top",
+      "domain": "devops",
+      "agent_ids": [
+        "devops-agent"
+      ],
+      "version": "n/v",
+      "risk": "medium",
+      "required_tools": [
+        "iac",
+        "build"
+      ],
+      "required_mcps": [],
+      "has_scripts": true,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/packer-build_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "terraform-grounding_skill",
+      "slug": "terrashark",
+      "title": "Terraform-Grounding",
+      "author": "LukasNiessen",
+      "source": "https://github.com/LukasNiessen/terrashark",
+      "trust_tier": "community",
+      "domain": "devops",
+      "agent_ids": [
+        "devops-agent",
+        "architecture-agent"
+      ],
+      "version": "n/v",
+      "risk": "medium",
+      "required_tools": [
+        "iac"
+      ],
+      "required_mcps": [],
+      "has_scripts": true,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/terraform-grounding_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "sql-database_skill",
+      "slug": "sql-queries",
+      "title": "SQL & Datenbank",
+      "author": "AEGIRA-Stack/Community",
+      "source": "https://github.com/VoltAgent/awesome-agent-skills",
+      "trust_tier": "world-top",
+      "domain": "data",
+      "agent_ids": [
+        "data-agent"
+      ],
+      "version": "n/v",
+      "risk": "medium",
+      "required_tools": [
+        "db_query"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/sql-database_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "orm-migration_skill",
+      "slug": "orm-migration",
+      "title": "ORM & Migration",
+      "author": "Community",
+      "source": "https://github.com/VoltAgent/awesome-agent-skills",
+      "trust_tier": "community",
+      "domain": "data",
+      "agent_ids": [
+        "data-agent"
+      ],
+      "version": "n/v",
+      "risk": "medium",
+      "required_tools": [
+        "code",
+        "migration"
+      ],
+      "required_mcps": [],
+      "has_scripts": true,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/orm-migration_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "data-viz_skill",
+      "slug": "create-viz",
+      "title": "Daten visualisieren",
+      "author": "AEGIRA-Stack",
+      "source": "internal:data-plugin",
+      "trust_tier": "world-top",
+      "domain": "data",
+      "agent_ids": [
+        "data-agent",
+        "research-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "code",
+        "plot"
+      ],
+      "required_mcps": [],
+      "has_scripts": true,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/data-viz_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "data-analyze_skill",
+      "slug": "analyze",
+      "title": "Daten analysieren",
+      "author": "AEGIRA-Stack",
+      "source": "internal:data-plugin",
+      "trust_tier": "world-top",
+      "domain": "data",
+      "agent_ids": [
+        "data-agent",
+        "research-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "query",
+        "analysis"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/data-analyze_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "security-audit_skill",
+      "slug": "trailofbits-suite",
+      "title": "Security-Audit/SAST",
+      "author": "Trail of Bits",
+      "source": "https://github.com/trailofbits/skills",
+      "trust_tier": "world-top",
+      "domain": "security",
+      "agent_ids": [
+        "security-agent",
+        "redteam-agent"
+      ],
+      "version": "n/v",
+      "risk": "medium",
+      "required_tools": [
+        "scan",
+        "read"
+      ],
+      "required_mcps": [],
+      "has_scripts": true,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/security-audit_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "vuln-remediation_skill",
+      "slug": "snyk",
+      "title": "Vuln-Remediation",
+      "author": "Snyk",
+      "source": "https://snyk.io/articles/top-claude-skills-developers/",
+      "trust_tier": "world-top",
+      "domain": "security",
+      "agent_ids": [
+        "security-agent"
+      ],
+      "version": "n/v",
+      "risk": "high",
+      "required_tools": [
+        "scan",
+        "pr"
+      ],
+      "required_mcps": [],
+      "has_scripts": true,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/vuln-remediation_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "pentest-autonomous_skill",
+      "slug": "shannon",
+      "title": "Autonomes Pentesting",
+      "author": "Community/Forschung",
+      "source": "https://github.com/VoltAgent/awesome-agent-skills",
+      "trust_tier": "experimental",
+      "domain": "security",
+      "agent_ids": [
+        "redteam-agent"
+      ],
+      "version": "n/v",
+      "risk": "high",
+      "required_tools": [
+        "exploit"
+      ],
+      "required_mcps": [],
+      "has_scripts": true,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/pentest-autonomous_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "ux-design_skill",
+      "slug": "frontend-design",
+      "title": "Frontend-Design",
+      "author": "Anthropic",
+      "source": "https://github.com/anthropics/skills",
+      "trust_tier": "anthropic-vetted",
+      "domain": "design",
+      "agent_ids": [
+        "ux-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "code",
+        "design"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/ux-design_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "web-design-review_skill",
+      "slug": "web-design-guidelines",
+      "title": "Web-Design-Review",
+      "author": "Vercel",
+      "source": "https://vercel.com",
+      "trust_tier": "world-top",
+      "domain": "design",
+      "agent_ids": [
+        "ux-agent",
+        "reviewer-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "review",
+        "read"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/web-design-review_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "theme-factory_skill",
+      "slug": "theme-factory",
+      "title": "Theme-Factory",
+      "author": "Anthropic",
+      "source": "https://github.com/anthropics/skills",
+      "trust_tier": "anthropic-vetted",
+      "domain": "design",
+      "agent_ids": [
+        "ux-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "style"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/theme-factory_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "accessibility-audit_skill",
+      "slug": "accessibility-review",
+      "title": "Accessibility-Audit",
+      "author": "AEGIRA-Stack",
+      "source": "internal:design-plugin",
+      "trust_tier": "world-top",
+      "domain": "design",
+      "agent_ids": [
+        "ux-agent",
+        "reviewer-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "review",
+        "read"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/accessibility-audit_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "code-review_skill",
+      "slug": "code-review",
+      "title": "Code-Review",
+      "author": "reputable Vendor/Community",
+      "source": "https://github.com/VoltAgent/awesome-agent-skills",
+      "trust_tier": "world-top",
+      "domain": "engineering",
+      "agent_ids": [
+        "reviewer-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "read",
+        "diff"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/code-review_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "tdd-enforcement_skill",
+      "slug": "superpowers-tdd",
+      "title": "TDD-Enforcement",
+      "author": "Community",
+      "source": "https://github.com/VoltAgent/awesome-agent-skills",
+      "trust_tier": "community",
+      "domain": "engineering",
+      "agent_ids": [
+        "test-agent",
+        "implementation-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "test",
+        "code"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/tdd-enforcement_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "deep-research_skill",
+      "slug": "deep-research",
+      "title": "Deep Research",
+      "author": "Anthropic-nah",
+      "source": "https://github.com/anthropics/skills",
+      "trust_tier": "world-top",
+      "domain": "research",
+      "agent_ids": [
+        "research-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "web_search"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/deep-research_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "prompting_skill",
+      "slug": "prompting-best-practices",
+      "title": "Prompt-Engineering",
+      "author": "Anthropic",
+      "source": "https://github.com/anthropics/skills",
+      "trust_tier": "anthropic-vetted",
+      "domain": "methodology",
+      "agent_ids": [
+        "pmo-orchestrator",
+        "methodology-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "doc"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/prompting_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "skill-creator_skill",
+      "slug": "skill-creator",
+      "title": "Skill-Creator",
+      "author": "Anthropic",
+      "source": "https://github.com/anthropics/skills",
+      "trust_tier": "anthropic-vetted",
+      "domain": "methodology",
+      "agent_ids": [
+        "pmo-orchestrator"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "file_io"
+      ],
+      "required_mcps": [],
+      "has_scripts": true,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/skill-creator_skill/SKILL.md"
+    },
+    {
+      "catalog_id": "prd-authoring_skill",
+      "slug": "prd-creation",
+      "title": "PRD-Authoring",
+      "author": "Community",
+      "source": "https://github.com/VoltAgent/awesome-agent-skills",
+      "trust_tier": "community",
+      "domain": "methodology",
+      "agent_ids": [
+        "pmo-orchestrator",
+        "change-agent"
+      ],
+      "version": "n/v",
+      "risk": "low",
+      "required_tools": [
+        "doc"
+      ],
+      "required_mcps": [],
+      "has_scripts": false,
+      "license": "see-source",
+      "catalog_status": "reference-stub",
+      "content_sha256": null,
+      "path": "skills/prd-authoring_skill/SKILL.md"
+    }
+  ]
+}

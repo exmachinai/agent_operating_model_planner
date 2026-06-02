@@ -14,7 +14,8 @@ Methodentreue (docs/04_agent-best-practices.md):
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
+from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -120,6 +121,79 @@ class SkillImport(BaseModel):
     content: str
 
 
+# v0.7 — Skill-Repository: Trust-Tier als Einstufung (KEINE Garantie, Eckpfeiler).
+class SkillTrustTier(str, Enum):
+    """Vertrauensstufe eines Katalog-Skills (Achse 1b, docs/15 §4.1)."""
+
+    anthropic_vetted = "anthropic-vetted"  # offiziell von Anthropic, höchstes Vertrauen
+    aegira_certified = "aegira-certified"  # AEGIRA-eigen, intern geprüft
+    world_top = "world-top"                # öffentlich, kuratiert + manuell gevettet
+    community = "community"                # öffentlich, ungeprüft (nie Default, Gate)
+    experimental = "experimental"          # in Erprobung, hohes Risiko (HITL-Pflicht)
+
+
+# v0.7 — vorselektierbare Tiers: nur vetted/zertifiziert/world-top (ToxicSkills-Lehre).
+PRESELECT_TIERS: frozenset[SkillTrustTier] = frozenset(
+    {SkillTrustTier.anthropic_vetted, SkillTrustTier.aegira_certified, SkillTrustTier.world_top}
+)
+
+
+class CatalogSkill(BaseModel):
+    """Ein kuratierter, klassifizierter Skill im Repository (v0.7, docs/15 §4.1).
+
+    Analog zu `CatalogAgent`. Vier Klassifizierungs-Achsen (Autor+Trust, Domäne+
+    Subtyp, Version+Datum, technische Properties) plus Integritäts-/Audit-Felder.
+    Bildet 1:1 auf den offenen SKILL.md-Standard ab (`slug`/`title`/`description`)
+    und ergänzt ihn um AEGIRA-Trust-Felder. `catalog_id` ist die eindeutige
+    Anzeige-/Audit-Bezeichnung; `slug` der Upstream-Ordnername (Standard, kein „_").
+    """
+
+    # Identität
+    catalog_id: str = Field(pattern=r"^[a-z0-9-]+_skill$")
+    slug: str = Field(pattern=r"^[a-z0-9-]{1,64}$")
+    title: str
+    description: str = Field(max_length=1024)
+    # Achse 1 — Autor + Trust
+    author: str
+    source: str
+    trust_tier: SkillTrustTier
+    license: str | None = None
+    # Achse 2 — Domäne + Subtyp-Mapping
+    domain: str
+    project_types: list[str] = Field(default_factory=list)
+    subtypes: list[str] = Field(default_factory=list)
+    agent_ids: list[str] = Field(default_factory=list)
+    # Achse 3 — Version + Datum
+    version: str = "n/v"
+    released_at: date | None = None
+    updated_at: date | None = None
+    deprecated: bool = False
+    # Achse 4 — technische Properties
+    required_tools: list[str] = Field(default_factory=list)
+    required_mcps: list[str] = Field(default_factory=list)
+    model_tier: str | None = None
+    risk: Literal["low", "medium", "high"] = "low"
+    has_scripts: bool = False
+    # Integrität / Audit
+    content_sha256: str | None = None
+    content: str | None = None  # bei Upload/Hydration: unveränderte SKILL.md
+
+    # `model_tier` kollidiert sonst mit Pydantics geschütztem Namespace `model_`.
+    model_config = {"protected_namespaces": ()}
+
+    @property
+    def needs_gate(self) -> bool:
+        """Security-Gate (docs/15 §4.6): Skripte oder ungeprüfte/experimentelle Tiers."""
+        return self.has_scripts or self.trust_tier in (
+            SkillTrustTier.community,
+            SkillTrustTier.experimental,
+        )
+
+    @property
+    def preselected(self) -> bool:
+        return self.trust_tier in PRESELECT_TIERS
+
+
 class HarnessNode(BaseModel):
     """Ein Knoten im Preflight-Graph (PMO-Orchestrator → Worker → Reviewer → HITL)."""
 
@@ -189,6 +263,10 @@ class HarnessGraph(BaseModel):
     # v0.6 — vom Anwender importierte echte SKILL.md-Inhalte (je Skill-Slug einmal).
     # Überschreiben beim Kompilieren die generierte Hülle in templates.skill_files.
     imported_skills: list[SkillImport] = Field(default_factory=list)
+    # v0.7 — aus dem kuratierten Repository ausgewählte Skills (mit Trust-Tier,
+    # Herkunft, sha256). Speisen das Audit-Manifest `.claude/skills/_manifest.json`;
+    # ihr `content` wird (wie imported_skills) unverändert ins ZIP geschrieben.
+    catalog_skills: list[CatalogSkill] = Field(default_factory=list)
     # HITL-Punkte als lesbare Liste (Meilenstein, rotes Risiko, neuer Skill, Budget).
     hitl_points: list[str] = Field(default_factory=list)
     artifacts: list[ArtifactRef] = Field(default_factory=list)
@@ -220,6 +298,11 @@ class ReviseCommand(BaseModel):
     skill: str | None = None
     # v0.6 — unveränderter SKILL.md-Inhalt beim Import (Frontmatter wird validiert).
     skill_content: str | None = None
+    # v0.7 — Auswahl aus dem kuratierten Repository: statt Freitext-Import wird der
+    # Katalog-Skill referenziert; der Compiler hydriert Inhalt + sha256 selbst.
+    catalog_id: str | None = None
+    # v0.7 — HITL-Quittung für das Security-Gate (community/experimental/has_scripts).
+    confirm_gate: bool = False
     tool: str | None = None
     remove: bool = False
     op: Literal["add", "update", "delete"] | None = None

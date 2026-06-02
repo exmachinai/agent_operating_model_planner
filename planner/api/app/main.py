@@ -27,8 +27,10 @@ from .routers import (
     plans,
     harness,
     catalog,
+    skills,
     sessions,
     hitl,
+    auth,
 )
 
 logger = logging.getLogger("aegira.planner.api")
@@ -87,6 +89,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(plans.router, prefix="/v1/projects", tags=["plans"])
     app.include_router(harness.router, prefix="/v1/projects", tags=["harness"])
     app.include_router(catalog.router, prefix="/v1/catalog", tags=["catalog"])
+    app.include_router(skills.router, prefix="/v1", tags=["skills"])
+    app.include_router(auth.router, prefix="/v1/auth", tags=["auth"])
     app.include_router(sessions.router, prefix="/v1/sessions", tags=["sessions"])
     app.include_router(hitl.router, prefix="/v1", tags=["hitl"])
 

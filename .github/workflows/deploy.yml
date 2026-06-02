@@ -23,6 +23,10 @@ on:
         description: "NEXT_PUBLIC_API_BASE_URL — wird ins Frontend gebacken! (API-Subdomain)"
         required: true
         default: "https://api.zgpm.aegira.ai"
+      lock_idle_sec:
+        description: "Lockscreen-Idle in Sekunden — wird ins Frontend gebacken (NEXT_PUBLIC, Build-Zeit). 0 = aus."
+        required: false
+        default: "900"
 
 permissions:
   id-token: write
@@ -66,6 +70,7 @@ jobs:
           az acr build --registry "$ACR" \
             --image "planner-frontend:${{ inputs.image_tag }}" \
             --build-arg NEXT_PUBLIC_API_BASE_URL="${{ inputs.api_base_url }}" \
+            --build-arg NEXT_PUBLIC_LOCK_IDLE_SEC="${{ inputs.lock_idle_sec }}" \
             --file planner/Dockerfile planner
 
       - name: Container Apps auf neuen Tag umstellen (image-only)

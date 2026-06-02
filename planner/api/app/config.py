@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # --- App ----------------------------------------------------------------
     app_env: Literal["prod", "staging", "dev"] = Field(default="dev", alias="APP_ENV")
-    app_version: str = Field(default="0.6.0", alias="APP_VERSION")
+    app_version: str = Field(default="0.7.0", alias="APP_VERSION")
     log_level: str = Field(default="info", alias="LOG_LEVEL")
 
     # --- Cosmos -------------------------------------------------------------
@@ -32,6 +32,22 @@ class Settings(BaseSettings):
     foundry_deployment_primary: str = Field(default="claude-sonnet-46-primary", alias="AZURE_FOUNDRY_DEPLOYMENT_PRIMARY")
     foundry_deployment_compress: str = Field(default="claude-haiku-45-compress", alias="AZURE_FOUNDRY_DEPLOYMENT_COMPRESS")
     foundry_api_key: str = Field(default="", alias="AZURE_FOUNDRY_API_KEY")
+
+    # --- Auth (Multi-User: Registrierung + E-Mail-Bestätigung + TOTP-2FA) ----
+    # Selbst-Registrierung mit eigener E-Mail/Passwort; Magic-Link-Bestätigung;
+    # Login mit zweitem Faktor (Authenticator-TOTP, pro Nutzer). Kleiner Admin-
+    # bereich verwaltet Nutzer. In Prod die Secrets als Container-App-Secret setzen.
+    auth_admin_email: str = Field(default="zgpm@aegira.ai", alias="AUTH_ADMIN_EMAIL")
+    auth_totp_issuer: str = Field(default="AEGIRA ZGPM", alias="AUTH_TOTP_ISSUER")
+    # HMAC-Schlüssel für signierte Token (Session + Magic-Link). In Prod als Secret.
+    auth_session_secret: str = Field(default="aegira-dev-session-secret-change-me", alias="AUTH_SESSION_SECRET")
+    auth_session_ttl_sec: int = Field(default=43_200, alias="AUTH_SESSION_TTL_SEC")  # 12 h
+    auth_verify_ttl_sec: int = Field(default=86_400, alias="AUTH_VERIFY_TTL_SEC")    # 24 h
+    # Öffentliche App-URL für den Bestätigungs-Link (in Prod: https://zgpm.aegira.ai).
+    auth_public_app_url: str = Field(default="http://localhost:3000", alias="AUTH_PUBLIC_APP_URL")
+    # E-Mail-Versand: "stub" zeigt den Link in der Antwort/Log (kein echter Versand);
+    # "smtp"/"acs" für echten Versand (später einhängbar).
+    auth_email_mode: str = Field(default="stub", alias="AUTH_EMAIL_MODE")
 
     # --- Entra --------------------------------------------------------------
     entra_tenant_id: str = Field(default="", alias="ENTRA_TENANT_ID")

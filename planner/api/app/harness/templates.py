@@ -575,7 +575,55 @@ description: {desc} Trigger: wenn der Plan unter `$HARNESS_ROOT/plan/` betroffen
 3. Bei Verstoß: Konsolen-Output mit Knoten-ID, Regel und Fix-Vorschlag.
 4. Bei OK: kurzes „PASS".
 """
+
+    # v0.7 — Audit-Manifest der aus dem Repository gewählten Skills (docs/15 §4.5).
+    # Macht die Auswahl nachweisbar (audit-ready): Trust-Tier, Quelle, Integrität.
+    manifest = skill_manifest(graph)
+    if manifest is not None:
+        out[".claude/skills/_manifest.json"] = manifest
     return out
+
+
+def skill_manifest(graph: HarnessGraph) -> str | None:
+    """Erzeugt `.claude/skills/_manifest.json` aus den gewählten Katalog-Skills.
+
+    Nur, wenn überhaupt kuratierte Skills gewählt wurden. Listet je Skill die
+    audit-relevanten Felder (catalog_id, slug, version, autor, trust_tier, source,
+    content_sha256). Deterministisch (nach catalog_id sortiert) → stabiler Hash."""
+    if not graph.catalog_skills:
+        return None
+    entries = [
+        {
+            "catalog_id": c.catalog_id,
+            "slug": c.slug,
+            "title": c.title,
+            "version": c.version,
+            "author": c.author,
+            "trust_tier": c.trust_tier.value,
+            "source": c.source,
+            "license": c.license,
+            "domain": c.domain,
+            "risk": c.risk,
+            "has_scripts": c.has_scripts,
+            "required_mcps": list(c.required_mcps),
+            "content_sha256": c.content_sha256,
+            "path": f".claude/skills/{c.slug}/SKILL.md",
+        }
+        for c in sorted(graph.catalog_skills, key=lambda c: c.catalog_id)
+    ]
+    return json.dumps(
+        {
+            "schema": "aegira-skill-manifest/1",
+            "note": (
+                "Trust-Tier ist eine Einstufung, keine Garantie. "
+                "community/experimental und skript-tragende Skills durchlaufen das HITL-Gate."
+            ),
+            "count": len(entries),
+            "skills": entries,
+        },
+        indent=2,
+        ensure_ascii=False,
+    ) + "\n"
 
 
 def command_files() -> dict[str, str]:

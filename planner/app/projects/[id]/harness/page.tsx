@@ -30,6 +30,7 @@ import {
   type SaveResult,
 } from "../../../../lib/saveHarness";
 import { HarnessCanvas } from "../../../../components/HarnessCanvas";
+import { SkillPicker } from "../../../../components/SkillPicker";
 
 const KIND_LABEL: Record<HarnessNodeKind, string> = {
   orchestrator: "Orchestrator",
@@ -231,6 +232,24 @@ export default function HarnessPage(): React.ReactElement {
           </div>
         </>
       ) : null}
+
+      {/* v0.7 — Skill-Repository (kuratiert, klassifiziert, agentengetrieben) */}
+      <div style={sectionLabel}>Skill-Repository (kuratiert)</div>
+      <div style={{ ...cardStyle, marginBottom: "var(--sp-6)" }}>
+        <p style={{ ...metaStyle, marginTop: 0, marginBottom: "var(--sp-2)" }}>
+          Passend zu deinen erkannten Agenten angebotene, geprüfte Skills.
+          Gevettete/world-top sind vorselektierbar; community/experimentelle und
+          skript-tragende durchlaufen ein HITL-Gate. Die Auswahl wird im Harness-ZIP
+          dokumentiert (audit-ready).
+        </p>
+        <SkillPicker
+          agents={graph.agents}
+          applied={graph.catalog_skills ?? []}
+          frozen={frozen}
+          busy={busy}
+          onRevise={(cmd) => run(() => api.reviseHarness(id, cmd))}
+        />
+      </div>
 
       {/* Agenten-Panels (CRUD) */}
       <div style={sectionLabel}>Agenten ({graph.agents.length})</div>
@@ -727,42 +746,6 @@ const sectionLabel: React.CSSProperties = {
   textTransform: "uppercase",
   color: "var(--c-text-muted)",
   marginBottom: "var(--sp-2)",
-};
-const graphStyle: React.CSSProperties = {
-  display: "flex",
-  gap: "var(--sp-4)",
-  alignItems: "flex-start",
-  overflowX: "auto",
-  padding: "var(--sp-3)",
-  border: "1px solid var(--c-border)",
-  borderRadius: "var(--r-md)",
-  backgroundColor: "var(--c-surface)",
-  marginBottom: "var(--sp-3)",
-};
-const laneStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--sp-2)",
-  minWidth: 150,
-};
-const laneHeadStyle: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 700,
-  letterSpacing: "0.08em",
-  textTransform: "uppercase",
-  color: "var(--c-steel)",
-  marginBottom: "var(--sp-1)",
-};
-const nodeStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: "var(--sp-2)",
-  padding: "var(--sp-2) var(--sp-3)",
-  border: "1px solid",
-  borderRadius: "var(--r-md)",
-  backgroundColor: "var(--c-vellum)",
-  fontSize: 13,
-  fontWeight: 600,
 };
 const nodeDot: React.CSSProperties = {
   width: 10,

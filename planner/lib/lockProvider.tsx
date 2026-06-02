@@ -157,7 +157,7 @@ export function LockProvider({
     <>
       {children}
       {!locked && !bypass && isAdmin ? (
-        <Link href="/admin" style={adminLinkStyle}>
+        <Link href="/admin" className="aegira-no-print" style={adminLinkStyle}>
           ⚙ Adminbereich
         </Link>
       ) : null}

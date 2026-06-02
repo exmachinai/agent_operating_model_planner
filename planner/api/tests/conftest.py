@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from app.db import harness_repo, plans_repo, projects_repo, users_repo
+from app.db import harness_repo, plans_repo, projects_repo, skill_registry_repo, users_repo
 from app.main import create_app
 
 
@@ -16,6 +16,7 @@ def client() -> TestClient:
     plans_repo._repo = None
     harness_repo._repo = None
     users_repo._repo = None
+    skill_registry_repo._repo = None
     return TestClient(create_app())
 
 

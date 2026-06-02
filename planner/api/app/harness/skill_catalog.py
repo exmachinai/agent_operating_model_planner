@@ -165,6 +165,74 @@ _SEED: list[tuple] = [
      "Verfasst strukturierte Product-Requirement-Dokumente. Trigger: PRD/Anforderungsdokument.",
      "Community", "https://github.com/VoltAgent/awesome-agent-skills", "community", "methodology",
      ("pmo-orchestrator", "change-agent"), "low", ("doc",), (), False),
+
+    # === AEGIRA-eigene Methoden-/Konzept-Skills (aegira-certified) ===========
+    # Intern geprüft, funktionsfähig. Ersetzen die früheren Platzhalter-Tags, damit
+    # JEDE Agentenrolle echte, freigegebene Skills trägt (keine Fakes mehr).
+    ("zgpm-plan_skill", "zgpm-plan", "ZGPM-Plan komponieren",
+     "Komponiert und prüft ZGPM-Pläne (Phasen, Meilensteine, PVM, Konsistenzregeln: ≥1 A, genau 1 F/L, 'e' nie allein). Trigger: Plan strukturieren/validieren.",
+     "exmachinAI", "internal:aegira", "aegira-certified", "methodology",
+     ("pmo-orchestrator", "methodology-agent"), "low", ("read", "write"), (), False),
+    ("pvm-validate_skill", "pvm-validate", "PVM-Matrix validieren",
+     "Validiert die Personen-Verantwortungs-Matrix gegen die ZGPM-Konsistenzregeln. Trigger: PVM/Rollenmatrix prüfen.",
+     "exmachinAI", "internal:aegira", "aegira-certified", "methodology",
+     ("methodology-agent", "reviewer-agent"), "low", ("read",), (), False),
+    ("mece-check_skill", "mece-check", "MECE-/Pyramid-Prüfung",
+     "Prüft Struktur auf MECE-Konformität und Pyramid-Logik (McKinsey-Prinzipien). Trigger: Gliederung/Argumentation schärfen.",
+     "exmachinAI", "internal:aegira", "aegira-certified", "methodology",
+     ("methodology-agent",), "low", ("read",), (), False),
+    ("risk-traffic-light_skill", "risk-traffic-light", "Risiko-Ampel (E×A)",
+     "Leitet die Risiko-Ampel aus Eintritt × Auswirkung ab und schlägt Mitigationen vor (grün<8 · gelb 8–14 · rot≥15). Trigger: Risiken scoren.",
+     "exmachinAI", "internal:aegira", "aegira-certified", "methodology",
+     ("risk-agent",), "low", ("read", "write"), (), False),
+    ("aims-compliance_skill", "aims-compliance", "AIMS-Konformität (ISO 42001)",
+     "Prüft das Vorhaben gegen AIMS (ISO 42001 × CMMI) und sammelt Audit-Evidenz. Trigger: Compliance/Governance-Nachweis.",
+     "exmachinAI", "internal:aegira", "aegira-certified", "methodology",
+     ("compliance-agent",), "low", ("read", "write"), (), False),
+    ("eu-ai-act_skill", "eu-ai-act", "EU-AI-Act-Konformität",
+     "Bewertet Risikoklasse und Pflichten nach EU AI Act (Forcing Event 02.12.2027). Trigger: EU-AI-Act-Check.",
+     "exmachinAI", "internal:aegira", "aegira-certified", "methodology",
+     ("compliance-agent",), "low", ("read",), (), False),
+    ("adr-design_skill", "adr-design", "Architektur & ADR",
+     "Entwirft System-/Lösungsarchitektur und dokumentiert Entscheidungen als ADR mit Trade-offs. Trigger: Architektur/ADR.",
+     "exmachinAI", "internal:aegira", "aegira-certified", "engineering",
+     ("architecture-agent",), "low", ("read", "write"), (), False),
+    ("api-contract_skill", "api-contract", "API-Verträge",
+     "Definiert API-Verträge/Schnittstellen (Idempotenz, Fehler, Versionierung). Trigger: Integrationsschnittstelle.",
+     "exmachinAI", "internal:aegira", "aegira-certified", "engineering",
+     ("integration-agent",), "low", ("read", "write"), (), False),
+    ("threat-model_skill", "threat-model", "Threat-Modeling",
+     "Erstellt ein Threat-Model (STRIDE), prüft IAM/Secrets/Härtung, markiert Hochrisiko zur HITL-Freigabe. Trigger: Sicherheitsanalyse.",
+     "exmachinAI", "internal:aegira", "aegira-certified", "security",
+     ("security-agent",), "medium", ("read",), (), False),
+    ("data-lineage_skill", "data-lineage", "Datenmodell & Lineage",
+     "Entwirft Datenmodell/Pipelines und sichert Lineage + Datenqualität. Trigger: Datenarchitektur/Qualität.",
+     "exmachinAI", "internal:aegira", "aegira-certified", "data",
+     ("data-agent",), "low", ("read", "write"), (), False),
+    ("process-map_skill", "process-map", "Prozess-Mapping",
+     "Modelliert Soll/Ist-Prozesse, Operating-Model und Engpässe. Trigger: Prozessdesign.",
+     "exmachinAI", "internal:aegira", "aegira-certified", "methodology",
+     ("process-agent",), "low", ("read", "write"), (), False),
+    ("stakeholder-map_skill", "stakeholder-map", "Stakeholder & Change",
+     "Mappt Stakeholder, entwirft Change-Story und Adoptionsmaßnahmen. Trigger: Change-/Org-Management.",
+     "exmachinAI", "internal:aegira", "aegira-certified", "methodology",
+     ("change-agent",), "low", ("read", "write"), (), False),
+    ("rubric-eval_skill", "rubric-eval", "Rubrik-Bewertung",
+     "Bewertet Ergebnisse gegen klare Kriterien (Evaluator-Optimizer): PASS / NEEDS_REVISION / FAIL. Trigger: QA-Bewertung.",
+     "exmachinAI", "internal:aegira", "aegira-certified", "engineering",
+     ("reviewer-agent",), "low", ("read",), (), False),
+    ("test-plan_skill", "test-plan", "Testplan & E2E",
+     "Erstellt Testpläne und verifiziert End-to-End wie ein echter Nutzer, sichert Beweise. Trigger: Test/QA.",
+     "exmachinAI", "internal:aegira", "aegira-certified", "engineering",
+     ("test-agent",), "low", ("read", "write"), (), False),
+    ("adversarial-review_skill", "adversarial-review", "Adversariale Prüfung",
+     "Greift Annahmen und Ergebnisse adversarial an (Red-Team), deckt Schwachstellen/Bias vor Freigabe auf. Trigger: kritische Gegenprobe.",
+     "exmachinAI", "internal:aegira", "aegira-certified", "security",
+     ("redteam-agent",), "low", ("read",), (), False),
+    ("intent-routing_skill", "intent-routing", "Intent-Routing (Handoff)",
+     "Klassifiziert eingehende Aufgaben und übergibt an den passenden Spezialisten; eskaliert bei Unsicherheit an HITL. Trigger: Triage/Routing.",
+     "exmachinAI", "internal:aegira", "aegira-certified", "methodology",
+     ("router-triage",), "low", ("read",), (), False),
 ]
 
 
@@ -193,11 +261,13 @@ def _build(seed: tuple) -> CatalogSkill:
     (catalog_id, slug, title, description, author, source, trust, domain,
      agent_ids, risk, tools, mcps, has_scripts) = seed
     types, subs = _derive_scope(agent_ids)
+    # Kürzel (catalog_id) MUSS in der Beschreibung auffindbar sein → voranstellen.
+    described = f"{catalog_id} — {description}" if not description.startswith(catalog_id) else description
     return CatalogSkill(
         catalog_id=catalog_id,
         slug=slug,
         title=title,
-        description=description,
+        description=described,
         author=author,
         source=source,
         trust_tier=SkillTrustTier(trust),
@@ -227,6 +297,12 @@ def list_catalog() -> list[CatalogSkill]:
 
 def by_id(catalog_id: str) -> CatalogSkill | None:
     return next((s.model_copy(deep=True) for s in _CATALOG if s.catalog_id == catalog_id), None)
+
+
+def default_released(skill: CatalogSkill) -> bool:
+    """Standard-Freigabe ohne Admin-Eingriff: anthropic-vetted/aegira-certified/world-top.
+    community/experimental erscheinen erst nach expliziter Admin-Freigabe."""
+    return skill.preselected
 
 
 def _sort_key(s: CatalogSkill) -> tuple:

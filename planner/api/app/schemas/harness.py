@@ -194,6 +194,19 @@ class CatalogSkill(BaseModel):
         return self.trust_tier in PRESELECT_TIERS
 
 
+class SkillRegistry(BaseModel):
+    """Admin-verwaltete Skill-Freigabeliste (v0.8) — persistiert (ein Dokument).
+
+    `released`/`blocked` übersteuern die Standard-Freigabe (vetted/zertifiziert/
+    world-top frei; community/experimental gesperrt). `custom` sind vom Admin
+    hinzugefügte/erstellte Skills (mit Inhalt). Single-Doc, id == "registry"."""
+
+    id: str = "registry"
+    released: list[str] = Field(default_factory=list)  # catalog_ids zwangsfrei
+    blocked: list[str] = Field(default_factory=list)   # catalog_ids zwangsgesperrt
+    custom: list[CatalogSkill] = Field(default_factory=list)
+
+
 class HarnessNode(BaseModel):
     """Ein Knoten im Preflight-Graph (PMO-Orchestrator → Worker → Reviewer → HITL)."""
 
@@ -299,9 +312,12 @@ class ReviseCommand(BaseModel):
     # v0.6 — unveränderter SKILL.md-Inhalt beim Import (Frontmatter wird validiert).
     skill_content: str | None = None
     # v0.7 — Auswahl aus dem kuratierten Repository: statt Freitext-Import wird der
-    # Katalog-Skill referenziert; der Compiler hydriert Inhalt + sha256 selbst.
+    # Katalog-Skill referenziert. Der Router prüft die Admin-Freigabe und legt den
+    # aufgelösten, hydrierten Skill in `resolved_skill` ab (Compiler nutzt diesen).
     catalog_id: str | None = None
-    # v0.7 — HITL-Quittung für das Security-Gate (community/experimental/has_scripts).
+    # v0.8 — vom Router aufgelöster + hydrierter Katalog-Skill (nicht vom Client gesetzt).
+    resolved_skill: CatalogSkill | None = None
+    # v0.7 — Alt-Feld; mit Admin-Freigabeliste (v0.8) nicht mehr genutzt (bleibt kompatibel).
     confirm_gate: bool = False
     tool: str | None = None
     remove: bool = False

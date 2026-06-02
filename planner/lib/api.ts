@@ -483,6 +483,13 @@ export interface SessionState {
   is_admin: boolean;
 }
 
+/** Admin-Sicht eines Katalog-Skills inkl. Freigabe-Status (v0.8). */
+export interface SkillAdminView {
+  skill: CatalogSkill;
+  released: boolean;
+  custom: boolean;
+}
+
 /** Nutzer-Sicht im Adminbereich (ohne Geheimnisse). */
 export interface AdminUser {
   email: string;
@@ -590,6 +597,48 @@ export const api = {
 
   adminDeleteUser: (token: string, email: string): Promise<{ status: string }> =>
     request<{ status: string }>(`/v1/auth/admin/users/${encodeURIComponent(email)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  // --- v0.8: Admin-Skill-Freigabeliste -------------------------------------
+  adminListSkills: (token: string): Promise<SkillAdminView[]> =>
+    request<SkillAdminView[]>("/v1/auth/admin/skills", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  adminSkillSetReleased: (
+    token: string,
+    catalogId: string,
+    released: boolean,
+  ): Promise<SkillAdminView> =>
+    request<SkillAdminView>(
+      `/v1/auth/admin/skills/${encodeURIComponent(catalogId)}/${released ? "release" : "block"}`,
+      { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+    ),
+
+  adminAddSkill: (
+    token: string,
+    body: {
+      catalog_id: string;
+      slug: string;
+      title: string;
+      description: string;
+      content?: string;
+      domain?: string;
+      agent_ids?: string[];
+      trust_tier?: string;
+      has_scripts?: boolean;
+    },
+  ): Promise<SkillAdminView> =>
+    request<SkillAdminView>("/v1/auth/admin/skills", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
+
+  adminDeleteSkill: (token: string, catalogId: string): Promise<{ status: string }> =>
+    request<{ status: string }>(`/v1/auth/admin/skills/${encodeURIComponent(catalogId)}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     }),

@@ -1,5 +1,5 @@
 // =============================================================================
-// modules/cosmos.bicep — Cosmos DB Account + 6 containers + CMK + Private Endpoint
+// modules/cosmos.bicep — Cosmos DB Account + 7 containers + CMK + Private Endpoint
 //
 // Containers per docs/02 §4 and docs/06 §7:
 //   projects   PK=/tenantId
@@ -161,6 +161,18 @@ resource usersContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/cont
     resource: {
       // Multi-User-Auth: ein Dokument je Nutzer; id == E-Mail (klein) == PartitionKey.
       id: 'users'
+      partitionKey: { paths: [ '/id' ], kind: 'Hash' }
+    }
+  }
+}
+
+resource skillRegistryContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = {
+  parent: db
+  name: 'skill_registry'
+  properties: {
+    resource: {
+      // v0.8 — Admin-Skill-Freigabeliste + Custom-Skills (ein Dokument, id=="registry").
+      id: 'skill_registry'
       partitionKey: { paths: [ '/id' ], kind: 'Hash' }
     }
   }

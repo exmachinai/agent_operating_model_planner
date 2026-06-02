@@ -20,7 +20,8 @@ from fastapi.responses import StreamingResponse
 from ..db.harness_repo import get_harness_repo
 from ..db.plans_repo import get_plans_repo
 from ..db.projects_repo import get_projects_repo
-from ..harness import compiler
+from ..db.skill_registry_repo import get_skill_registry_repo
+from ..harness import compiler, skills_service
 from ..schemas.harness import HarnessFile, HarnessFileMap, HarnessGraph, ReviseCommand
 from ..schemas.project import Project
 
@@ -93,6 +94,23 @@ async def revise_harness(project_id: str, command: ReviseCommand) -> HarnessGrap
     graph = await repo.get(project_id)
     if graph is None:
         raise HTTPException(status_code=404, detail="noch kein Harness kompiliert")
+    # v0.8 — Katalog-Skill: nur freigegebene Skills (Admin-Freigabeliste) zuweisbar.
+    # Der Router löst den Skill auf + hydriert ihn; der Compiler bleibt DB-frei.
+    if command.command == "skill" and command.catalog_id:
+        reg = await get_skill_registry_repo().get()
+        if command.remove:
+            resolved = skills_service.any_by_id(command.catalog_id, reg)
+            if resolved is None:
+                raise HTTPException(status_code=404, detail="Skill nicht im Katalog.")
+            command = command.model_copy(update={"resolved_skill": resolved})
+        else:
+            resolved = skills_service.released_by_id(command.catalog_id, reg)
+            if resolved is None:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Dieser Skill ist nicht freigegeben — der Admin muss ihn erst freigeben.",
+                )
+            command = command.model_copy(update={"resolved_skill": skills_service.hydrate(resolved)})
     try:
         revised = compiler.apply_command(graph, command)
     except ValueError as e:

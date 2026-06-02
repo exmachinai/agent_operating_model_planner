@@ -539,42 +539,17 @@ def guardrails_doc() -> dict[str, Any]:
 
 
 def skill_files(graph: HarnessGraph) -> dict[str, str]:
-    """Erzeugt SKILL.md für jeden referenzierten Skill (deduped).
+    """Schreibt SKILL.md je referenziertem Skill — **nur echte Inhalte**.
 
-    v0.6 — vom Anwender importierte Skills (`graph.imported_skills`) werden
-    **unverändert** geschrieben (echter Skill); nur für nicht-importierte Skills
-    erzeugen wir die kuratierte Hülle."""
-    skills = sorted({s for a in graph.agents for s in a.skills})
-    imported = {s.name: s.content for s in graph.imported_skills}
+    v0.8 — keine generischen Hüllen mehr: Agenten sind ab Kompilierung mit echten,
+    hydrierten Katalog-Skills vorbelegt (`graph.imported_skills`). Geschrieben wird
+    genau das, was von einem Agenten referenziert wird UND echten Inhalt hat;
+    Platzhalter-Skills entfallen vollständig."""
     out: dict[str, str] = {}
-    descriptions = {
-        "zgpm-compose": "Komponiert ZGPM-Pläne (Phasen, Meilensteine, PVM).",
-        "zgpm-rules-engine": "Prüft ZGPM-Konsistenz (≥1 A, genau 1 F/L, 'e' nie allein).",
-        "pvm-validate": "Validiert die PVM-Matrix gegen die Konsistenzregeln.",
-        "risk-traffic-light": "Leitet Risiko-Ampel aus Eintritt × Auswirkung ab.",
-        "platform-discovery": "Klärt Projekt-Natur und Zielplattform.",
-        "plan-evaluator": "Evaluator-Optimizer-Prüfung des Plans gegen die Regeln.",
-    }
-    for s in skills:
-        if s in imported:
-            out[f".claude/skills/{s}/SKILL.md"] = imported[s]
-            continue
-        desc = descriptions.get(s, f"Skill {s} für den Harness.")
-        out[f".claude/skills/{s}/SKILL.md"] = f"""---
-name: {s}
-description: {desc} Trigger: wenn der Plan unter `$HARNESS_ROOT/plan/` betroffen ist.
----
-
-# {s}
-
-{desc}
-
-## Verhalten
-1. Lies die betroffenen Dateien unter `$HARNESS_ROOT/plan/`.
-2. Wende die Regel an (siehe docs/01_zgpm-method.md im Planner-Repo).
-3. Bei Verstoß: Konsolen-Output mit Knoten-ID, Regel und Fix-Vorschlag.
-4. Bei OK: kurzes „PASS".
-"""
+    referenced = {s for a in graph.agents for s in a.skills}
+    for imp in graph.imported_skills:
+        if imp.name in referenced:
+            out[f".claude/skills/{imp.name}/SKILL.md"] = imp.content
 
     # v0.7 — Audit-Manifest der aus dem Repository gewählten Skills (docs/15 §4.5).
     # Macht die Auswahl nachweisbar (audit-ready): Trust-Tier, Quelle, Integrität.

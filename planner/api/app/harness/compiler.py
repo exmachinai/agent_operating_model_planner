@@ -27,6 +27,7 @@ from ..schemas.harness import (
     MAX_HARNESS_ITERATIONS,
     AgentSpec,
     ArtifactRef,
+    CatalogSkill,
     HarnessFinding,
     HarnessGraph,
     HarnessNode,
@@ -162,6 +163,9 @@ def _derive_agents(plan: Plan, project: Project | None = None) -> list[AgentSpec
 
     agents: list[AgentSpec] = []
     for cat in templates_:
+        # v0.8 — KEINE Platzhalter-Skills mehr. Vorbelegung mit echten, vorselektierten
+        # (gevettet/zertifiziert/world-top) Katalog-Skills je Agentenrolle (HITL-Vorschlag).
+        suggested = [s.slug for s in skill_catalog.preselected([cat.id])]
         agents.append(
             AgentSpec(
                 id="ag_" + cat.id,
@@ -172,13 +176,31 @@ def _derive_agents(plan: Plan, project: Project | None = None) -> list[AgentSpec
                 description=cat.description,
                 responsibility=cat.responsibility,
                 tasks=_tasks_for(cat.id, plan),
-                skills=list(cat.skills),
+                skills=suggested,
                 tools=[t.name for t in cat.tools],
                 hitl=(cat.kind == "hitl"),
                 model=cat.model,
             )
         )
     return agents
+
+
+def _prepopulate_skills(agents: list[AgentSpec]) -> tuple[list[SkillImport], list[CatalogSkill]]:
+    """Hydriert die vorbelegten Agenten-Skills zu echten Inhalten + Audit-Einträgen.
+
+    So tragen die Agenten ab Kompilierung funktionsfähige Skills (keine Hüllen);
+    der Anwender (HITL) kann sie behalten, ergänzen oder entfernen."""
+    imported: dict[str, SkillImport] = {}
+    catalog_entries: dict[str, CatalogSkill] = {}
+    for a in agents:
+        for slug in a.skills:
+            cs = next((s for s in skill_catalog.list_catalog() if s.slug == slug), None)
+            if cs is None:
+                continue
+            hydrated = skill_catalog.hydrate(cs)
+            imported[slug] = SkillImport(name=slug, content=hydrated.content or "")
+            catalog_entries[cs.catalog_id] = hydrated
+    return list(imported.values()), list(catalog_entries.values())
 
 
 def _tasks_for(name: str, plan: Plan) -> list[str]:
@@ -390,6 +412,7 @@ def compile_graph(project: Project, plan: Plan, *, harness_id: str | None = None
     """Erzeugt den Harness-Graph aus dem freigegebenen Plan (Status `draft`)."""
     now = datetime.now(timezone.utc)
     agents = _derive_agents(plan, project)
+    imported_skills, catalog_skills = _prepopulate_skills(agents)
     nodes = _build_nodes(agents, parallel=True)
     findings = _detect_anti_patterns(agents, nodes)
     slug = slugify(project.title)
@@ -405,6 +428,8 @@ def compile_graph(project: Project, plan: Plan, *, harness_id: str | None = None
         iteration=1,
         agents=agents,
         nodes=nodes,
+        imported_skills=imported_skills,
+        catalog_skills=catalog_skills,
         hitl_points=_hitl_points(plan),
         artifacts=[],
         findings=findings,
@@ -535,35 +560,26 @@ def apply_command(graph: HarnessGraph, cmd: ReviseCommand) -> HarnessGraph:
 
 
 def _apply_catalog_skill(target, cmd, imported_skills, catalog_skills):  # noqa: ANN001
-    """v0.7 — wendet eine Auswahl aus dem Skill-Repository auf einen Agenten an.
+    """v0.8 — wendet eine (admin-freigegebene) Skill-Auswahl auf einen Agenten an.
 
-    Resolviert den Katalog-Skill, erzwingt das Security-Gate (community/
-    experimental/has_scripts → HITL-Quittung `confirm_gate`), hydriert Inhalt +
-    `content_sha256` und legt ihn — wie ein importierter Skill — unter seinem
-    `slug` ab. Der Audit-Eintrag (Trust-Tier, Quelle, sha256) wandert in
-    `catalog_skills` (→ `.claude/skills/_manifest.json`)."""
-    cs = skill_catalog.by_id(cmd.catalog_id)
+    Der Router hat den Skill bereits aufgelöst + hydriert (`cmd.resolved_skill`)
+    und die Freigabe geprüft. Hier wird er — wie ein importierter Skill —
+    unter seinem `slug` abgelegt; der Audit-Eintrag (Trust-Tier, Quelle, sha256)
+    wandert in `catalog_skills` (→ `.claude/skills/_manifest.json`)."""
+    cs = cmd.resolved_skill
     if cs is None:
-        raise ValueError(f"Skill '{cmd.catalog_id}' nicht im Katalog.")
+        raise ValueError("Katalog-Skill konnte nicht aufgelöst werden.")
     slug = cs.slug
     if cmd.remove:
         target.skills = [s for s in target.skills if s != slug]
         return imported_skills, catalog_skills
 
-    # Security-Gate (docs/15 §4.6): ungeprüft/experimentell oder skript-tragend.
-    if cs.needs_gate and not cmd.confirm_gate:
-        scripts = ", trägt Skripte" if cs.has_scripts else ""
-        raise RuntimeError(
-            f"„{cs.title}“ ({cs.trust_tier.value}{scripts}) braucht eine "
-            "HITL-Freigabe (confirm_gate) vor Aufnahme."
-        )
-
-    hydrated = skill_catalog.hydrate(cs)
-    _validate_skill_frontmatter(hydrated.content or "")
+    content = cs.content or ""
+    _validate_skill_frontmatter(content)
     imported_skills = [s for s in imported_skills if s.name != slug]
-    imported_skills.append(SkillImport(name=slug, content=hydrated.content or ""))
+    imported_skills.append(SkillImport(name=slug, content=content))
     catalog_skills = [c for c in catalog_skills if c.catalog_id != cs.catalog_id]
-    catalog_skills.append(hydrated)
+    catalog_skills.append(cs)
     if slug not in target.skills:
         target.skills.append(slug)
     return imported_skills, catalog_skills

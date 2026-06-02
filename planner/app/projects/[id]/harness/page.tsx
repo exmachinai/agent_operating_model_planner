@@ -15,10 +15,13 @@ import { useParams, useRouter } from "next/navigation";
 
 import { PageShell } from "../../../../components/PageShell";
 import { Button, cardStyle } from "../../../../components/ui";
+import Link from "next/link";
+
 import {
   api,
   ApiError,
   type AgentSpec,
+  type CatalogSkill,
   type HarnessGraph,
   type HarnessNodeKind,
   type Project,
@@ -30,7 +33,6 @@ import {
   type SaveResult,
 } from "../../../../lib/saveHarness";
 import { HarnessCanvas } from "../../../../components/HarnessCanvas";
-import { SkillPicker } from "../../../../components/SkillPicker";
 
 const KIND_LABEL: Record<HarnessNodeKind, string> = {
   orchestrator: "Orchestrator",
@@ -60,9 +62,20 @@ export default function HarnessPage(): React.ReactElement {
 
   const [project, setProject] = React.useState<Project | null>(null);
   const [graph, setGraph] = React.useState<HarnessGraph | null>(null);
+  const [skills, setSkills] = React.useState<CatalogSkill[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  // v0.8 — freigegebener Skill-Katalog (für Inline-Zuordnung an den Agenten).
+  React.useEffect(() => {
+    api.getSkills().then(setSkills).catch(() => setSkills([]));
+  }, []);
+  const skillBySlug = React.useMemo(() => {
+    const m = new Map<string, CatalogSkill>();
+    for (const s of skills) m.set(s.slug, s);
+    return m;
+  }, [skills]);
 
   const reload = React.useCallback(async () => {
     const proj = await api.getProject(id);
@@ -233,31 +246,21 @@ export default function HarnessPage(): React.ReactElement {
         </>
       ) : null}
 
-      {/* v0.7 — Skill-Repository (kuratiert, klassifiziert, agentengetrieben) */}
-      <div style={sectionLabel}>Skill-Repository (kuratiert)</div>
-      <div style={{ ...cardStyle, marginBottom: "var(--sp-6)" }}>
-        <p style={{ ...metaStyle, marginTop: 0, marginBottom: "var(--sp-2)" }}>
-          Passend zu deinen erkannten Agenten angebotene, geprüfte Skills.
-          Gevettete/world-top sind vorselektierbar; community/experimentelle und
-          skript-tragende durchlaufen ein HITL-Gate. Die Auswahl wird im Harness-ZIP
-          dokumentiert (audit-ready).
-        </p>
-        <SkillPicker
-          agents={graph.agents}
-          applied={graph.catalog_skills ?? []}
-          frozen={frozen}
-          busy={busy}
-          onRevise={(cmd) => run(() => api.reviseHarness(id, cmd))}
-        />
-      </div>
-
-      {/* Agenten-Panels (CRUD) */}
+      {/* Agenten-Panels (Accordion, CRUD, Skill-Zuordnung inline) */}
       <div style={sectionLabel}>Agenten ({graph.agents.length})</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+      <p style={{ ...metaStyle, marginTop: 0, marginBottom: "var(--sp-2)" }}>
+        Jeder Agent ist mit passenden, **freigegebenen** Skills vorbelegt (Vorschlag).
+        Du entscheidest (HITL): behalten, weitere zuordnen oder entfernen — Skills
+        erscheinen als Tags und landen auditierbar im Harness-ZIP. Neue/gesperrte
+        Skills verwaltet der <strong>Adminbereich</strong>.
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
         {graph.agents.map((a) => (
           <AgentCard
             key={a.id}
             agent={a}
+            catalog={skills}
+            skillBySlug={skillBySlug}
             frozen={frozen}
             busy={busy}
             onSave={(patch) =>
@@ -275,21 +278,22 @@ export default function HarnessPage(): React.ReactElement {
                 api.reviseHarness(id, { command: "agent", op: "delete", agent_id: a.id }),
               )
             }
-            onImportSkill={(skill, content) =>
+            onAddSkill={(catalogId) =>
               run(() =>
-                api.reviseHarness(id, {
-                  command: "skill",
-                  agent_id: a.id,
-                  skill,
-                  skill_content: content,
-                }),
+                api.reviseHarness(id, { command: "skill", agent_id: a.id, catalog_id: catalogId }),
               )
             }
-            onRemoveSkill={(skill) =>
+            onRemoveSkill={(slug) => {
+              const cs = skillBySlug.get(slug);
               run(() =>
-                api.reviseHarness(id, { command: "skill", agent_id: a.id, skill, remove: true }),
-              )
-            }
+                api.reviseHarness(
+                  id,
+                  cs
+                    ? { command: "skill", agent_id: a.id, catalog_id: cs.catalog_id, remove: true }
+                    : { command: "skill", agent_id: a.id, skill: slug, remove: true },
+                ),
+              );
+            }}
           />
         ))}
       </div>
@@ -338,6 +342,9 @@ export default function HarnessPage(): React.ReactElement {
         <Button variant="secondary" onClick={() => router.push(`/projects/${id}/review`)}>
           Zurück zum Review
         </Button>
+        <Link href={`/projects/${id}/print`} style={{ textDecoration: "none" }}>
+          <Button variant="secondary">🖨 Projekt drucken</Button>
+        </Link>
         {!frozen ? (
           <Button
             variant="accent"
@@ -484,164 +491,168 @@ function resultNote(r: SaveResult, mode: "zip" | "unzip"): string {
 
 // ---------------------------------------------------------------------------
 
-/** Liest den Skill-Slug aus dem Frontmatter (`name:`), sonst aus dem Dateinamen. */
-function skillNameFromContent(content: string, fallback: string): string {
-  const m = content.match(/^\s*---[\s\S]*?^\s*name\s*:\s*(.+?)\s*$/m);
-  const raw = (m?.[1] ?? fallback).trim();
-  return raw
-    .toLowerCase()
-    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "skill";
-}
+const TRUST_BADGE: Record<string, string> = {
+  "anthropic-vetted": "var(--c-green)",
+  "aegira-certified": "var(--c-navy)",
+  "world-top": "var(--c-gold)",
+  community: "var(--c-steel)",
+  experimental: "var(--c-red)",
+};
 
+/** Agenten-Karte als Accordion: Tags immer sichtbar, Verwaltung beim Aufklappen. */
 function AgentCard({
   agent,
+  catalog,
+  skillBySlug,
   frozen,
   busy,
   onSave,
   onDelete,
-  onImportSkill,
+  onAddSkill,
   onRemoveSkill,
 }: {
   agent: AgentSpec;
+  catalog: CatalogSkill[];
+  skillBySlug: Map<string, CatalogSkill>;
   frozen: boolean;
   busy: boolean;
   onSave: (patch: Partial<AgentSpec>) => void;
   onDelete: () => void;
-  onImportSkill: (skill: string, content: string) => void;
-  onRemoveSkill: (skill: string) => void;
+  onAddSkill: (catalogId: string) => void;
+  onRemoveSkill: (slug: string) => void;
 }): React.ReactElement {
+  const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
+  const [addOpen, setAddOpen] = React.useState(false);
+  const [showAll, setShowAll] = React.useState(false);
   const [mission, setMission] = React.useState(agent.mission);
   const [tasks, setTasks] = React.useState(agent.tasks.join("\n"));
   const [confirmDel, setConfirmDel] = React.useState(false);
-  const fileRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     setMission(agent.mission);
     setTasks(agent.tasks.join("\n"));
   }, [agent]);
 
+  const assigned = new Set(agent.skills);
+  const available = catalog
+    .filter((s) => !assigned.has(s.slug))
+    .filter((s) => showAll || s.agent_ids.includes(agent.name))
+    .sort((a, b) => a.title.localeCompare(b.title));
+
   return (
-    <div style={{ ...cardStyle, borderColor: KIND_COLOR[agent.kind] }}>
-      <div style={agentHeadStyle}>
+    <div style={{ ...cardStyle, borderColor: KIND_COLOR[agent.kind], padding: "var(--sp-3)" }}>
+      {/* Accordion-Header */}
+      <button
+        type="button"
+        style={accHeadStyle}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
         <span style={{ ...nodeDot, backgroundColor: KIND_COLOR[agent.kind] }} />
-        <strong style={{ flex: 1 }}>
-          {agent.role} <span style={metaStyle}>· {KIND_LABEL[agent.kind]}</span>
+        <strong style={{ flex: 1, textAlign: "left" }}>
+          {agent.role} <span style={metaStyle}>· {KIND_LABEL[agent.kind]} · {agent.skills.length} Skills</span>
         </strong>
         <code style={ruleStyle}>{agent.name}.md</code>
-      </div>
+        <span aria-hidden="true" style={{ marginLeft: 8 }}>{open ? "▾" : "▸"}</span>
+      </button>
 
-      {editing && !frozen ? (
-        <>
-          <label style={fieldStyle}>
-            <span style={fieldLabelStyle}>Mission</span>
-            <textarea
-              style={{ ...inputStyle, minHeight: 64 }}
-              value={mission}
-              onChange={(e) => setMission(e.target.value)}
-            />
-          </label>
-          <label style={fieldStyle}>
-            <span style={fieldLabelStyle}>Aufgaben (eine pro Zeile)</span>
-            <textarea
-              style={{ ...inputStyle, minHeight: 80 }}
-              value={tasks}
-              onChange={(e) => setTasks(e.target.value)}
-            />
-          </label>
-          <div style={{ ...cmdRowStyle, marginTop: "var(--sp-2)" }}>
-            <Button
-              variant="secondary"
-              disabled={busy}
-              onClick={() => {
-                onSave({
-                  mission,
-                  tasks: tasks.split("\n").map((t) => t.trim()).filter(Boolean),
-                });
-                setEditing(false);
-              }}
-            >
-              Speichern
-            </Button>
-            <Button variant="secondary" onClick={() => setEditing(false)}>
-              Abbrechen
-            </Button>
-          </div>
-        </>
-      ) : (
-        <p style={{ fontSize: 14, marginTop: "var(--sp-1)", lineHeight: 1.5 }}>
-          {agent.mission}
-        </p>
-      )}
-
-      {/* Skills */}
+      {/* Skill-Tags — immer sichtbar */}
       <div style={{ ...pvmRowStyle, marginTop: "var(--sp-2)" }}>
-        {agent.skills.map((s) => (
-          <span key={s} style={skillChipStyle}>
-            {s}
-            {!frozen ? (
-              <button
-                type="button"
-                style={chipRemoveStyle}
-                title="Skill entfernen"
-                onClick={() => onRemoveSkill(s)}
-              >
-                ×
-              </button>
-            ) : null}
-          </span>
-        ))}
+        {agent.skills.map((s) => {
+          const cs = skillBySlug.get(s);
+          return (
+            <span
+              key={s}
+              style={{ ...skillChipStyle, borderColor: cs ? TRUST_BADGE[cs.trust_tier] : "var(--c-border-strong)" }}
+              title={cs ? cs.description : s}
+            >
+              {cs?.title ?? s}
+              {!frozen ? (
+                <button type="button" style={chipRemoveStyle} title="Skill entfernen" onClick={() => onRemoveSkill(s)}>
+                  ×
+                </button>
+              ) : null}
+            </span>
+          );
+        })}
         {agent.skills.length === 0 ? <span style={metaStyle}>keine Skills</span> : null}
       </div>
 
-      {!frozen ? (
-        <div style={{ ...cmdRowStyle, marginTop: "var(--sp-3)" }}>
-          {/* v0.6 — echter SKILL.md-Import statt Freitext: Inhalt wird unverändert
-              ins Harness-ZIP geschrieben; Frontmatter (name/description) prüft der Server. */}
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".md,text/markdown"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              e.target.value = ""; // gleiche Datei erneut wählbar
-              if (!f) return;
-              void f.text().then((content) => {
-                const name = skillNameFromContent(content, f.name.replace(/\.md$/i, ""));
-                onImportSkill(name, content);
-              });
-            }}
-          />
-          <Button
-            variant="secondary"
-            disabled={busy}
-            onClick={() => fileRef.current?.click()}
-            title="Eine SKILL.md-Datei je Agent importieren (mit Frontmatter name/description)"
-          >
-            + SKILL.md importieren
-          </Button>
-          {!editing ? (
-            <Button variant="secondary" onClick={() => setEditing(true)}>
-              Bearbeiten
-            </Button>
-          ) : null}
-          {!confirmDel ? (
-            <Button variant="secondary" style={dangerStyle} onClick={() => setConfirmDel(true)}>
-              Löschen
-            </Button>
+      {/* Accordion-Body */}
+      {open ? (
+        <div style={{ marginTop: "var(--sp-2)", borderTop: "1px solid var(--c-border)", paddingTop: "var(--sp-2)" }}>
+          {editing && !frozen ? (
+            <>
+              <label style={fieldStyle}>
+                <span style={fieldLabelStyle}>Mission</span>
+                <textarea style={{ ...inputStyle, minHeight: 64 }} value={mission} onChange={(e) => setMission(e.target.value)} />
+              </label>
+              <label style={fieldStyle}>
+                <span style={fieldLabelStyle}>Aufgaben (eine pro Zeile)</span>
+                <textarea style={{ ...inputStyle, minHeight: 80 }} value={tasks} onChange={(e) => setTasks(e.target.value)} />
+              </label>
+              <div style={{ ...cmdRowStyle, marginTop: "var(--sp-2)" }}>
+                <Button variant="secondary" disabled={busy} onClick={() => {
+                  onSave({ mission, tasks: tasks.split("\n").map((t) => t.trim()).filter(Boolean) });
+                  setEditing(false);
+                }}>
+                  Speichern
+                </Button>
+                <Button variant="secondary" onClick={() => setEditing(false)}>Abbrechen</Button>
+              </div>
+            </>
           ) : (
-            <span style={cmdRowStyle}>
-              <Button variant="secondary" style={dangerSolidStyle} disabled={busy} onClick={onDelete}>
-                Wirklich löschen
-              </Button>
-              <Button variant="secondary" onClick={() => setConfirmDel(false)}>
-                Abbrechen
-              </Button>
-            </span>
+            <p style={{ fontSize: 14, marginTop: 0, lineHeight: 1.5 }}>{agent.mission}</p>
           )}
+
+          {!frozen ? (
+            <>
+              {/* Skill zuordnen */}
+              <button type="button" style={addToggleStyle} aria-expanded={addOpen} onClick={() => setAddOpen((v) => !v)}>
+                {addOpen ? "▾ " : "+ "}Skill zuordnen
+              </button>
+              {addOpen ? (
+                <div style={addBoxStyle}>
+                  <label style={{ ...metaStyle, display: "flex", alignItems: "center", gap: 6, marginBottom: "var(--sp-1)" }}>
+                    <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
+                    Alle freigegebenen Skills anzeigen (statt nur empfohlene)
+                  </label>
+                  {available.length === 0 ? (
+                    <p style={metaStyle}>Keine weiteren freigegebenen Skills für diese Rolle.</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 240, overflow: "auto" }}>
+                      {available.map((s) => (
+                        <div key={s.catalog_id} style={addRowStyle}>
+                          <span style={{ ...trustDotStyle, backgroundColor: TRUST_BADGE[s.trust_tier] }} title={s.trust_tier} />
+                          <span style={{ flex: 1, fontSize: 13 }}>
+                            <strong>{s.title}</strong>{" "}
+                            <code style={{ fontSize: 11, color: "var(--c-steel)" }}>{s.catalog_id}</code>
+                            <span style={{ ...metaStyle, display: "block" }}>{s.description}</span>
+                          </span>
+                          <Button variant="secondary" disabled={busy} onClick={() => onAddSkill(s.catalog_id)}>
+                            + hinzufügen
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              <div style={{ ...cmdRowStyle, marginTop: "var(--sp-3)" }}>
+                {!editing ? <Button variant="secondary" onClick={() => setEditing(true)}>Bearbeiten</Button> : null}
+                {!confirmDel ? (
+                  <Button variant="secondary" style={dangerStyle} onClick={() => setConfirmDel(true)}>Löschen</Button>
+                ) : (
+                  <span style={cmdRowStyle}>
+                    <Button variant="secondary" style={dangerSolidStyle} disabled={busy} onClick={onDelete}>Wirklich löschen</Button>
+                    <Button variant="secondary" onClick={() => setConfirmDel(false)}>Abbrechen</Button>
+                  </span>
+                )}
+              </div>
+            </>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -759,11 +770,6 @@ const cmdRowStyle: React.CSSProperties = {
   alignItems: "center",
   flexWrap: "wrap",
 };
-const agentHeadStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: "var(--sp-2)",
-};
 const pvmRowStyle: React.CSSProperties = {
   display: "flex",
   flexWrap: "wrap",
@@ -775,8 +781,53 @@ const skillChipStyle: React.CSSProperties = {
   gap: 4,
   fontSize: 12,
   padding: "1px var(--sp-2)",
-  border: "1px solid var(--c-border-strong)",
+  borderWidth: 1,
+  borderStyle: "solid",
+  borderColor: "var(--c-border-strong)",
   borderRadius: "var(--r-pill)",
+};
+const accHeadStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "var(--sp-2)",
+  width: "100%",
+  background: "transparent",
+  border: 0,
+  cursor: "pointer",
+  padding: 0,
+  minHeight: 44,
+  fontSize: 15,
+  color: "var(--c-text)",
+};
+const addToggleStyle: React.CSSProperties = {
+  border: 0,
+  background: "transparent",
+  cursor: "pointer",
+  color: "var(--c-steel)",
+  fontSize: 13,
+  padding: "var(--sp-2) 0",
+  minHeight: 44,
+};
+const addBoxStyle: React.CSSProperties = {
+  border: "1px solid var(--c-border)",
+  borderRadius: "var(--r-md)",
+  padding: "var(--sp-2)",
+  backgroundColor: "var(--c-surface)",
+  marginBottom: "var(--sp-2)",
+};
+const addRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "flex-start",
+  gap: "var(--sp-2)",
+  padding: "var(--sp-1) 0",
+  borderBottom: "1px solid var(--c-border)",
+};
+const trustDotStyle: React.CSSProperties = {
+  width: 10,
+  height: 10,
+  borderRadius: "50%",
+  flexShrink: 0,
+  marginTop: 4,
 };
 const chipRemoveStyle: React.CSSProperties = {
   border: 0,

@@ -19,12 +19,15 @@ import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException
-from pydantic import EmailStr
+from pydantic import BaseModel, EmailStr
 
 from ..auth import email as email_svc
 from ..auth import security
 from ..config import get_settings
+from ..db.skill_registry_repo import get_skill_registry_repo
 from ..db.users_repo import get_users_repo
+from ..harness import skills_service
+from ..schemas.harness import CatalogSkill
 from ..schemas.auth import (
     LoginRequest,
     LoginResponse,
@@ -255,3 +258,118 @@ async def admin_delete(email: EmailStr, admin: User = Depends(require_admin)) ->
     if not ok:
         raise HTTPException(status_code=404, detail="Nutzer nicht gefunden.")
     return {"status": "deleted", "email": _norm(email)}
+
+
+# --- Adminbereich: Skill-Freigabeliste (v0.8) --------------------------------
+
+
+class SkillAdminView(BaseModel):
+    skill: CatalogSkill
+    released: bool
+    custom: bool
+
+
+class AddSkillRequest(BaseModel):
+    catalog_id: str  # ^[a-z0-9-]+_skill$ (von CatalogSkill validiert)
+    slug: str
+    title: str
+    description: str
+    content: str | None = None  # SKILL.md-Inhalt (optional)
+    domain: str = "methodology"
+    agent_ids: list[str] = []
+    trust_tier: str = "aegira-certified"
+    has_scripts: bool = False
+    required_tools: list[str] = []
+    required_mcps: list[str] = []
+
+
+@router.get("/admin/skills", response_model=list[SkillAdminView])
+async def admin_list_skills(_admin: User = Depends(require_admin)) -> list[SkillAdminView]:
+    """Vollständiger Katalog (inkl. ungeprüfter + Custom) mit Freigabe-Status."""
+    reg = await get_skill_registry_repo().get()
+    custom_ids = {c.catalog_id for c in reg.custom}
+    return [
+        SkillAdminView(skill=s, released=rel, custom=s.catalog_id in custom_ids)
+        for (s, rel) in skills_service.all_with_status(reg)
+    ]
+
+
+@router.post("/admin/skills/{catalog_id}/release", response_model=SkillAdminView)
+async def admin_release_skill(catalog_id: str, _admin: User = Depends(require_admin)) -> SkillAdminView:
+    repo = get_skill_registry_repo()
+    reg = await repo.get()
+    skill = skills_service.any_by_id(catalog_id, reg)
+    if skill is None:
+        raise HTTPException(status_code=404, detail="Skill nicht im Katalog.")
+    reg.blocked = [c for c in reg.blocked if c != catalog_id]
+    if catalog_id not in reg.released:
+        reg.released.append(catalog_id)
+    await repo.put(reg)
+    return SkillAdminView(skill=skill, released=True, custom=any(c.catalog_id == catalog_id for c in reg.custom))
+
+
+@router.post("/admin/skills/{catalog_id}/block", response_model=SkillAdminView)
+async def admin_block_skill(catalog_id: str, _admin: User = Depends(require_admin)) -> SkillAdminView:
+    repo = get_skill_registry_repo()
+    reg = await repo.get()
+    skill = skills_service.any_by_id(catalog_id, reg)
+    if skill is None:
+        raise HTTPException(status_code=404, detail="Skill nicht im Katalog.")
+    reg.released = [c for c in reg.released if c != catalog_id]
+    if catalog_id not in reg.blocked:
+        reg.blocked.append(catalog_id)
+    await repo.put(reg)
+    return SkillAdminView(skill=skill, released=False, custom=any(c.catalog_id == catalog_id for c in reg.custom))
+
+
+@router.post("/admin/skills", response_model=SkillAdminView, status_code=201)
+async def admin_add_skill(body: AddSkillRequest, _admin: User = Depends(require_admin)) -> SkillAdminView:
+    """Fügt einen eigenen Skill hinzu (erstellt/hochgeladen) und gibt ihn frei."""
+    desc = body.description if body.description.startswith(body.catalog_id) else f"{body.catalog_id} — {body.description}"
+    try:
+        skill = CatalogSkill(
+            catalog_id=body.catalog_id,
+            slug=body.slug,
+            title=body.title,
+            description=desc,
+            author="exmachinAI (Admin)",
+            source="user-upload",
+            trust_tier=body.trust_tier,  # type: ignore[arg-type]
+            license="internal",
+            domain=body.domain,
+            agent_ids=body.agent_ids,
+            required_tools=body.required_tools,
+            required_mcps=body.required_mcps,
+            has_scripts=body.has_scripts,
+            content=body.content,
+        )
+    except Exception as e:  # Pydantic-Validierung (catalog_id-Regex etc.)
+        raise HTTPException(status_code=422, detail=f"Ungültiger Skill: {e}")
+    # Integrität: sha256 über den Inhalt (falls vorhanden).
+    if skill.content:
+        import hashlib
+        skill = skill.model_copy(
+            update={"content_sha256": "sha256:" + hashlib.sha256(skill.content.encode("utf-8")).hexdigest()}
+        )
+    repo = get_skill_registry_repo()
+    reg = await repo.get()
+    reg.custom = [c for c in reg.custom if c.catalog_id != skill.catalog_id]
+    reg.custom.append(skill)
+    reg.blocked = [c for c in reg.blocked if c != skill.catalog_id]
+    if skill.catalog_id not in reg.released:
+        reg.released.append(skill.catalog_id)
+    await repo.put(reg)
+    return SkillAdminView(skill=skill, released=True, custom=True)
+
+
+@router.delete("/admin/skills/{catalog_id}")
+async def admin_delete_skill(catalog_id: str, _admin: User = Depends(require_admin)) -> dict:
+    """Entfernt einen Custom-Skill (Code-Katalog-Skills können nur gesperrt werden)."""
+    repo = get_skill_registry_repo()
+    reg = await repo.get()
+    if not any(c.catalog_id == catalog_id for c in reg.custom):
+        raise HTTPException(status_code=400, detail="Nur selbst hinzugefügte Skills können gelöscht werden (sonst sperren).")
+    reg.custom = [c for c in reg.custom if c.catalog_id != catalog_id]
+    reg.released = [c for c in reg.released if c != catalog_id]
+    await repo.put(reg)
+    return {"status": "deleted", "catalog_id": catalog_id}

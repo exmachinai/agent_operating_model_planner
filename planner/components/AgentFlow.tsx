@@ -114,7 +114,7 @@ export function AgentFlow({
           viewBox={`0 0 ${width} ${height}`}
           role="img"
           aria-label="Agenten-Flow-Diagramm"
-          style={{ maxWidth: "100%", height: "auto" }}
+          style={{ display: "block" }}
         >
           <defs>
             <marker id="af-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
@@ -198,7 +198,16 @@ const headerRow: React.CSSProperties = {
   justifyContent: "space-between",
   gap: "var(--sp-2)",
 };
-const scrollStyle: React.CSSProperties = { overflow: "auto", flex: 1 };
+const scrollStyle: React.CSSProperties = {
+  overflow: "auto",
+  flex: 1,
+  maxHeight: "min(68vh, 560px)",
+  // Touch-Scrollen flüssig (iOS) + dezenter Rahmen.
+  WebkitOverflowScrolling: "touch",
+  border: "1px solid var(--c-border)",
+  borderRadius: "var(--r-sm)",
+  backgroundColor: "var(--c-surface)",
+};
 const stageHeadStyle: React.CSSProperties = {
   fontSize: "9px",
   fontWeight: 700,

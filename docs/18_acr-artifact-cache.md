@@ -1,4 +1,35 @@
-# 18 — ACR Artifact Cache: Prod-Deploy robust gegen Docker-Hub-Rate-Limit
+# 18 — Base-Images Docker-Hub-frei (Microsoft Azure Linux / MCR)
+
+## FINALE LÖSUNG (2026-06-03): Base-Images auf MCR umgestellt
+
+Statt Docker-Hub-Images zu cachen, beziehen die Builds ihre Base-Images jetzt
+**vollständig von Microsoft** (`mcr.microsoft.com`, Azure Linux) — **keine
+Docker-Hub-Abhängigkeit, kein Account, kein Token, kein Rate-Limit**.
+
+| Dienst | vorher (Docker Hub) | jetzt (MCR / Azure Linux) |
+|---|---|---|
+| API (`planner/api/Dockerfile`) | `python:3.12-slim` (Debian) | `mcr.microsoft.com/azurelinux/base/python:3.12` |
+| Frontend (`planner/Dockerfile`, 3 Stages) | `node:22-alpine` (Alpine) | `mcr.microsoft.com/azurelinux/base/nodejs:24` |
+
+**Anpassungen beim OS-Wechsel** (Debian/Alpine → Azure Linux, glibc, `tdnf`):
+- Paketinstallation `apt-get`/`apk` → `tdnf` (`ca-certificates`, `shadow-utils`).
+- `curl` ist in beiden Base-Images vorhanden; Frontend-Healthcheck `wget` → `curl`.
+- Non-root-User: busybox `addgroup`/`adduser` → `groupadd`/`useradd` (shadow-utils).
+- `libc6-compat` entfällt (glibc statt musl).
+- **Node-Version: 22 → 24.** Azure Linux führt nur Node 20 + 24 (kein 22); Next.js 15
+  läuft auf Node 24. Bewusster, getesteter Bump.
+
+Beide Images server-seitig via `az acr build` getestet — grün, Pull ausschließlich
+von `mcr.microsoft.com`. Damit ist die unten beschriebene ACR-Artifact-Cache-Lösung
+(Credential-Set/Key Vault) **abgelöst** und wird dekommissioniert (Cache-Rules,
+Credential-Set `dockerhub`, KV `kv-aegira-dhub-prod`).
+
+---
+
+## (Historie / abgelöst) ACR Artifact Cache mit Credential-Set
+
+> Der folgende Abschnitt dokumentiert den **Interim-Ansatz**, der python/node aus
+> Docker Hub über die ACR cachte. Er ist durch die MCR-Migration oben abgelöst.
 
 ## Problem
 

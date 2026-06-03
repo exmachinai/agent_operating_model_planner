@@ -6,12 +6,17 @@
 # Stage 3 (runner): minimal Alpine + non-root + standalone bundle, port 3000
 #
 # Final image: ~150 MB (vs ~800 MB without standalone).
+#
+# Base-Image (node:22-alpine) über den ACR-Artifact-Cache statt anonym von Docker Hub —
+# vermeidet das anonyme Pull-Rate-Limit (`toomanyrequests`) im `az acr build`. Cache-Rule
+# + authentifiziertes Credential-Set: planner/infra/modules/acrCache.bicep,
+# Doku: docs/18_acr-artifact-cache.md.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
 # Stage 1 — Dependencies
 # -----------------------------------------------------------------------------
-FROM node:22-alpine AS deps
+FROM aegiraacrprodtgygvmrc.azurecr.io/docker-hub/library/node:22-alpine AS deps
 
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
@@ -22,7 +27,7 @@ RUN npm ci --legacy-peer-deps
 # -----------------------------------------------------------------------------
 # Stage 2 — Build
 # -----------------------------------------------------------------------------
-FROM node:22-alpine AS builder
+FROM aegiraacrprodtgygvmrc.azurecr.io/docker-hub/library/node:22-alpine AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -56,7 +61,7 @@ RUN npm run build
 # -----------------------------------------------------------------------------
 # Stage 3 — Runner
 # -----------------------------------------------------------------------------
-FROM node:22-alpine AS runner
+FROM aegiraacrprodtgygvmrc.azurecr.io/docker-hub/library/node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production

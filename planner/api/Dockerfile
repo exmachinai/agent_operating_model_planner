@@ -1,4 +1,8 @@
-FROM python:3.12-slim
+# Base-Image über den ACR-Artifact-Cache statt anonym von Docker Hub — vermeidet das
+# anonyme Pull-Rate-Limit (`toomanyrequests`) im `az acr build`. Cache-Rule +
+# authentifiziertes Credential-Set: planner/infra/modules/acrCache.bicep,
+# Doku: docs/18_acr-artifact-cache.md.
+FROM aegiraacrprodtgygvmrc.azurecr.io/docker-hub/library/python:3.12-slim
 
 WORKDIR /app
 

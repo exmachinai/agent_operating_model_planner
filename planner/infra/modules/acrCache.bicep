@@ -54,8 +54,8 @@ param keyVaultName string
 @description('Cache-Rules anlegen (docker.io/library/{python,node} → docker-hub/library/...). Default false für die reine KV-Vorbereitung (Phase A).')
 param enableCacheRules bool = false
 
-@description('python-Cache-Rule anlegen. Default false: In prod liegt docker-hub/library/python bereits als gepinnter `az acr import` (Cache-Rules können nicht über existierende Repos gelegt werden). node läuft als Cache-Rule. Zum Umstellen: Import-Repo löschen, dann true.')
-param enablePythonCacheRule bool = false
+@description('python-Cache-Rule anlegen. Default true (konvergierter Stand): python läuft wie node als authentifizierte Cache-Rule. Nur auf false setzen, wenn docker-hub/library/python als gepinnter `az acr import` existiert (Cache-Rules können nicht über existierende Repos gelegt werden).')
+param enablePythonCacheRule bool = true
 
 @description('Authentifizierter Upstream: Credential-Set + Role anlegen und an die Cache-Rules hängen. false = anonymer Upstream (Azure-native, kein PAT nötig).')
 param enableCredentialSet bool = false

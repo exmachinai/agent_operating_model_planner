@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>zgpm.aegira.ai — Interner Explainer · Zielgeführtes Generatives Projekt Management</title>
+<meta name="robots" content="noindex,nofollow" />
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;450;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   Design tokens — Refactoring UI: HSL shades, type scale,
+   spacing system, two-part shadows, accent borders.
+   ============================================================ */
+:root{
+  /* brand (navy / gold / vellum) as HSL families */
+  --navy-900:hsl(230 53% 14%); --navy-800:hsl(230 52% 21%); --navy:hsl(230 52% 25%);
+  --navy-700:hsl(230 40% 34%); --steel:hsl(220 19% 44%); --gray:hsl(222 16% 42%);
+  --ice:hsl(222 84% 90%); --ice-soft:hsl(222 70% 96%);
+  --gold:hsl(43 78% 55%); --gold-soft:hsl(43 84% 92%);
+  --green:hsl(139 24% 47%);
+  --vellum:hsl(40 50% 98%); --surface:#fff; --ink:hsl(228 64% 13%);
+  --border:hsl(230 40% 25% / .12); --border-2:hsl(230 40% 25% / .08);
+  /* type scale (1.25) */
+  --fs-cap:.8125rem; --fs-body:1rem; --fs-lg:1.125rem; --fs-h3:1.25rem;
+  --fs-h2:clamp(1.6rem,3vw,2.25rem); --fs-h1:clamp(2.1rem,4.6vw,3.5rem);
+  /* spacing */
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s6:24px;--s8:32px;--s12:48px;--s16:64px;--s24:96px;
+  /* shadows (two-part, light from top) */
+  --sh-sm:0 1px 2px hsl(230 50% 20% / .06), 0 1px 1px hsl(230 50% 20% / .04);
+  --sh-md:0 6px 10px -3px hsl(230 50% 20% / .10), 0 2px 4px -2px hsl(230 50% 20% / .06);
+  --sh-lg:0 24px 40px -12px hsl(230 50% 20% / .18), 0 8px 14px -8px hsl(230 50% 20% / .10);
+  --display:'Bricolage Grotesque','Inter',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif; --maxw:1180px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:96px}
+body{margin:0;font-family:var(--body);color:var(--ink);background:var(--vellum);line-height:1.6;-webkit-font-smoothing:antialiased;font-size:var(--fs-body)}
+h1,h2,h3,h4{font-family:var(--display);color:var(--navy-900);letter-spacing:-.015em;line-height:1.08;margin:0}
+h1{font-size:var(--fs-h1);font-weight:800}
+h2{font-size:var(--fs-h2);font-weight:700}
+h3{font-size:var(--fs-h3);font-weight:700;letter-spacing:-.01em}
+p{margin:0}
+a{color:var(--navy);text-decoration:none}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--s6)}
+.prose{max-width:66ch}
+.eyebrow{font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:.18em;font-size:var(--fs-cap);color:var(--steel)}
+.muted{color:var(--steel)}
+
+/* progress bar */
+#progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--gold);z-index:60;transition:width .1s linear}
+
+/* header */
+header{position:sticky;top:0;z-index:50;background:hsl(40 50% 98% / .85);backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}
+.nav{display:flex;align-items:center;justify-content:space-between;height:72px;gap:var(--s4)}
+.nav img{height:36px;display:block}
+.nav .right{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;justify-content:flex-end}
+.chip{display:inline-flex;align-items:center;gap:7px;font-size:var(--fs-cap);color:var(--steel);border:1px solid var(--border);border-radius:999px;padding:6px 12px;background:#fff}
+.chip b{color:var(--navy)}
+.btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--display);font-weight:700;font-size:.95rem;padding:11px 18px;border-radius:8px;cursor:pointer;border:1px solid transparent;transition:transform .12s ease,box-shadow .12s ease;text-decoration:none}
+.btn:hover{transform:translateY(-1px)}
+.btn-primary{background:var(--gold);color:var(--navy-900);box-shadow:var(--sh-sm)}
+.btn-navy{background:var(--navy);color:#fff}
+.btn-ghost{background:#fff;color:var(--navy);border-color:var(--border)}
+@media(max-width:680px){.nav .chip{display:none}}
+
+/* hero */
+.hero{position:relative;padding:var(--s24) 0 var(--s12);overflow:hidden}
+.hero:before{content:"";position:absolute;inset:0;background-image:linear-gradient(var(--border-2) 1px,transparent 1px),linear-gradient(90deg,var(--border-2) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(ellipse 75% 65% at 50% 0,#000,transparent)}
+.hero .wrap{position:relative}
+.hero .slogan{font-family:var(--display);color:var(--steel);font-weight:600;font-size:var(--fs-lg);margin-bottom:var(--s4)}
+.hero h1{max-width:18ch}
+.hero h1 .hl{color:var(--gold)}
+.hero .lead{font-size:var(--fs-lg);color:var(--steel);max-width:60ch;margin-top:var(--s6)}
+.hero .cta{display:flex;gap:var(--s3);flex-wrap:wrap;margin-top:var(--s8)}
+.intern{display:flex;gap:var(--s3);align-items:flex-start;background:#fff;border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:10px;padding:var(--s4) var(--s4);margin-top:var(--s8);max-width:64ch;box-shadow:var(--sh-sm)}
+.intern .t{font-size:.92rem;color:var(--steel)}.intern .t b{color:var(--navy)}
+
+/* video */
+.videosec{padding:var(--s12) 0}
+.videocard{background:var(--navy-900);border-radius:16px;overflow:hidden;box-shadow:var(--sh-lg);position:relative}
+.videoframe{position:relative;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;background:
+   radial-gradient(120% 120% at 50% 0,hsl(230 52% 25%),hsl(230 53% 14%));}
+.videoframe:before{content:"";position:absolute;inset:0;background-image:linear-gradient(hsl(222 84% 90% / .06) 1px,transparent 1px),linear-gradient(90deg,hsl(222 84% 90% / .06) 1px,transparent 1px);background-size:40px 40px;mask-image:radial-gradient(ellipse 70% 70% at 50% 40%,#000,transparent)}
+.videoframe .inner{position:relative;text-align:center;color:#fff;padding:var(--s6)}
+.play{width:84px;height:84px;border-radius:50%;background:var(--gold);color:var(--navy-900);display:flex;align-items:center;justify-content:center;margin:0 auto var(--s4);box-shadow:var(--sh-md);font-size:30px;cursor:pointer;border:none;transition:transform .15s ease}
+.play:hover{transform:scale(1.06)}
+.videoframe h3{color:#fff;font-size:1.4rem}
+.videoframe .sub{color:var(--ice);font-size:.95rem;margin-top:6px}
+.videoframe .slot-note{position:absolute;bottom:14px;left:0;right:0;color:hsl(222 60% 82%);font-size:.78rem;font-family:var(--body)}
+.videosec .cap{display:flex;justify-content:space-between;gap:var(--s4);flex-wrap:wrap;margin-top:var(--s4);color:var(--steel);font-size:.9rem}
+
+/* 3P */
+.p3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s4)}
+@media(max-width:820px){.p3{grid-template-columns:1fr}}
+.p3 .c{position:relative;background:var(--navy);color:#fff;border-radius:14px;padding:var(--s6);overflow:hidden;box-shadow:var(--sh-md)}
+.p3 .c:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--gold)}
+.p3 .c .k{font-family:var(--display);font-weight:800;color:var(--gold);letter-spacing:.08em;font-size:var(--fs-cap);text-transform:uppercase}
+.p3 .c h3{color:#fff;margin:6px 0 6px}
+.p3 .c p{color:var(--ice);font-size:.92rem}
+
+/* journey layout: sticky rail + steps */
+.journey{padding:var(--s12) 0 var(--s24)}
+.j-grid{display:grid;grid-template-columns:248px 1fr;gap:var(--s12);align-items:start}
+@media(max-width:980px){.j-grid{grid-template-columns:1fr}}
+.rail{position:sticky;top:96px;align-self:start}
+@media(max-width:980px){.rail{display:none}}
+.rail h4{font-family:var(--display);font-size:var(--fs-cap);text-transform:uppercase;letter-spacing:.16em;color:var(--gray);margin:var(--s6) 0 var(--s2)}
+.rail h4:first-child{margin-top:0}
+.rail a{display:flex;gap:10px;align-items:center;padding:7px 10px;border-radius:8px;color:var(--steel);font-size:.9rem;line-height:1.25;border-left:2px solid transparent;transition:all .15s ease}
+.rail a .d{width:7px;height:7px;border-radius:50%;background:var(--border);flex:none}
+.rail a:hover{background:var(--ice-soft);color:var(--navy)}
+.rail a.active{color:var(--navy-900);background:var(--ice-soft);border-left-color:var(--gold);font-weight:600}
+.rail a.active .d{background:var(--gold)}
+
+/* mobile phase indicator */
+.mphase{display:none}
+@media(max-width:980px){
+  .mphase{display:flex;position:sticky;top:72px;z-index:40;align-items:center;gap:10px;background:hsl(40 50% 98% / .94);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:10px var(--s6);font-size:.85rem;color:var(--steel)}
+  .mphase .tag{font-family:var(--display);font-weight:800;background:var(--gold);color:var(--navy-900);border-radius:6px;padding:3px 9px;font-size:.72rem;letter-spacing:.05em;text-transform:uppercase}
+}
+
+.phase-divider{display:flex;align-items:center;gap:var(--s4);margin:var(--s16) 0 var(--s6);padding-top:var(--s6);border-top:2px solid var(--navy)}
+.phase-divider:first-child{margin-top:0;border-top:0;padding-top:0}
+.phase-divider .tag{font-family:var(--display);font-weight:800;background:var(--gold);color:var(--navy-900);border-radius:7px;padding:5px 13px;font-size:var(--fs-cap);letter-spacing:.06em;text-transform:uppercase}
+.phase-divider p{color:var(--steel);font-size:.95rem}
+
+.step{padding:var(--s8) 0;border-bottom:1px solid var(--border-2);scroll-margin-top:120px}
+.step .meta{display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s3)}
+.num{flex:none;width:40px;height:40px;border-radius:50%;background:var(--navy);color:#fff;font-family:var(--display);font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:var(--sh-sm)}
+.step .scr{font-family:var(--display);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gray)}
+.shotframe{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff;box-shadow:var(--sh-md);cursor:zoom-in;transition:box-shadow .18s ease,transform .18s ease}
+.shotframe:hover{box-shadow:var(--sh-lg);transform:translateY(-2px)}
+.shotframe .bar{height:32px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;padding:0 13px}
+.shotframe .bar i{width:9px;height:9px;border-radius:50%;background:var(--border)}
+.shotframe .bar .z{margin-left:auto;font-size:.72rem;color:var(--gray)}
+.shotframe img{display:block;width:100%;height:auto}
+.step .body{margin-top:var(--s4)}
+.step .body p{color:var(--steel);max-width:64ch}
+.step .gate{display:inline-flex;align-items:center;gap:6px;margin-top:var(--s3);font-size:.8rem;font-weight:600;color:var(--navy);background:var(--gold-soft);border:1px solid hsl(43 70% 75%);border-radius:999px;padding:4px 11px}
+.step-nav{display:flex;justify-content:space-between;margin-top:var(--s6);gap:var(--s3)}
+.step-nav button{font-size:.85rem;color:var(--steel)}
+.step-nav .btn-ghost[disabled]{color:var(--gray);cursor:not-allowed}
+
+/* lightbox */
+#lb{position:fixed;inset:0;z-index:80;background:hsl(230 53% 8% / .9);display:none;align-items:center;justify-content:center;padding:24px;cursor:zoom-out}
+#lb.open{display:flex}
+#lb img{max-width:96vw;max-height:92vh;border-radius:10px;box-shadow:var(--sh-lg)}
+#lb .x{position:absolute;top:18px;right:22px;color:#fff;font-size:30px;cursor:pointer;line-height:1}
+
+/* footer */
+footer{background:var(--navy-900);color:var(--ice);padding:var(--s16) 0 var(--s12)}
+footer img{height:32px;margin-bottom:var(--s3)}
+footer .muted{color:hsl(220 18% 78%)}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<header><div class="wrap nav">
+  <a href="#top" aria-label="AEGIRA Start"><img src="assets/logo/aegira-lockup-navy-transparent-2048.png" alt="AEGIRA"/></a>
+  <div class="right">
+    <span class="chip">🔒 <b>Intern</b> · hinter 2FA</span>
+    <a class="btn btn-ghost" href="#explainer">▶ Explainer</a>
+    <a class="btn btn-ghost" href="#planung">Journey</a>
+    <a class="btn btn-primary" href="https://zgpm.aegira.ai" target="_blank" rel="noopener" title="Explainer überspringen und direkt zur App">Überspringen → App</a>
+  </div>
+</div></header>
+
+<a id="top"></a>
+<main>
+<section class="hero"><div class="wrap">
+  <div class="slogan">zielgeführtes generatives projekt management</div>
+  <h1>Methodisch konsistente <span class="hl">Agenten-Harnesse</span> — planen und umsetzen.</h1>
+  <p class="lead">zgpm.aegira.ai plant Agentenstrukturen für <strong>Apps, Features, IT-Produkte und Prototypen</strong>
+    methodisch konsistent — und setzt sie um. In drei Phasen: <strong>Planung → Prototyp → Product</strong>.
+    Du steuerst und gibst frei; die Agenten bauen.</p>
+  <div class="cta">
+    <a class="btn btn-primary" href="#explainer">▶ Explainer-Video ansehen</a>
+    <a class="btn btn-ghost" href="#planung">Durch die Journey klicken</a>
+    <a class="btn btn-navy" href="https://zgpm.aegira.ai" target="_blank" rel="noopener">Überspringen → direkt zur App</a>
+  </div>
+  <div class="intern"><span>🔒</span><div class="t"><b>Interne Seite.</b> Dieser Explainer ist ausschließlich intern und liegt hinter dem 2FA-Login der AEGIRA-Plattform. Keine externe Vermarktung; kein Impressum/Datenschutz nötig.</div></div>
+</div></section>
+
+<!-- ============================================================
+     EXPLAINER-VIDEO · DEFINIERTER PLATZ
+     Das HeyGen-Video wird GENAU HIER eingebettet (Primärplatz,
+     direkt unter dem Hero, vor der Journey). Ersetze den Block
+     <div class="videoframe">…</div> durch dein Embed, z. B.:
+       <video class="vid" controls poster="assets/video/poster.png"
+              src="assets/video/zgpm-explainer.mp4"></video>
+     oder ein HeyGen-Share-iframe:
+       <iframe class="vid" src="HEYGEN_SHARE_URL" allow="fullscreen"
+               style="width:100%;aspect-ratio:16/9;border:0"></iframe>
+     ============================================================ -->
+<section class="videosec" id="explainer"><div class="wrap">
+  <div class="eyebrow">Explainer-Video</div>
+  <h2 style="margin:8px 0 18px">Der ganze Weg in 2½ Minuten</h2>
+  <div class="videocard">
+    <div class="videoframe">
+      <div class="inner">
+        <button class="play" aria-label="Video abspielen" onclick="document.getElementById('vhint').style.display='block'">▶</button>
+        <h3>zgpm.aegira.ai — Explainer</h3>
+        <div class="sub">Planung → Prototyp → Product · ~2:30 min</div>
+        <div id="vhint" style="display:none;margin-top:12px;color:var(--ice);font-size:.82rem">HeyGen-Video hier einbetten (siehe Kommentar im Code / README).</div>
+      </div>
+      <div class="slot-note">▶ Video-Slot · HeyGen-Embed an dieser Stelle einsetzen</div>
+    </div>
+  </div>
+  <div class="cap">
+    <span>Empfohlene Platzierung: <b>hier</b> (Hero-nah, vor der Journey) — plus optionaler Wiederaufruf über „▶ Explainer" im Header.</span>
+    <span>Skript &amp; Storyboard: <code>/heygen/</code></span>
+  </div>
+</div></section>
+
+<!-- 3 P -->
+<section style="padding:var(--s8) 0"><div class="wrap">
+  <div class="eyebrow">Der Weg — die 3 P</div>
+  <div class="p3" style="margin-top:14px">
+    <div class="c"><div class="k">P · Planung</div><h3>Verstehen &amp; planen</h3><p>Vom freien Brief über Schärfung und Leitplanken zum geprüften, freigegebenen Plan (Gate 2).</p></div>
+    <div class="c"><div class="k">P · Prototyp</div><h3>Harness bauen</h3><p>Aus dem Plan ein lauffähiges Agententeam — Orchestrator, Worker, Reviewer, HITL — im interaktiven Canvas.</p></div>
+    <div class="c"><div class="k">P · Product</div><h3>Exportieren &amp; ausdrucken</h3><p>Signiertes Harness-Zip für Claude Code / Cowork (Gate 3) plus druckbarer Projekt-Report (PDF).</p></div>
+  </div>
+</div></section>
+
+<div class="mphase" id="mphase"><span class="tag" id="mphase-tag">Planung</span><span id="mphase-step">Schritt 0 · Projektübersicht</span></div>
+
+<section class="journey"><div class="wrap"><div class="j-grid">
+  <!-- side rail -->
+  <nav class="rail" id="rail" aria-label="Journey-Navigation"></nav>
+
+  <!-- steps -->
+  <div id="steps">
+    <div class="phase-divider" data-phase="Planung"><span class="tag">P · Planung</span><p>Verstehen, schärfen, absichern — bis zum freigegebenen Plan.</p></div>
+
+    <article class="step" id="s0" data-phase="Planung" data-title="Projektübersicht">
+      <div class="meta"><span class="num">0</span><div><div class="scr">Dashboard</div><h3>Projektübersicht</h3></div></div>
+      <figure class="shotframe" style="margin:0"><div class="bar"><i></i><i></i><i></i><span class="z">↗ vergrößern</span></div><img src="assets/screenshots/01_projekte.png" alt="Projektübersicht"></figure>
+      <div class="body"><p>Zentrales Dashboard mit allen Vorhaben, Status (Verständnis offen · Gate 1 · Freigegeben · Kompiliert), Suche und Filter. Start über <em>Neues Projekt</em>.</p></div>
+    </article>
+
+    <article class="step" id="s1" data-phase="Planung" data-title="Beschreiben">
+      <div class="meta"><span class="num">1</span><div><div class="scr">Schritt 1</div><h3>Projekt beschreiben</h3></div></div>
+      <figure class="shotframe" style="margin:0"><div class="bar"><i></i><i></i><i></i><span class="z">↗ vergrößern</span></div><img src="assets/screenshots/02_beschreiben.png" alt="Projekt beschreiben"></figure>
+      <div class="body"><p>Formloser Einstieg: Titel und Kurz-Brief in eigenen Worten — keine Struktur, keine Fachbegriffe nötig. Niedrige Hürde für jeden.</p></div>
+    </article>
+
+    <article class="step" id="s2" data-phase="Planung" data-title="Schärfungs-Interview">
+      <div class="meta"><span class="num">2</span><div><div class="scr">Schritt 2</div><h3>Schärfungs-Interview</h3></div></div>
+      <figure class="shotframe" style="margin:0"><div class="bar"><i></i><i></i><i></i><span class="z">↗ vergrößern</span></div><img src="assets/screenshots/03_interview.png" alt="Schärfungs-Interview"></figure>
+      <div class="body"><p>Ein geführtes Interview greift das Gesagte auf und schärft das Vorhaben — eine Frage nach der anderen, Vorschläge als übernehmbare Chips. Optional Kontext-Quellen (Dateien/Ordner) als Evidenz.</p></div>
+    </article>
+
+    <article class="step" id="s3" data-phase="Planung" data-title="Verständnis & Gate 1">
+      <div class="meta"><span class="num">3</span><div><div class="scr">Schritt 3</div><h3>Verständnis &amp; Klassifizierung</h3></div></div>
+      <figure class="shotframe" style="margin:0"><div class="bar"><i></i><i></i><i></i><span class="z">↗ vergrößern</span></div><img src="assets/screenshots/04_verstaendnis.png" alt="Verständnis"></figure>
+      <div class="body"><p>Projektart (IT / Non-IT) und Subtyp, AEGIRA-intern, Zielplattform und Kernaussage.</p><span class="gate">◆ Gate 1 · Verständnis wird verbindlich eingefroren</span></div>
+    </article>
+
+    <article class="step" id="s4" data-phase="Planung" data-title="Leitplanken">
+      <div class="meta"><span class="num">4</span><div><div class="scr">Schritt 5</div><h3>Leitplanken</h3></div></div>
+      <figure class="shotframe" style="margin:0"><div class="bar"><i></i><i></i><i></i><span class="z">↗ vergrößern</span></div><img src="assets/screenshots/05_leitplanken.png" alt="Leitplanken"></figure>
+      <div class="body"><p>Der erlaubte Rahmen vor der Planung: Was geht (Konzept / Technisch / Hybrid) und was das System verweigert (z. B. EU-AI-Act-verbotene Praktiken, Malware). Harte Verbote blockieren, Grenzfälle gehen zur Prüfung an dich.</p></div>
+    </article>
+
+    <article class="step" id="s5" data-phase="Planung" data-title="Meilensteine">
+      <div class="meta"><span class="num">5</span><div><div class="scr">Schritt 6A</div><h3>Meilensteine festlegen</h3></div></div>
+      <figure class="shotframe" style="margin:0"><div class="bar"><i></i><i></i><i></i><span class="z">↗ vergrößern</span></div><img src="assets/screenshots/06_meilensteine.png" alt="Meilensteine festlegen"></figure>
+      <div class="body"><p>Vorgeschlagene Meilensteine (Zielzustände) prüfen, umbenennen, terminieren, sortieren — mit <em>DONE</em> bestätigen. Die konkrete Arbeit übernehmen später die Agenten.</p></div>
+    </article>
+
+    <article class="step" id="s6" data-phase="Planung" data-title="Plan · RACI · Risiko">
+      <div class="meta"><span class="num">6</span><div><div class="scr">Schritt 6 · Plan</div><h3>Der Plan — Meilensteine &amp; Risiko</h3></div></div>
+      <figure class="shotframe" style="margin:0"><div class="bar"><i></i><i></i><i></i><span class="z">↗ vergrößern</span></div><img src="assets/screenshots/07_plan.png" alt="Plan"></figure>
+      <div class="body"><p>Ein methodisch konsistenter Plan: Meilensteinplan mit Verantwortlichkeiten (RACI), Risiken mit Ampel und Reviewer-Befunden, Gesamtrisiko mit Begründung. Deterministisch und nachvollziehbar.</p></div>
+    </article>
+
+    <article class="step" id="s7" data-phase="Planung" data-title="Gantt & RACI">
+      <div class="meta"><span class="num">7</span><div><div class="scr">Plan · Ansichten</div><h3>Gantt &amp; RACI</h3></div></div>
+      <figure class="shotframe" style="margin:0"><div class="bar"><i></i><i></i><i></i><span class="z">↗ vergrößern</span></div><img src="assets/screenshots/08_plan_gantt_raci.png" alt="Gantt und RACI"></figure>
+      <div class="body"><p>Zeitplan (Gantt, Farbe = Risiko-Ampel) und Verantwortlichkeiten als RACI-Matrix mit Konsistenzprüfung (genau ein Accountable, ≥ 1 Responsible).</p></div>
+    </article>
+
+    <article class="step" id="s8" data-phase="Planung" data-title="Heatmap & Token-Budget">
+      <div class="meta"><span class="num">8</span><div><div class="scr">Plan · Ansichten</div><h3>Risiko-Heatmap &amp; Token-Budget</h3></div></div>
+      <figure class="shotframe" style="margin:0"><div class="bar"><i></i><i></i><i></i><span class="z">↗ vergrößern</span></div><img src="assets/screenshots/09_plan_heatmap_token.png" alt="Heatmap und Token-Budget"></figure>
+      <div class="body"><p>Risiko-Heatmap (Eintritt × Auswirkung) und Token-Budget je Agent als laufende Summe — transparente Kosten- und Risikosicht vor der Freigabe.</p></div>
+    </article>
+
+    <article class="step" id="s9" data-phase="Planung" data-title="Review & Gate 2">
+      <div class="meta"><span class="num">9</span><div><div class="scr">Schritt 7</div><h3>Review &amp; Freigabe</h3></div></div>
+      <figure class="shotframe" style="margin:0"><div class="bar"><i></i><i></i><i></i><span class="z">↗ vergrößern</span></div><img src="assets/screenshots/10_review.png" alt="Review und Freigabe"></figure>
+      <div class="body"><p>Plan prüfen und schärfen — jede Änderung erzeugt eine neue Version. Bewusste Freigabe, kein stiller Übergang.</p><span class="gate">◆ Gate 2 · Version als Bauvorlage eingefroren</span></div>
+    </article>
+
+    <div class="phase-divider" data-phase="Prototyp"><span class="tag">P · Prototyp</span><p>Aus dem Plan wird ein lauffähiges Agententeam.</p></div>
+
+    <article class="step" id="s10" data-phase="Prototyp" data-title="Agent-Harness">
+      <div class="meta"><span class="num">10</span><div><div class="scr">Schritt 8 · Harness</div><h3>Agent-Harness bauen</h3></div></div>
+      <figure class="shotframe" style="margin:0"><div class="bar"><i></i><i></i><i></i><span class="z">↗ vergrößern</span></div><img src="assets/screenshots/11_harness.png" alt="Agent-Harness"></figure>
+      <div class="body"><p>Aus dem freigegebenen Plan wird ein sichtbares Team kompiliert: PMO-Orchestrator, Worker, Reviewer und HITL-Checkpoints. Mit <strong>Reifegrad-Stufe</strong> (Beaufsichtigt → Autonom), Orchestrierungs-Modus (Manager/Handoff) und Modell-Strategie.</p></div>
+    </article>
+
+    <article class="step" id="s11" data-phase="Prototyp" data-title="Interaktiver Canvas">
+      <div class="meta"><span class="num">11</span><div><div class="scr">Interaktiver Canvas</div><h3>Agenten-Flow (Drag &amp; Drop)</h3></div></div>
+      <figure class="shotframe" style="margin:0"><div class="bar"><i></i><i></i><i></i><span class="z">↗ vergrößern</span></div><img src="assets/screenshots/12_agenten_flow.png" alt="Interaktiver Agenten-Flow Canvas"></figure>
+      <div class="body"><p>Der interaktive Canvas zeigt den Fluss über Stages (parallel/sequenziell): Orchestrator → Worker → Reviewer → HITL. Agenten und Skills lassen sich anpassen; ein Architektur-Check flaggt Anti-Muster (z. B. Über-Spawning).</p></div>
+    </article>
+
+    <div class="phase-divider" data-phase="Product"><span class="tag">P · Product</span><p>Das fertige, freigegebene KI-System — exportiert und dokumentiert.</p></div>
+
+    <article class="step" id="s12" data-phase="Product" data-title="Export · Gate 3">
+      <div class="meta"><span class="num">12</span><div><div class="scr">Export</div><h3>„Speichern unter" — signiertes Zip</h3></div></div>
+      <figure class="shotframe" style="margin:0"><div class="bar"><i></i><i></i><i></i><span class="z">↗ vergrößern</span></div><img src="assets/screenshots/13_export.png" alt="Export Speichern unter"></figure>
+      <div class="body"><p>Der Harness wird eingefroren und als signiertes, integritätsgeprüftes Paket exportiert — gepackt (.zip) oder als ganze Ordnerstruktur, startklar für Claude Code / Cowork.</p><span class="gate">◆ Gate 3 · Harness eingefroren &amp; kompiliert</span></div>
+    </article>
+
+    <article class="step" id="s13" data-phase="Product" data-title="Ausdruck / PDF">
+      <div class="meta"><span class="num">13</span><div><div class="scr">Ausdruck</div><h3>Projekt drucken / als PDF</h3></div></div>
+      <figure class="shotframe" style="margin:0"><div class="bar"><i></i><i></i><i></i><span class="z">↗ vergrößern</span></div><img src="assets/screenshots/14_ausdruck.png" alt="Druck / PDF"></figure>
+      <div class="body"><p>Der vollständige Projekt-Report — Plan, Risiken (PRL), Agenten-Harness — als druckbare, audit-taugliche PDF-Ansicht. Für Freigabe-Dokumentation und Ablage.</p></div>
+      <div class="step-nav"><span></span><a class="btn btn-navy" href="#explainer">↑ Explainer nochmal ansehen</a></div>
+    </article>
+  </div>
+</div></div></section>
+
+<!-- ============================================================
+     USER-GUIDE · READER  (29 Slides, aktualisiert: E2E-Workflow,
+     Begriffe RACI/Gates, Look & Feel). Quelle: assets/userguide/
+     ============================================================ -->
+<section id="userguide" style="padding:var(--s16) 0;background:#fff;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+  <div class="wrap">
+    <div class="eyebrow">Vertiefung</div>
+    <h2 style="margin:8px 0 6px">User-Guide · Reader</h2>
+    <p class="muted prose" style="margin-bottom:22px">Der vollständige Schritt-für-Schritt-Guide (29 Slides) — aktualisiert auf den End-to-End-Workflow, die Begriffe (RACI-Standard, Gates&nbsp;1–3, Reifegrad) und das aktuelle Look&nbsp;&amp;&nbsp;Feel. Blättern mit ‹ ›, anklicken zum Vergrößern.</p>
+    <div style="display:flex;align-items:center;gap:14px">
+      <button class="btn btn-ghost ugnav" id="ug-prev" aria-label="Vorherige Slide" style="font-size:22px;line-height:1;padding:10px 16px">‹</button>
+      <figure class="shotframe" id="ug-frame" style="margin:0;flex:1"><div class="bar"><i></i><i></i><i></i><span class="z" id="ug-counter">Slide 1 / 29</span></div><img id="ug-main" src="assets/userguide/slides/slide-01.png" alt="User-Guide Slide 1"></figure>
+      <button class="btn btn-ghost ugnav" id="ug-next" aria-label="Nächste Slide" style="font-size:22px;line-height:1;padding:10px 16px">›</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:16px">
+      <div id="ug-strip" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;flex:1"></div>
+      <div style="display:flex;gap:10px;flex:none">
+        <a class="btn btn-ghost" href="assets/userguide/AEGIRA_Planner_User_Guide.pptx" download>↓ PPTX</a>
+        <a class="btn btn-ghost" href="assets/userguide/AEGIRA_Planner_User_Guide.pdf" target="_blank" rel="noopener">↓ PDF</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+<footer><div class="wrap">
+  <img src="assets/logo/aegira-lockup-white-transparent-2048.png" alt="AEGIRA"/>
+  <p class="muted">Zielgeführtes Generatives Projekt Management · Teil der AEGIRA AI Trust Platform.<br/>Interner Explainer — erreichbar hinter 2FA. Evidence-based AI Trust.</p>
+</div></footer>
+
+<div id="lb" role="dialog" aria-modal="true" aria-label="Screenshot groß"><span class="x" aria-label="Schließen">×</span><img alt=""></div>
+
+<script>
+(function(){
+  var steps=[].slice.call(document.querySelectorAll('.step'));
+  var rail=document.getElementById('rail');
+  var lastPhase=null;
+  // build side-rail (grouped by phase) + per-step prev/next
+  steps.forEach(function(s,i){
+    if(s.dataset.phase!==lastPhase){var h=document.createElement('h4');h.textContent=s.dataset.phase;rail.appendChild(h);lastPhase=s.dataset.phase;}
+    var a=document.createElement('a');a.href='#'+s.id;a.dataset.target=s.id;
+    a.innerHTML='<span class="d"></span><span>'+(i)+' · '+s.dataset.title+'</span>';
+    rail.appendChild(a);
+    // prev/next controls
+    if(!s.querySelector('.step-nav')){
+      var nav=document.createElement('div');nav.className='step-nav';
+      var prev=document.createElement('a');prev.className='btn btn-ghost';prev.textContent='← Zurück';
+      var next=document.createElement('a');next.className='btn btn-ghost';next.textContent='Weiter →';
+      if(i>0)prev.href='#'+steps[i-1].id; else{prev.setAttribute('disabled','');prev.removeAttribute('href');}
+      if(i<steps.length-1)next.href='#'+steps[i+1].id; else{next.setAttribute('disabled','');next.removeAttribute('href');}
+      nav.appendChild(prev);nav.appendChild(next);s.appendChild(nav);
+    }
+  });
+  var links=[].slice.call(rail.querySelectorAll('a'));
+  var mTag=document.getElementById('mphase-tag'),mStep=document.getElementById('mphase-step');
+  var current=0;
+  function setActive(id){
+    links.forEach(function(l){l.classList.toggle('active',l.dataset.target===id);});
+    var s=document.getElementById(id);if(s){mTag.textContent=s.dataset.phase;mStep.textContent=s.dataset.title;current=steps.indexOf(s);}
+  }
+  // scrollspy
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){if(e.isIntersecting)setActive(e.target.id);});
+  },{rootMargin:'-30% 0px -60% 0px',threshold:0});
+  steps.forEach(function(s){io.observe(s);});
+  // progress bar
+  var prog=document.getElementById('progress');
+  function onScroll(){var h=document.documentElement;var sc=h.scrollTop||document.body.scrollTop;var max=h.scrollHeight-h.clientHeight;prog.style.width=(max>0?(sc/max*100):0)+'%';}
+  document.addEventListener('scroll',onScroll,{passive:true});onScroll();
+  // keyboard ← / → through steps
+  document.addEventListener('keydown',function(e){
+    if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
+    if(e.key==='ArrowRight'&&current<steps.length-1){e.preventDefault();steps[current+1].scrollIntoView({behavior:'smooth'});}
+    if(e.key==='ArrowLeft'&&current>0){e.preventDefault();steps[current-1].scrollIntoView({behavior:'smooth'});}
+    if(e.key==='Escape')closeLb();
+  });
+  // lightbox
+  var lb=document.getElementById('lb'),lbImg=lb.querySelector('img');
+  function closeLb(){lb.classList.remove('open');}
+  document.querySelectorAll('.shotframe').forEach(function(f){
+    f.addEventListener('click',function(){var im=f.querySelector('img');lbImg.src=im.src;lbImg.alt=im.alt;lb.classList.add('open');});
+  });
+  lb.addEventListener('click',closeLb);
+})();
+// ---- User-Guide reader ----
+(function(){
+  var total=29,i=0;
+  var main=document.getElementById('ug-main'),cnt=document.getElementById('ug-counter'),strip=document.getElementById('ug-strip');
+  if(!main)return;
+  function pad(n){return(n<10?'0':'')+n;}
+  function show(n){i=(n+total)%total;main.src='assets/userguide/slides/slide-'+pad(i+1)+'.png';main.alt='User-Guide Slide '+(i+1);cnt.textContent='Slide '+(i+1)+' / '+total;[].forEach.call(strip.children,function(t,k){t.style.outline=(k===i)?'2px solid var(--gold)':'1px solid var(--border)';t.style.opacity=(k===i)?'1':'.65';});if(strip.children[i])strip.children[i].scrollIntoView({inline:'center',block:'nearest'});}
+  for(var k=0;k<total;k++){(function(k){var t=document.createElement('img');t.src='assets/userguide/slides/slide-'+pad(k+1)+'.png';t.loading='lazy';t.alt='';t.style.cssText='height:52px;border-radius:4px;cursor:pointer;flex:none;outline:1px solid var(--border)';t.addEventListener('click',function(){show(k);});strip.appendChild(t);})(k);}
+  document.getElementById('ug-prev').addEventListener('click',function(){show(i-1);});
+  document.getElementById('ug-next').addEventListener('click',function(){show(i+1);});
+  show(0);
+})();
+</script>
+</body>
+</html>

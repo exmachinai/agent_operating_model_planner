@@ -293,9 +293,13 @@ export default function Interview(): React.ReactElement {
         )}
       </div>
 
-      <div style={chatStyle}>
+      <div style={chatStyle} data-testid="interview-chat" data-message-count={messages.length}>
         {messages.map((m, i) => (
-          <div key={i} style={m.role === "user" ? userRowStyle : asstRowStyle}>
+          <div
+            key={i}
+            data-testid={m.role === "user" ? "interview-msg-user" : "interview-msg-assistant"}
+            style={m.role === "user" ? userRowStyle : asstRowStyle}
+          >
             <div style={m.role === "user" ? userBubble : asstBubble}>
               <div style={{ whiteSpace: "pre-wrap" }}>{m.content}</div>
               {m.suggestions.length > 0 ? (
@@ -345,7 +349,7 @@ export default function Interview(): React.ReactElement {
       {error ? <p style={errorStyle}>{error}</p> : null}
 
       {done ? (
-        <div style={doneRowStyle}>
+        <div style={doneRowStyle} data-testid="interview-done">
           <span style={{ color: "var(--c-text-muted)", fontSize: 13 }}>
             Planung beendet (DONE). Du bestimmst — weiter zur Freigabe oder weiterplanen.
           </span>
@@ -377,8 +381,9 @@ export default function Interview(): React.ReactElement {
               style={{ ...inputStyle, flex: 1 }}
               disabled={busy}
               aria-label="Antwort"
+              data-testid="interview-input"
             />
-            <Button type="submit" disabled={busy || !input.trim()}>
+            <Button type="submit" data-testid="interview-send" disabled={busy || !input.trim()}>
               {busy ? "…" : "Senden"}
             </Button>
           </form>

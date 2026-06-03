@@ -113,7 +113,7 @@ export function AgentFlow({
 
   // Wiederverwendbares SVG — `tag` macht Marker-IDs eindeutig (Panel vs. Modal),
   // `animate` schaltet die dynamischen Partikel-Flows, `scale` vergrößert (crisp, SVG).
-  const FlowSvg = ({ animate, scale, tag, fit }: { animate: boolean; scale: number; tag: string; fit?: boolean }) => (
+  const FlowSvg = ({ animate, scale = 1, tag, fit }: { animate: boolean; scale?: number; tag: string; fit?: boolean }) => (
     <svg
       width={fit ? "100%" : width * scale}
       height={fit ? undefined : height * scale}
@@ -146,7 +146,7 @@ export function AgentFlow({
         <g key={node.id}>
           <rect x={x} y={y} width={NODE_W} height={NODE_H} rx={8} fill="var(--c-surface)" stroke={KIND_COLOR[node.kind]} strokeWidth={1.5} />
           <rect x={x} y={y} width={5} height={NODE_H} rx={2} fill={KIND_COLOR[node.kind]} />
-          <text x={x + 14} y={y + 19} style={nodeTitleStyle}>{truncate(node.label, 20)}</text>
+          <text x={x + 14} y={y + 19} style={nodeTitleStyle}>{truncate(node.label, 24)}</text>
           <text x={x + 14} y={y + 35} style={nodeKindStyle}>{KIND_LABEL[node.kind]}</text>
         </g>
       ))}
@@ -179,7 +179,7 @@ export function AgentFlow({
       <div style={headerRow}>
         <strong style={{ fontSize: 13 }}>Flow-Ansicht</strong>
         <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-          <span style={badge(animated ? "var(--c-green)" : "var(--c-steel)")}>
+          <span style={badge(animated ? "var(--c-green-text)" : "var(--c-steel)")}>
             {animated ? "● dynamische Flows" : "live · Entwurf"}
           </span>
           <button type="button" style={expandBtnStyle} aria-label="Flow vergrößern" title="Vergrößern (animiert)" onClick={() => setExpanded(true)}>
@@ -191,6 +191,10 @@ export function AgentFlow({
         style={{ ...scrollStyle, cursor: "zoom-in" }}
         onClick={() => setExpanded(true)}
         title="Klicken zum Vergrößern (animiert)"
+        // A11y (WCAG scrollable-region-focusable): scrollbarer Bereich per Tastatur erreichbar.
+        tabIndex={0}
+        role="group"
+        aria-label="Agenten-Flow-Diagramm — scrollbar; klicken oder Enter zum Vergrößern"
       >
         <FlowSvg animate={animated} scale={1} tag="panel" />
       </div>
@@ -203,8 +207,11 @@ export function AgentFlow({
               <strong style={{ fontSize: 15 }}>Agenten-Flow — dynamische Flows</strong>
               <button type="button" style={closeBtnStyle} aria-label="Schließen" onClick={() => setExpanded(false)}>✕</button>
             </div>
-            <div style={modalScrollStyle}>
-              <FlowSvg animate scale={1.7} tag="modal" />
+            <div style={modalScrollStyle} tabIndex={0} role="group" aria-label="Agenten-Flow-Diagramm (vergrößert)">
+              {/* U5 (Diagramm-Lesbarkeit): fit-to-width statt fester Skalierung —
+                  der GANZE Graph (alle Stages) bleibt sichtbar, keine abgeschnittene
+                  Stage/Spalte; viewBox skaliert proportional in die Modalbreite. */}
+              <FlowSvg animate fit tag="modal" />
             </div>
             <Legend />
           </div>

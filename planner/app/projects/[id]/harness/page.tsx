@@ -53,10 +53,17 @@ const KIND_COLOR: Record<HarnessNodeKind, string> = {
 };
 const KIND_ORDER: HarnessNodeKind[] = ["orchestrator", "router", "worker", "evaluator", "hitl"];
 
+// Flächen-Farben (Rahmen) — helle Brand-Swatches.
 const SEVERITY_COLOR: Record<string, string> = {
   fail: "var(--c-red)",
   warn: "var(--c-amber)",
   info: "var(--c-green)",
+};
+// Text-Farben (Befund-Tags) — AA-konforme dunklere Varianten (≥4.5:1 auf hell).
+const SEVERITY_TEXT_COLOR: Record<string, string> = {
+  fail: "var(--c-red)",
+  warn: "var(--c-amber-text)",
+  info: "var(--c-green-text)",
 };
 
 export default function HarnessPage(): React.ReactElement {
@@ -149,6 +156,7 @@ export default function HarnessPage(): React.ReactElement {
           </Button>
           <Button
             variant="accent"
+            data-testid="harness-compile"
             disabled={!gate2 || busy}
             onClick={() => run(() => api.compileHarness(id))}
           >
@@ -166,9 +174,11 @@ export default function HarnessPage(): React.ReactElement {
       <div style={headerRowStyle}>
         <h1 style={{ margin: 0 }}>Agent-Harness · Iteration {graph.iteration}</h1>
         <span
+          data-testid="harness-status"
+          data-frozen={frozen ? "1" : "0"}
           style={{
             ...pillStyle,
-            color: frozen ? "var(--c-green)" : "var(--c-steel)",
+            color: frozen ? "var(--c-green-text)" : "var(--c-steel)",
             borderColor: frozen ? "var(--c-green)" : "var(--c-border-strong)",
           }}
         >
@@ -230,10 +240,10 @@ export default function HarnessPage(): React.ReactElement {
         {!frozen ? (
           <div style={cmdRowStyle}>
             <span style={metaStyle}>Worker anordnen:</span>
-            <Button variant="secondary" disabled={busy} onClick={() => run(() => api.reviseHarness(id, { command: "parallel" }))}>
+            <Button variant="secondary" data-testid="harness-revise-parallel" disabled={busy} onClick={() => run(() => api.reviseHarness(id, { command: "parallel" }))}>
               Parallel
             </Button>
-            <Button variant="secondary" disabled={busy} onClick={() => run(() => api.reviseHarness(id, { command: "sequence" }))}>
+            <Button variant="secondary" data-testid="harness-revise-sequence" disabled={busy} onClick={() => run(() => api.reviseHarness(id, { command: "sequence" }))}>
               Sequenziell
             </Button>
           </div>
@@ -251,7 +261,7 @@ export default function HarnessPage(): React.ReactElement {
                   <span
                     style={{
                       ...tagStyle,
-                      color: SEVERITY_COLOR[f.severity],
+                      color: SEVERITY_TEXT_COLOR[f.severity],
                       borderColor: SEVERITY_COLOR[f.severity],
                     }}
                   >
@@ -326,7 +336,7 @@ export default function HarnessPage(): React.ReactElement {
         Human-in-the-Loop ({graph.hitl_points.length})
       </div>
       <div style={{ ...cardStyle, marginBottom: "var(--sp-6)" }}>
-        <ul style={plainListStyle}>
+        <ul style={plainListStyle} data-testid="hitl-points">
           {graph.hitl_points.map((p, i) => (
             <li key={i} style={{ fontSize: 14 }}>◆ {p}</li>
           ))}
@@ -367,6 +377,7 @@ export default function HarnessPage(): React.ReactElement {
         {!frozen ? (
           <Button
             variant="accent"
+            data-testid="gate3-submit"
             disabled={busy || hasFail}
             title={hasFail ? "Blockierende Befunde (fail) zuerst beheben" : "Harness freigeben (Gate 3)"}
             onClick={() => run(() => api.approveHarness(id))}
@@ -481,10 +492,10 @@ function SaveExport({ id, graph }: { id: string; graph: HarnessGraph }): React.R
       </p>
 
       <div style={{ ...cmdRowStyle, marginTop: "var(--sp-3)" }}>
-        <Button variant="accent" disabled={busy} onClick={() => void onSave()}>
+        <Button variant="accent" data-testid="harness-save-as" disabled={busy} onClick={() => void onSave()}>
           {busy ? "Speichere…" : "Speichern unter…"}
         </Button>
-        <a href={api.harnessDownloadUrl(id)} style={{ textDecoration: "none" }}>
+        <a data-testid="harness-download" href={api.harnessDownloadUrl(id)} style={{ textDecoration: "none" }}>
           <Button variant="secondary">Zip-Download ({graph.zip_name})</Button>
         </a>
       </div>
@@ -560,12 +571,17 @@ function AgentCard({
     .sort((a, b) => a.title.localeCompare(b.title));
 
   return (
-    <div style={{ ...cardStyle, borderColor: KIND_COLOR[agent.kind], padding: "var(--sp-3)" }}>
+    <div
+      style={{ ...cardStyle, borderColor: KIND_COLOR[agent.kind], padding: "var(--sp-3)" }}
+      data-testid="agent-card"
+      data-agent={agent.name}
+    >
       {/* Accordion-Header */}
       <button
         type="button"
         style={accHeadStyle}
         aria-expanded={open}
+        data-testid="agent-card-toggle"
         onClick={() => setOpen((v) => !v)}
       >
         <span style={{ ...nodeDot, backgroundColor: KIND_COLOR[agent.kind] }} />
@@ -583,6 +599,8 @@ function AgentCard({
           return (
             <span
               key={s}
+              data-testid="skill-chip"
+              data-trust-tier={cs?.trust_tier ?? "unknown"}
               style={{ ...skillChipStyle, borderColor: cs ? TRUST_BADGE[cs.trust_tier] : "var(--c-border-strong)" }}
               title={cs ? cs.description : s}
             >
@@ -628,7 +646,7 @@ function AgentCard({
           {!frozen ? (
             <>
               {/* Skill zuordnen */}
-              <button type="button" style={addToggleStyle} aria-expanded={addOpen} onClick={() => setAddOpen((v) => !v)}>
+              <button type="button" style={addToggleStyle} aria-expanded={addOpen} data-testid="skill-picker-toggle" onClick={() => setAddOpen((v) => !v)}>
                 {addOpen ? "▾ " : "+ "}Skill zuordnen
               </button>
               {addOpen ? (
@@ -642,14 +660,14 @@ function AgentCard({
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 240, overflow: "auto" }}>
                       {available.map((s) => (
-                        <div key={s.catalog_id} style={addRowStyle}>
+                        <div key={s.catalog_id} style={addRowStyle} data-testid="skill-picker-row" data-trust-tier={s.trust_tier}>
                           <span style={{ ...trustDotStyle, backgroundColor: TRUST_BADGE[s.trust_tier] }} title={s.trust_tier} />
                           <span style={{ flex: 1, fontSize: 13 }}>
                             <strong>{s.title}</strong>{" "}
                             <code style={{ fontSize: 11, color: "var(--c-steel)" }}>{s.catalog_id}</code>
                             <span style={{ ...metaStyle, display: "block" }}>{s.description}</span>
                           </span>
-                          <Button variant="secondary" disabled={busy} onClick={() => onAddSkill(s.catalog_id)}>
+                          <Button variant="secondary" data-testid="skill-picker-add" disabled={busy} onClick={() => onAddSkill(s.catalog_id)}>
                             + hinzufügen
                           </Button>
                         </div>
@@ -740,7 +758,18 @@ function AutonomySelector({
               <strong style={{ display: "block", fontSize: 14 }}>
                 {on ? "● " : "○ "}Stufe {l.level} · {l.label}
               </strong>
-              <span style={{ ...metaStyle, display: "block", marginTop: 2 }}>{l.desc}</span>
+              {/* Aktive Karte hat Ice-Hintergrund — Steel-Muted unterschreitet darauf
+                  AA (3.9:1); daher voller Textkontrast, wenn aktiv. */}
+              <span
+                style={{
+                  ...metaStyle,
+                  display: "block",
+                  marginTop: 2,
+                  color: on ? "var(--c-text)" : "var(--c-text-muted)",
+                }}
+              >
+                {l.desc}
+              </span>
             </button>
           );
         })}

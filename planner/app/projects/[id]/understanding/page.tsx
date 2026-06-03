@@ -150,7 +150,7 @@ export default function Understanding(): React.ReactElement {
   if (project === null) {
     return (
       <PageShell subtitle="Verständnis · Schritt 3" helpTopic="understanding">
-        {error ? <p style={errorStyle}>{error}</p> : <p>Lade…</p>}
+        {error ? <p data-testid="error-banner" role="alert" style={errorStyle}>{error}</p> : <p>Lade…</p>}
       </PageShell>
     );
   }
@@ -164,7 +164,7 @@ export default function Understanding(): React.ReactElement {
       </p>
 
       {locked ? (
-        <div style={gateBannerStyle}>
+        <div data-testid="gate1-banner" style={gateBannerStyle}>
           <strong>Gate 1 freigegeben.</strong> Das Verständnis ist eingefroren
           (am {new Date(project.gate1_approved_at as string).toLocaleString("de-DE")}
           ). Die Planung kann starten.
@@ -190,6 +190,7 @@ export default function Understanding(): React.ReactElement {
                 <input
                   type="radio"
                   name="ptype"
+                  data-testid={`project-type-${o.v}`}
                   checked={ptype === o.v}
                   disabled={locked || busy}
                   onChange={() => { setPtype(o.v); setPsubtype(""); }}
@@ -199,6 +200,7 @@ export default function Understanding(): React.ReactElement {
             ))}
           </div>
           <select
+            data-testid="project-subtype"
             value={psubtype}
             onChange={(e) => setPsubtype(e.target.value as ProjectSubtype)}
             style={inputStyle}
@@ -231,6 +233,7 @@ export default function Understanding(): React.ReactElement {
                 <input
                   type="radio"
                   name="aegira_internal"
+                  data-testid={`aegira-internal-${o.v ? "yes" : "no"}`}
                   checked={aegiraInternal === o.v}
                   disabled={busy}
                   onChange={() => { setAegiraInternal(o.v); if (!o.v) setUsePrefs(false); }}
@@ -284,6 +287,7 @@ export default function Understanding(): React.ReactElement {
           </label>
           <select
             id="platform"
+            data-testid="target-platform"
             value={platform}
             onChange={(e) => setPlatform(e.target.value as TargetPlatform)}
             style={inputStyle}
@@ -312,16 +316,17 @@ export default function Understanding(): React.ReactElement {
           />
         </div>
 
-        {error ? <p style={errorStyle}>{error}</p> : null}
+        {error ? <p data-testid="error-banner" role="alert" style={errorStyle}>{error}</p> : null}
         {saved ? <p style={savedStyle}>Gespeichert.</p> : null}
 
         {!locked ? (
           <div className="aegira-actions" style={actionsStyle}>
-            <Button variant="secondary" onClick={save} disabled={busy}>
+            <Button variant="secondary" data-testid="understanding-save" onClick={save} disabled={busy}>
               {busy ? "Speichere…" : "Speichern"}
             </Button>
             <Button
               variant="accent"
+              data-testid="gate1-submit"
               onClick={approve}
               disabled={busy || !ptype || aegiraInternal === null}
               title={
@@ -345,6 +350,7 @@ export default function Understanding(): React.ReactElement {
             </Button>
             <Button
               variant="accent"
+              data-testid="understanding-next"
               onClick={() => router.push(`/projects/${id}/guardrails`)}
             >
               Weiter zu Leitplanken

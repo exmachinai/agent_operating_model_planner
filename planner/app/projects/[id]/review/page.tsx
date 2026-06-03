@@ -1,7 +1,7 @@
 /**
  * Schritt 7 — Review & Freigabe (Gate 2), PLANEN-Phase.
  *
- * Spec: docs/09_process-flow.md (Schritt 7). Der bei Schritt 6 erzeugte ZGPM-Plan
+ * Spec: docs/09_process-flow.md (Schritt 7). Der bei Schritt 6 erzeugte Plan
  * wird hier inline geprüft und editiert. Jede gespeicherte Änderung erzeugt eine
  * neue, unveränderliche Version (append-only); ein Diff zeigt, was sich gegenüber
  * der Vorversion geändert hat. Mit Gate 2 wird die Version als Bauvorlage
@@ -27,10 +27,17 @@ import {
   type RiskPatch,
 } from "../../../../lib/api";
 
+// Flächen-Farben (Dots, Rahmen) — helle Brand-Swatches.
 const AMPEL_COLOR: Record<RiskAmpel, string> = {
   rot: "var(--c-red)",
   gelb: "var(--c-amber)",
   gruen: "var(--c-green)",
+};
+// Text-Farben (Badges/Labels) — AA-konforme dunklere Varianten (≥4.5:1 auf hell).
+const AMPEL_TEXT_COLOR: Record<RiskAmpel, string> = {
+  rot: "var(--c-red)",
+  gelb: "var(--c-amber-text)",
+  gruen: "var(--c-green-text)",
 };
 const AMPEL_LABEL: Record<RiskAmpel, string> = {
   rot: "Rot",
@@ -40,6 +47,11 @@ const AMPEL_LABEL: Record<RiskAmpel, string> = {
 const REVIEWER_COLOR: Record<ReviewerStatus, string> = {
   PASS: "var(--c-green)",
   NEEDS_REVISION: "var(--c-amber)",
+  HARD_FAIL: "var(--c-red)",
+};
+const REVIEWER_TEXT_COLOR: Record<ReviewerStatus, string> = {
+  PASS: "var(--c-green-text)",
+  NEEDS_REVISION: "var(--c-amber-text)",
   HARD_FAIL: "var(--c-red)",
 };
 
@@ -267,7 +279,7 @@ export default function ReviewPage(): React.ReactElement {
         <span
           style={{
             ...pillStyle,
-            color: REVIEWER_COLOR[plan.reviewer_status],
+            color: REVIEWER_TEXT_COLOR[plan.reviewer_status],
             borderColor: REVIEWER_COLOR[plan.reviewer_status],
           }}
         >
@@ -276,14 +288,14 @@ export default function ReviewPage(): React.ReactElement {
         <span
           style={{
             ...pillStyle,
-            color: AMPEL_COLOR[plan.overall_ampel],
+            color: AMPEL_TEXT_COLOR[plan.overall_ampel],
             borderColor: AMPEL_COLOR[plan.overall_ampel],
           }}
         >
           Gesamtrisiko: {plan.overall_ampel}
         </span>
         {frozen ? (
-          <span style={{ ...pillStyle, color: "var(--c-green)", borderColor: "var(--c-green)" }}>
+          <span style={{ ...pillStyle, color: "var(--c-green-text)", borderColor: "var(--c-green)" }}>
             Gate 2 ✓ · v{project?.approved_plan_version} freigegeben
           </span>
         ) : null}
@@ -297,7 +309,7 @@ export default function ReviewPage(): React.ReactElement {
       {error ? <p style={errorStyle}>{error}</p> : null}
 
       {frozen ? (
-        <div style={{ ...cardStyle, marginBottom: "var(--sp-4)", borderColor: "var(--c-green)" }}>
+        <div data-testid="gate2-banner" style={{ ...cardStyle, marginBottom: "var(--sp-4)", borderColor: "var(--c-green)" }}>
           <strong>Plan eingefroren.</strong> Version{" "}
           {project?.approved_plan_version} wurde bei Gate 2 freigegeben und ist die
           Bauvorlage für den Harness (Schritt 8). Revisionen sind nicht mehr möglich.
@@ -334,8 +346,8 @@ export default function ReviewPage(): React.ReactElement {
                       f.severity === "fail"
                         ? "var(--c-red)"
                         : f.severity === "warn"
-                          ? "var(--c-amber)"
-                          : "var(--c-green)",
+                          ? "var(--c-amber-text)"
+                          : "var(--c-green-text)",
                     borderColor:
                       f.severity === "fail"
                         ? "var(--c-red)"
@@ -473,6 +485,7 @@ export default function ReviewPage(): React.ReactElement {
           <label style={{ display: "flex", gap: "var(--sp-2)", alignItems: "flex-start", fontSize: 14 }}>
             <input
               type="checkbox"
+              data-testid="review-sufficient"
               checked={sufficient}
               disabled={dirty}
               onChange={(e) => setSufficient(e.target.checked)}
@@ -490,13 +503,14 @@ export default function ReviewPage(): React.ReactElement {
           Zurück zum Plan
         </Button>
         {!frozen ? (
-          <Button variant="secondary" onClick={save} disabled={busy || !dirty}>
+          <Button variant="secondary" data-testid="review-save" onClick={save} disabled={busy || !dirty}>
             {busy ? "…" : `Änderungen speichern (v${plan.version + 1})`}
           </Button>
         ) : null}
         {!frozen ? (
           <Button
             variant="accent"
+            data-testid="gate2-submit"
             onClick={approve}
             disabled={busy || dirty || hardFail || !sufficient}
             title={
@@ -512,7 +526,7 @@ export default function ReviewPage(): React.ReactElement {
             Freigeben (Gate 2)
           </Button>
         ) : (
-          <Button variant="accent" onClick={() => router.push(`/projects/${id}/harness`)}>
+          <Button variant="accent" data-testid="review-to-harness" onClick={() => router.push(`/projects/${id}/harness`)}>
             Weiter zum Harness (Schritt 8)
           </Button>
         )}
@@ -591,7 +605,7 @@ function RiskEditor({
         </label>
         <div style={{ ...fieldStyle, justifyContent: "flex-end" }}>
           <span style={fieldLabelStyle}>Ergebnis</span>
-          <span style={{ ...scorePillStyle, color: AMPEL_COLOR[liveAmpel], borderColor: AMPEL_COLOR[liveAmpel] }}>
+          <span style={{ ...scorePillStyle, color: AMPEL_TEXT_COLOR[liveAmpel], borderColor: AMPEL_COLOR[liveAmpel] }}>
             {r.probability} × {r.impact} = {score} → {AMPEL_LABEL[liveAmpel]}
           </span>
         </div>

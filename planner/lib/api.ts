@@ -161,7 +161,7 @@ export interface GuardrailCheck {
   cleared_at: string | null;
 }
 
-// --- Schritt 6: ZGPM-Plan ---------------------------------------------------
+// --- Schritt 6: Plan -------------------------------------------------------
 
 export type PVMCode = "A" | "B" | "E" | "e" | "F" | "L" | "I" | "V";
 export type RiskAmpel = "rot" | "gelb" | "gruen";

@@ -1,8 +1,8 @@
 /**
- * Schritt 6 — Der ZGPM-Plan entsteht (PLANEN).
+ * Schritt 6 — Der Plan entsteht (PLANEN).
  *
  * Spec: docs/09_process-flow.md (Schritt 6). Der Orchestrator-Worker-Lauf
- * erzeugt einen ZGPM-konformen Plan (Meilensteine als Zustände, PVM, Risk-Matrix,
+ * erzeugt einen strukturierten Plan (Meilensteine als Zustände, PVM, Risk-Matrix,
  * Token-Budget); der Reviewer prüft gegen die Methodenregeln. Voraussetzung:
  * Gate 1 + quittierte Leitplanken (Schritt 5). Output ist AI-generiert (Art. 50).
  */
@@ -30,10 +30,17 @@ import {
   type ReviewerStatus,
 } from "../../../../lib/api";
 
+// Flächen-Farben (Dots, Rahmen, borderLeft) — helle Brand-Swatches.
 const AMPEL_COLOR: Record<RiskAmpel, string> = {
   rot: "var(--c-red)",
   gelb: "var(--c-amber)",
   gruen: "var(--c-green)",
+};
+// Text-Farben (Badges/Labels) — AA-konforme dunklere Varianten (≥4.5:1 auf hell).
+const AMPEL_TEXT_COLOR: Record<RiskAmpel, string> = {
+  rot: "var(--c-red)",
+  gelb: "var(--c-amber-text)",
+  gruen: "var(--c-green-text)",
 };
 const AMPEL_LABEL: Record<RiskAmpel, string> = {
   rot: "Rot",
@@ -44,6 +51,11 @@ const AMPEL_LABEL: Record<RiskAmpel, string> = {
 const REVIEWER_COLOR: Record<ReviewerStatus, string> = {
   PASS: "var(--c-green)",
   NEEDS_REVISION: "var(--c-amber)",
+  HARD_FAIL: "var(--c-red)",
+};
+const REVIEWER_TEXT_COLOR: Record<ReviewerStatus, string> = {
+  PASS: "var(--c-green-text)",
+  NEEDS_REVISION: "var(--c-amber-text)",
   HARD_FAIL: "var(--c-red)",
 };
 
@@ -114,7 +126,7 @@ export default function PlanPage(): React.ReactElement {
 
   if (loading) {
     return (
-      <PageShell subtitle="ZGPM-Plan · Schritt 6" helpTopic="plan">
+      <PageShell subtitle="Plan · Schritt 6" helpTopic="plan">
         {error ? <p style={errorStyle}>{error}</p> : <p>Lade…</p>}
       </PageShell>
     );
@@ -122,19 +134,19 @@ export default function PlanPage(): React.ReactElement {
 
   if (plan === null) {
     return (
-      <PageShell subtitle="ZGPM-Plan · Schritt 6" helpTopic="plan">
-        <h1 style={{ marginBottom: "var(--sp-2)" }}>ZGPM-Plan</h1>
+      <PageShell subtitle="Plan · Schritt 6" helpTopic="plan">
+        <h1 style={{ marginBottom: "var(--sp-2)" }}>Plan</h1>
         <p style={leadStyle}>
           Aus dem freigegebenen Verständnis bauen die Agenten einen vollständigen,
           methodischen Plan: Meilensteine, Risk-Matrix, Verantwortlichkeiten (PVM)
-          und Token-Budget. Der Reviewer prüft gegen die ZGPM-Regeln.
+          und Token-Budget. Der Reviewer prüft gegen die Plan-Regeln.
         </p>
         {error ? <p style={errorStyle}>{error}</p> : null}
         <div style={actionsStyle}>
           <Button variant="secondary" onClick={() => router.push("/")}>
             Zur Übersicht
           </Button>
-          <Button variant="accent" onClick={generate} disabled={busy}>
+          <Button variant="accent" data-testid="plan-generate" onClick={generate} disabled={busy}>
             {busy ? "Plan wird erzeugt…" : "Plan generieren"}
           </Button>
         </div>
@@ -148,7 +160,7 @@ export default function PlanPage(): React.ReactElement {
   );
 
   // Gesamtrisiko-Begründung: welche Einzel-Risiken (MRL/PRL) ziehen die Ampel auf
-  // ihr Niveau? ZGPM-Ampel-Propagation = schlechteste Einzelampel gewinnt.
+  // ihr Niveau? Ampel-Propagation = schlechteste Einzelampel gewinnt.
   const riskDrivers = [
     ...plan.milestones.flatMap((m) =>
       m.mrl
@@ -161,22 +173,24 @@ export default function PlanPage(): React.ReactElement {
   ];
 
   return (
-    <PageShell subtitle="ZGPM-Plan · Schritt 6" helpTopic="plan">
+    <PageShell subtitle="Plan · Schritt 6" helpTopic="plan">
       <div style={headerRowStyle}>
-        <h1 style={{ margin: 0 }}>ZGPM-Plan · v{plan.version}</h1>
+        <h1 style={{ margin: 0 }}>Plan · v{plan.version}</h1>
         <span
           style={{
             ...pillStyle,
-            color: REVIEWER_COLOR[plan.reviewer_status],
+            color: REVIEWER_TEXT_COLOR[plan.reviewer_status],
             borderColor: REVIEWER_COLOR[plan.reviewer_status],
           }}
         >
           Reviewer: {plan.reviewer_status} · {plan.reviewer_rounds} Runde(n)
         </span>
         <span
+          data-testid="risk-ampel"
+          data-ampel={plan.overall_ampel}
           style={{
             ...pillStyle,
-            color: AMPEL_COLOR[plan.overall_ampel],
+            color: AMPEL_TEXT_COLOR[plan.overall_ampel],
             borderColor: AMPEL_COLOR[plan.overall_ampel],
           }}
         >
@@ -199,7 +213,7 @@ export default function PlanPage(): React.ReactElement {
       >
         <div style={sectionLabel}>
           Gesamtrisiko:{" "}
-          <span style={{ color: AMPEL_COLOR[plan.overall_ampel] }}>
+          <span style={{ color: AMPEL_TEXT_COLOR[plan.overall_ampel] }}>
             {AMPEL_LABEL[plan.overall_ampel]}
           </span>{" "}
           — Begründung
@@ -225,7 +239,7 @@ export default function PlanPage(): React.ReactElement {
             color: "var(--c-text-muted)",
           }}
         >
-          Die Gesamt-Ampel folgt der ZGPM-Ampel-Propagation: die{" "}
+          Die Gesamt-Ampel folgt der Ampel-Propagation: die{" "}
           <strong>schlechteste Einzel-Ampel</strong> (Meilenstein-Risiko MRL bzw.
           Projektrisiko PRL) bestimmt das Gesamtbild.{" "}
           {plan.overall_ampel === "gruen"
@@ -268,8 +282,8 @@ export default function PlanPage(): React.ReactElement {
                       f.severity === "fail"
                         ? "var(--c-red)"
                         : f.severity === "warn"
-                          ? "var(--c-amber)"
-                          : "var(--c-green)",
+                          ? "var(--c-amber-text)"
+                          : "var(--c-green-text)",
                     borderColor:
                       f.severity === "fail"
                         ? "var(--c-red)"
@@ -397,6 +411,7 @@ export default function PlanPage(): React.ReactElement {
         </Button>
         <Button
           variant="accent"
+          data-testid="plan-to-review"
           onClick={() => router.push(`/projects/${id}/review`)}
         >
           Review & Freigabe (Gate 2)

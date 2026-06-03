@@ -89,12 +89,44 @@ gh variable set NEXT_PUBLIC_API_BASE_URL --repo "$REPO" --body "https://api.zgpm
 ## 5. Testlauf
 
 ```bash
-# Manuell, ohne Tag:
-gh workflow run deploy.yml --repo "$REPO" -f version=v0.0.0-cictest
-
-# Oder per Tag:
-git tag v0.3.1 && git push origin v0.3.1
+# Manuell (workflow_dispatch). image_tag ist nur das sprechende PRÄFIX —
+# der Workflow hängt pro Lauf '-<run_number>' an (siehe §6).
+gh workflow run deploy.yml --repo "$REPO" -f image_tag=v0.9.0
 ```
 
-Den Lauf beobachten: `gh run watch --repo "$REPO"`. Der `Smoke-Tests`-Step am Ende
-prüft `zgpm.aegira.ai` und `api.zgpm.aegira.ai`.
+Den Lauf beobachten: `gh run watch --repo "$REPO"`. Der
+`Smoke-Test + Versions-Assertion`-Step am Ende prüft `zgpm.aegira.ai` und
+`api.zgpm.aegira.ai` und schlägt fehl, wenn `/health.version` nicht dem
+effektiven Image-Tag entspricht (siehe §6).
+
+## 6. Eindeutiger Image-Tag pro Lauf (Mutable-Tag-Falle)
+
+**Problem:** `az containerapp update --image …:TAG` rollt **keine neue Revision**,
+wenn der Tag-String unverändert ist — auch wenn `az acr build` ein neues Image unter
+demselben Tag gebaut hat. Wird also `v0.9.0` ein zweites Mal deployt, läuft die App
+mit dem **alten** Image weiter (Symptom: `/health` meldet die alte Version).
+
+**Lösung (im Workflow fest verdrahtet):** Der vom Nutzer eingegebene `image_tag` ist
+nur ein **sprechendes Präfix**. Der erste Step leitet daraus einen pro Lauf
+eindeutigen Tag ab und exportiert ihn als `IMAGE_TAG`:
+
+```bash
+IMAGE_TAG=${{ inputs.image_tag }}-${{ github.run_number }}   # z. B. v0.9.0-42
+```
+
+Dieser `IMAGE_TAG` wird durchgängig verwendet:
+
+- bei `az acr build --image planner-api:$IMAGE_TAG` (und Frontend),
+- bei `az containerapp update --image …:$IMAGE_TAG` für **beide** Apps → garantiert
+  eine neue Revision,
+- zusätzlich setzt der API-Update `--set-env-vars APP_VERSION=$IMAGE_TAG`, damit
+  `/health.version` **beweisbar** die neue Revision meldet statt des hartkodierten
+  Config-Defaults.
+
+**Verifikation:** Der Smoke-Test pollt `https://api.zgpm.aegira.ai/health` und bricht
+ab, wenn `version != IMAGE_TAG`. So wird ein stehengebliebener alter Container im
+Deploy-Lauf selbst erkannt statt stillschweigend übergangen. Im Job-Log erscheint bei
+Erfolg `::notice::Neue Revision live — /health.version = v0.9.0-<run_number>`.
+
+> Kein manueller Workaround mehr nötig: früher musste man bei einem Re-Deploy von Hand
+> einen frischen Tag (`v0.9.0-2`) vergeben — das macht der Workflow jetzt automatisch.

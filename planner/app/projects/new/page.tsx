@@ -55,6 +55,7 @@ export default function NewProject(): React.ReactElement {
           </label>
           <input
             id="title"
+            data-testid="project-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="z. B. AEGIRA Launch DE"
@@ -70,6 +71,7 @@ export default function NewProject(): React.ReactElement {
           </label>
           <textarea
             id="description"
+            data-testid="project-brief"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Worum geht es? Was soll am Ende herauskommen?"
@@ -84,11 +86,12 @@ export default function NewProject(): React.ReactElement {
           <Button
             type="button"
             variant="secondary"
+            data-testid="new-cancel"
             onClick={() => router.push("/")}
           >
             Abbrechen
           </Button>
-          <Button type="submit" disabled={!canSubmit}>
+          <Button type="submit" data-testid="new-submit" disabled={!canSubmit}>
             {busy ? "Speichere…" : "Weiter"}
           </Button>
         </div>

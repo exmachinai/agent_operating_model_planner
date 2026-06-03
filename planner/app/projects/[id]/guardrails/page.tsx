@@ -80,7 +80,7 @@ export default function Guardrails(): React.ReactElement {
       {cleared ? (
         <div style={banner("var(--c-green)", "rgba(90,147,103,0.10)")}>
           <strong>Leitplanken geprüft ✓</strong> Du kannst mit der Planung
-          fortfahren. Der ZGPM-Plan (Schritt 6) folgt.
+          fortfahren. Der Plan (Schritt 6) folgt.
         </div>
       ) : verdict === "refused" ? (
         <div style={banner("var(--c-red)", "rgba(195,66,63,0.08)")}>
@@ -169,12 +169,13 @@ export default function Guardrails(): React.ReactElement {
         {cleared ? (
           <Button
             variant="accent"
+            data-testid="guardrails-next"
             onClick={() => router.push(`/projects/${id}/plan/milestones`)}
           >
-            Weiter zum ZGPM-Plan
+            Weiter zum Plan
           </Button>
         ) : verdict !== "refused" ? (
-          <Button variant="accent" onClick={clear} disabled={!canProceed || busy}>
+          <Button variant="accent" data-testid="guardrails-clear" onClick={clear} disabled={!canProceed || busy}>
             {busy ? "…" : "Weiter zur Planung"}
           </Button>
         ) : null}

@@ -6,7 +6,7 @@ import { LockProvider } from "../lib/lockProvider";
 export const metadata: Metadata = {
   title: "AEGIRA — Agent Operating Model Planner",
   description:
-    "ZGPM-konformer Multi-Agent-Planner — Evidence-based AI Trust, nachweisbar, audit-ready.",
+    "Strukturierter Multi-Agent-Planner — Evidence-based AI Trust, nachweisbar, audit-ready.",
   applicationName: "AEGIRA — Agent Operating Model Planner",
   authors: [{ name: "exmachinAI GmbH" }],
   // Inline Data-URI: Next.js-Standalone liefert public/-Favicons mit 400 aus.

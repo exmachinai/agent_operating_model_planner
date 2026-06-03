@@ -104,6 +104,7 @@ export default function MilestonesPage(): React.ReactElement {
             {done ? (
               <Button
                 variant="accent"
+                data-testid="milestones-next"
                 onClick={() => router.push(`/projects/${id}/plan`)}
               >
                 Weiter zum Plan-Ergebnis
@@ -111,6 +112,7 @@ export default function MilestonesPage(): React.ReactElement {
             ) : (
               <Button
                 variant="accent"
+                data-testid="milestones-done"
                 disabled={busy || plan.milestones.length === 0}
                 onClick={() => void confirm()}
               >

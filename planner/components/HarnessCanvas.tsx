@@ -302,7 +302,12 @@ export function HarnessCanvas({
       <div className={frozen ? undefined : "aegira-canvas-grid"} style={frozen ? layoutGrid(true) : undefined}>
         {/* Palette — mobil über den Lanes (volle Breite), ab md als Seitenspalte. */}
         {!frozen ? (
-          <aside style={paletteStyle}>
+          <aside
+            style={paletteStyle}
+            // A11y (WCAG scrollable-region-focusable): scrollbare Palette per Tastatur erreichbar.
+            tabIndex={0}
+            aria-label="Agenten-Palette — scrollbar"
+          >
             <div style={sectionLabel}>Agenten-Palette</div>
             <p style={hintStyle}>
               Auf Touch/Mobil: Karte antippen fügt sie der ersten Stage hinzu; am
@@ -317,7 +322,9 @@ export function HarnessCanvas({
                 style={{
                   ...paletteCard,
                   borderLeft: `3px solid ${KIND_COLOR[c.kind]}`,
-                  opacity: present.has(c.id) ? 0.45 : 1,
+                  // 0.65 statt 0.45: bereits platzierte Agenten bleiben sichtbar
+                  // de-emphasized, der Karten-Text erfüllt aber weiter AA (≥4.5:1).
+                  opacity: present.has(c.id) ? 0.65 : 1,
                 }}
                 title={`${c.description} — Tippen: zu Stage 1 hinzufügen`}
               >
@@ -355,7 +362,7 @@ export function HarnessCanvas({
                 >
                   <div style={laneHead}>
                     <span>Stage {s + 1}</span>
-                    {pat ? <span style={patternPill}>{PATTERN_LABEL[pat]}</span> : <span style={{ ...patternPill, opacity: 0.5 }}>leer</span>}
+                    {pat ? <span style={patternPill}>{PATTERN_LABEL[pat]}</span> : <span style={{ ...patternPill, borderStyle: "dashed" }}>leer</span>}
                   </div>
                   <div className="aegira-lane-nodes">
                     {ns.map((n) => {

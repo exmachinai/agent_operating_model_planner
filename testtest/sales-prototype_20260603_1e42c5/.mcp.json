@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-playwright"
+      ],
+      "env": {
+        "PLAYWRIGHT_TOKEN": "${PLAYWRIGHT_TOKEN}"
+      }
+    }
+  }
+}

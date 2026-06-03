@@ -1,0 +1,21 @@
+meilenstein: "M03"
+name: "Aegira-Branding auf alle Screens angewendet"
+geplant: 2026-07-15T08:51:07.602738+00:00
+pvm:
+- rolle: "PMO-Agent"
+  code: "L"
+- rolle: "Implementierungs-Agent"
+  code: "A"
+- rolle: "Projektleiter (HITL)"
+  code: "E"
+- rolle: "Risiko-Agent"
+  code: "B"
+- rolle: "Fachbereich"
+  code: "I"
+mrl:
+- id: "M03-R1"
+  beschreibung: "Verzögerung oder Qualitätslücke in Phase Design."
+  eintritt: 4
+  auswirkung: 3
+  ampel: "gelb"
+  massnahme: "Frühes HITL-Review am Phasenübergang; Puffer eingeplant."

@@ -1,0 +1,21 @@
+meilenstein: "M02"
+name: "Clickflow und Screen-Inventar vollständig dokumentiert"
+geplant: 2026-07-01T08:51:07.602738+00:00
+pvm:
+- rolle: "PMO-Agent"
+  code: "L"
+- rolle: "Architektur-Agent"
+  code: "A"
+- rolle: "Projektleiter (HITL)"
+  code: "E"
+- rolle: "Risiko-Agent"
+  code: "B"
+- rolle: "Fachbereich"
+  code: "I"
+mrl:
+- id: "M02-R1"
+  beschreibung: "Verzögerung oder Qualitätslücke in Phase Konzeption."
+  eintritt: 3
+  auswirkung: 4
+  ampel: "gelb"
+  massnahme: "Frühes HITL-Review am Phasenübergang; Puffer eingeplant."

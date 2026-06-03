@@ -1,0 +1,44 @@
+meta_pattern: "handoff"
+stages:
+- stage: 0
+  pattern: "evaluator-optimizer"
+  agents:
+  - label: "PMO-Orchestrator"
+    kind: "orchestrator"
+  - label: "Reviewer/QA-Agent"
+    kind: "evaluator"
+- stage: 1
+  pattern: "section"
+  agents:
+  - label: "Architektur-Agent"
+    kind: "worker"
+  - label: "Implementierungs-Agent"
+    kind: "worker"
+  - label: "UX/Design-Agent"
+    kind: "worker"
+  - label: "Methodik-Agent"
+    kind: "worker"
+  - label: "Risiko-Agent"
+    kind: "worker"
+- stage: 2
+  pattern: "evaluator-optimizer"
+  agents:
+  - label: "Test-Agent (E2E)"
+    kind: "evaluator"
+  - label: "Router/Triage-Agent"
+    kind: "router"
+- stage: 3
+  pattern: "chain"
+  agents:
+  - label: "Projektleiter (HITL)"
+    kind: "hitl"
+hitl_points:
+- "M01 Scope und Branding-Grundlagen festgelegt — Meilenstein-Freigabe (HITL-PM)"
+- "M02 Clickflow und Screen-Inventar vollständig dokumentiert — Meilenstein-Freigabe (HITL-PM)"
+- "M03 Aegira-Branding auf alle Screens angewendet — Meilenstein-Freigabe (HITL-PM)"
+- "M04 Alle Screens mit Mock-Daten lauffähig umgesetzt — Meilenstein-Freigabe (HITL-PM)"
+- "M05 Prototyp auf Azure deployed und im Browser erreichbar — Meilenstein-Freigabe (HITL-PM)"
+- "M06 Prototyp intern abgenommen und sales-ready freigegeben — Meilenstein-Freigabe (HITL-PM)"
+- "Token-Budget > 80% — HITL-PM bestätigt Fortsetzung"
+- "Neuer Skill eingeführt — HITL-PM-Review vor Nutzung"
+note: "Gleiche Stage = parallel (Sectioning); Stage-Reihenfolge = sequenziell (Chaining)."

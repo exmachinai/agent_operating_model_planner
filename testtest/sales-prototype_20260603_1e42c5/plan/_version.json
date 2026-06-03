@@ -1,0 +1,14 @@
+{
+  "schema_version": "2.1.0-claude-native",
+  "plan_hash": "sha256:1e42c5879c90105f268371733847bea78dd73771facf946781d90fd4e6637b9f",
+  "plan_version": 2,
+  "planausgabedatum": "2026-06-03T08:55:44.602173+00:00",
+  "kontrolliert_durch": "stub_user",
+  "compiled_by": "aegira-planner@0.9.0",
+  "compiled_at": "2026-06-03T08:56:07.771120+00:00",
+  "runtime_requirements": {
+    "claude_code": ">=2.0",
+    "cowork": ">=0.4",
+    "anthropic_api": "required"
+  }
+}

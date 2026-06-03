@@ -1,0 +1,10 @@
+{
+  "name": "aegira-harness",
+  "image": "mcr.microsoft.com/devcontainers/base:bookworm",
+  "remoteUser": "vscode",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "postCreateCommand": "command -v jq >/dev/null || sudo apt-get update && sudo apt-get install -y jq"
+}

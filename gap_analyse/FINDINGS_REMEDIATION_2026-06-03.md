@@ -1,8 +1,9 @@
 # Findings → Umsetzungsplan — P0-Slice v0.9.5 (2026-06-03)
 
-Ergebnis der P0-Test-Durchführung (Teststrategie §14/§17). Suite-Stand: **100 passed,
-0 xfailed**. Behoben im selben Lauf: Versions-Drift (VER-PARITY) UND CG-6 (Produktnamen
-in Externdeliverables). Offen: nur 1 dokumentierte Eigenschaft (INV-7-Provenance, kein Defekt).
+Ergebnis der P0+P1+P2-Test-Durchführung (Teststrategie §14/§17). Suite-Stand:
+**117 passed, 0 xfailed** (76 Baseline → +41). Behoben: F-VER (Versions-Drift),
+F-CG6 (markenfreies Externdeliverable), F-RES2 (Gate-3-Idempotenz). Offen: nur
+1 dokumentierte Eigenschaft (INV-7-Provenance, kein Defekt).
 Hinweis: „AEGIRA" (Plattformname) ist Positivliste/erlaubt — nur interne Produktnamen waren extern zu strippen.
 
 ## Behoben in diesem Lauf
@@ -10,7 +11,8 @@ Hinweis: „AEGIRA" (Plattformname) ist Positivliste/erlaubt — nur interne Pro
 | ID | Quelle | Severity | Bucket | Datei | Root-Cause | Fix | Re-Test (grün) | Status |
 |----|--------|----------|--------|-------|-----------|-----|----------------|--------|
 | F-VER | VER-PARITY | P0 | Konsistenz | `app/config.py:18`, `app/harness/compiler.py:44` | `app_version=0.9.2` und `_COMPILER_ID=@0.9.0` driften gegen `package.json=0.9.4` | Beide auf `0.9.4` gesetzt | `test_version_parity.py::*` (5/5) | ✅ geschlossen |
-| F-CG6 | CG-6 | P0→behoben | Kundenschutz | `app/harness/templates.py::handover_md` | HANDOVER-Leitplanken-Zeile nennt interne Produktnamen unabhängig von `apply_preferences` (Plattformname „AEGIRA" = Positivliste, bleibt) | Produktnamen-Segment via `project.apply_preferences` gegated (konsistent zu `claude_md`) | `test_cg6_external_deliverable_free_of_internal_product_names` + `test_cg6_internal_with_preferences_keeps_product_names` | ✅ geschlossen |
+| F-CG6 | CG-6 | P0→behoben | Kundenschutz | `app/harness/templates.py::handover_md` | HANDOVER-Leitplanken-Zeile nennt interne Produktnamen unabhängig von `apply_preferences` (Plattformname „AEGIRA" = Positivliste, bleibt) | Produktnamen-Segment via `project.apply_preferences` gegated (konsistent zu `claude_md`); zudem neutraler Plugin-Namespace/Devcontainer/Attribution extern | `test_cg6_external_deliverable_is_brand_neutral` + `…internal_with_preferences_keeps_product_names` + IT-Devcontainer | ✅ geschlossen |
+| F-RES2 | RES-2 | P1→behoben | Resilienz | `app/routers/harness.py::approve_harness` | Gate 3 hatte KEINEN Doppel-Approve-Schutz → erneuter Freeze stempelt Zip-Hash/Zeitstempel neu (nicht idempotent) | 409-Guard bei `gate3_approved_at is not None` (konsistent zu Gate 1/2) | `test_resilience_secleak.py::test_res2_gate3_double_approve_409` | ✅ geschlossen |
 
 ## Offen / dokumentiert
 

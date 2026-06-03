@@ -26,8 +26,20 @@ offenen Zeilen.
 | Runtime-Schema-Treue (Hooks/settings) | R1 | `test_harness_schema.py::*` (bestehend) | ✅ |
 | Gate-Reihenfolge/HITL (Compile erst nach Gate 2, Gate-3-Freeze) | R6 | `test_harness.py::test_compile_requires_gate2`, `::test_gate3_freezes_and_blocks_revision` | ✅ |
 | Export-Integrität (checksums round-trip) | R6 | `test_harness.py::test_download_zip_integrity` | ✅ |
+| Iterations-Cap (INV-8, MAX_HARNESS_ITERATIONS) | R1 | `test_invariants_extended.py::test_inv8_iteration_cap_returns_409` | ✅ |
+| Absolute Pfade $HARNESS_ROOT (INV-6) | R1 | `…::test_inv6_absolute_paths_in_claude_md` | ✅ |
+| Anti-Muster sichtbar (INV-10) | R1 | `…::test_inv10_anti_patterns_are_visible_as_findings` | ✅ |
+| Rote Ampel → stop-on-red (INV-4) | R1 | `…::test_inv4_stop_on_red_hook_present` | ✅ |
+| Skill-Manifest/Trust-Tier (INV-11) | R1 | `…::test_inv11_skill_manifest_has_trust_and_gate` | ✅ |
+| Doppel-Approve idempotent (RES-2, alle Gates) | R9 | `test_resilience_secleak.py::test_res2_gate{1,2,3}_*` | ✅ |
+| Keine Klartext-Secrets / deny Read(.env) (SEC-LEAK) | R3 | `test_resilience_secleak.py::test_secleak_*` | ✅ |
+| Slug-Eigenschaften (Property-based) | R1 | `test_property_hypothesis.py::*` (hypothesis) | ✅ |
+| Struktur-Golden (Drift-Erkennung) | R1 | `test_golden_structure.py` (syrupy) | ✅ |
+| Mutation-Score Compiler ≥75 % | R1 | `setup.cfg` (mutmut, CI-Job) | ⚙️ konfiguriert |
+| Deploy-Parität + Erreichbarkeit (T0) | R1 | `e2e/tests/t0_parity.spec.ts` (Playwright) | ✅ scaffold |
 
-## Offen (spätere Inkremente, P1/P2)
-- E2E/Playwright T0–J7, Persona U1–U7 (§9) · A11y/Visual (§10) · Mutation `mutmut` (§4)
-- Property-based (`hypothesis`) für Compiler-Invarianten INV-1/2/3/8/9
-- Echte Tenant-Isolation (AUTHZ über echte Multi-Tenancy statt Stub)
+## Offen (spätere Inkremente)
+- E2E-Journeys J1–J7 + Persona U1–U7 (§9) · A11y/Visual/Lighthouse (§10) — Scaffold + Backlog in `planner/e2e/`.
+- mutmut-Vollkampagne als CI-Job (Score-Gate ≥75 %).
+- Echte Tenant-Isolation (AUTHZ über echte Multi-Tenancy statt Stub).
+- INV-9 „Evaluator max. 3 Runden" ist Prompt-Constraint (nicht API-enforced) — Doku-Finding.

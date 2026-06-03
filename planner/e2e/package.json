@@ -1,0 +1,14 @@
+{
+  "name": "aegira-planner-e2e",
+  "private": true,
+  "description": "Playwright-E2E/Persona-Tests (Teststrategie §9/§10, P1). Isoliert vom App-Build (eigene Deps → kein Einfluss auf npm ci des Frontends).",
+  "scripts": {
+    "test": "playwright test",
+    "report": "playwright show-report",
+    "install:browsers": "playwright install --with-deps chromium webkit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.49.1",
+    "@axe-core/playwright": "4.10.1"
+  }
+}

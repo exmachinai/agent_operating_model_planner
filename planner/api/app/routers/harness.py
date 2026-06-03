@@ -124,6 +124,10 @@ async def revise_harness(project_id: str, command: ReviseCommand) -> HarnessGrap
 async def approve_harness(project_id: str) -> Project:
     """Schritt 9 — Gate 3. Friert den Harness ein, berechnet den Zip-Hash, status=compiled."""
     project = await _load_project(project_id)
+    # RES-2: Doppel-Approve idempotent-blockierend (konsistent zu Gate 1/2) — ein erneuter
+    # Freeze würde Zip-Hash/Zeitstempel neu stempeln.
+    if project.gate3_approved_at is not None:
+        raise HTTPException(status_code=409, detail="Gate 3 already approved")
     repo = get_harness_repo()
     graph = await repo.get(project_id)
     if graph is None:

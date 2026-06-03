@@ -15,6 +15,7 @@ import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import { PageShell } from "../../../../components/PageShell";
+import { HelpLink } from "../../../../components/HelpDrawer";
 import {
   Button,
   cardStyle,
@@ -74,6 +75,9 @@ export default function Understanding(): React.ReactElement {
   const [psubtype, setPsubtype] = React.useState<ProjectSubtype | "">("");
   const [platform, setPlatform] = React.useState<TargetPlatform | "">("");
   const [summary, setSummary] = React.useState("");
+  // v0.9 — Preference-Drift-Guard.
+  const [aegiraInternal, setAegiraInternal] = React.useState<boolean | null>(null);
+  const [usePrefs, setUsePrefs] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [saved, setSaved] = React.useState(false);
@@ -87,6 +91,8 @@ export default function Understanding(): React.ReactElement {
         setPsubtype(p.project_subtype ?? "");
         setPlatform(p.target_platform ?? "");
         setSummary(p.understanding_summary ?? "");
+        setAegiraInternal(p.aegira_internal);
+        setUsePrefs(p.use_preferences);
       })
       .catch((e: unknown) =>
         setError(e instanceof ApiError ? e.message : "Projekt nicht gefunden."),
@@ -105,6 +111,8 @@ export default function Understanding(): React.ReactElement {
         project_subtype: psubtype || undefined,
         target_platform: platform || undefined,
         understanding_summary: summary.trim() || undefined,
+        aegira_internal: aegiraInternal === null ? undefined : aegiraInternal,
+        use_preferences: aegiraInternal === true ? usePrefs : false,
       });
       setProject(p);
       setSaved(true);
@@ -127,6 +135,8 @@ export default function Understanding(): React.ReactElement {
         project_subtype: psubtype || undefined,
         target_platform: platform || undefined,
         understanding_summary: summary.trim() || undefined,
+        aegira_internal: aegiraInternal === null ? undefined : aegiraInternal,
+        use_preferences: aegiraInternal === true ? usePrefs : false,
       });
       const p = await api.approveUnderstanding(id);
       setProject(p);
@@ -199,6 +209,66 @@ export default function Understanding(): React.ReactElement {
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
+        </div>
+
+        {/* v0.9 — Preference-Drift-Guard */}
+        <div style={{ borderTop: "1px solid var(--c-border)", paddingTop: "var(--sp-3)" }}>
+          <label style={labelStyle}>AEGIRA-internes Projekt?<HelpLink section="preferences" label="Preference-Drift-Schutz" /></label>
+          <p style={{ fontSize: 13, color: "var(--c-text-muted)", margin: "0 0 var(--sp-2)" }}>
+            Bei <strong>Nein</strong> (Kunden-/Externprojekt) werden <strong>keine</strong> AEGIRA-Preferences
+            angewandt — keine Produktnamen (AI Navigator/Guardian/Commander), keine Constitution. Schützt
+            vor Preference-Drift in Kunden-Deliverables.
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--sp-2) var(--sp-4)" }}>
+            {([
+              { v: true, label: "Ja — AEGIRA-intern" },
+              { v: false, label: "Nein — extern/Kunde" },
+            ] as const).map((o) => (
+              <label key={String(o.v)} style={{
+                display: "inline-flex", alignItems: "center", gap: 8, fontSize: 15, minHeight: 44,
+                cursor: locked ? "default" : "pointer", fontWeight: aegiraInternal === o.v ? 600 : 400,
+              }}>
+                <input
+                  type="radio"
+                  name="aegira_internal"
+                  checked={aegiraInternal === o.v}
+                  disabled={locked || busy}
+                  onChange={() => { setAegiraInternal(o.v); if (!o.v) setUsePrefs(false); }}
+                />
+                {o.label}
+              </label>
+            ))}
+          </div>
+
+          {aegiraInternal === true ? (
+            <div style={{ marginTop: "var(--sp-3)" }}>
+              <label style={labelStyle}>Claude Preferences / Constitution anwenden?</label>
+              <p style={{ fontSize: 13, color: "var(--c-text-muted)", margin: "0 0 var(--sp-2)" }}>
+                Auch interne Projekte dürfen opt-out: bei <strong>Nein</strong> bleibt der Harness
+                preference-frei (kein Produkt-/Constitution-Bezug).
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--sp-2) var(--sp-4)" }}>
+                {([
+                  { v: true, label: "Ja — Preferences anwenden" },
+                  { v: false, label: "Nein — ohne Preferences" },
+                ] as const).map((o) => (
+                  <label key={String(o.v)} style={{
+                    display: "inline-flex", alignItems: "center", gap: 8, fontSize: 15, minHeight: 44,
+                    cursor: locked ? "default" : "pointer", fontWeight: usePrefs === o.v ? 600 : 400,
+                  }}>
+                    <input
+                      type="radio"
+                      name="use_preferences"
+                      checked={usePrefs === o.v}
+                      disabled={locked || busy}
+                      onChange={() => setUsePrefs(o.v)}
+                    />
+                    {o.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div>

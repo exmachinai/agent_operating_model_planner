@@ -8,10 +8,55 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { HELP, type HelpTopic } from "../lib/help";
+import { HELP, sectionId, type HelpTopic } from "../lib/help";
+
+/** Event-Name für kontextuelles Öffnen der Hilfe aus dem Arbeitsbereich. */
+const HELP_EVENT = "aegira:help";
+
+interface HelpEventDetail {
+  section?: string;
+}
+
+/**
+ * Inline-Hilfe-Verweis: ein kleines „?“ neben einem Abschnitt im Arbeitsbereich.
+ * Öffnet den Hilfe-Drawer der aktuellen Seite und springt zur passenden Sektion.
+ */
+export function HelpLink({
+  section,
+  label = "Hilfe",
+}: {
+  section: string;
+  label?: string;
+}): React.ReactElement {
+  return (
+    <button
+      type="button"
+      style={inlineHelpStyle}
+      aria-label={`Hilfe: ${label}`}
+      title={`Hilfe: ${label}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        window.dispatchEvent(new CustomEvent<HelpEventDetail>(HELP_EVENT, { detail: { section } }));
+      }}
+    >
+      ?
+    </button>
+  );
+}
 
 export function HelpButton({ topic }: { topic: HelpTopic }): React.ReactElement {
   const [open, setOpen] = React.useState(false);
+  const [target, setTarget] = React.useState<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent<HelpEventDetail>).detail;
+      setTarget(detail?.section);
+      setOpen(true);
+    };
+    window.addEventListener(HELP_EVENT, onOpen as EventListener);
+    return () => window.removeEventListener(HELP_EVENT, onOpen as EventListener);
+  }, []);
 
   React.useEffect(() => {
     if (!open) return;
@@ -26,7 +71,7 @@ export function HelpButton({ topic }: { topic: HelpTopic }): React.ReactElement 
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => { setTarget(undefined); setOpen(true); }}
         aria-label="Hilfe zu diesem Schritt"
         title="Hilfe zu diesem Schritt"
         style={triggerStyle}
@@ -36,19 +81,34 @@ export function HelpButton({ topic }: { topic: HelpTopic }): React.ReactElement 
         </span>
         Hilfe
       </button>
-      {open && <HelpDrawer topic={topic} onClose={() => setOpen(false)} />}
+      {open && <HelpDrawer topic={topic} scrollTo={target} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
 function HelpDrawer({
   topic,
+  scrollTo,
   onClose,
 }: {
   topic: HelpTopic;
+  scrollTo?: string;
   onClose: () => void;
 }): React.ReactElement {
   const entry = HELP[topic];
+  const [flash, setFlash] = React.useState<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    if (!scrollTo) return;
+    const el = document.getElementById(`help-sec-${scrollTo}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      setFlash(scrollTo);
+      const t = window.setTimeout(() => setFlash(undefined), 1600);
+      return () => window.clearTimeout(t);
+    }
+  }, [scrollTo]);
+
   return (
     <div style={overlayStyle} onClick={onClose} role="presentation">
       <aside
@@ -76,8 +136,21 @@ function HelpDrawer({
         <p style={summaryStyle}>{entry.summary}</p>
 
         <div style={bodyScrollStyle}>
-          {entry.sections.map((sec, i) => (
-            <section key={i} style={{ marginBottom: "var(--sp-4)" }}>
+          {entry.sections.map((sec, i) => {
+            const sid = sectionId(sec);
+            return (
+            <section
+              key={i}
+              id={`help-sec-${sid}`}
+              style={{
+                marginBottom: "var(--sp-4)",
+                scrollMarginTop: "var(--sp-2)",
+                backgroundColor: flash === sid ? "rgba(193,154,79,0.14)" : "transparent",
+                borderRadius: "var(--r-sm)",
+                transition: "background-color 0.6s ease",
+                padding: flash === sid ? "var(--sp-2)" : 0,
+              }}
+            >
               <h3 style={sectionHeadStyle}>{sec.heading}</h3>
               {sec.body.map((p, j) => (
                 <p key={j} style={paraStyle}>
@@ -85,7 +158,8 @@ function HelpDrawer({
                 </p>
               ))}
             </section>
-          ))}
+            );
+          })}
 
           {entry.tips.length > 0 && (
             <section style={tipsBoxStyle}>
@@ -111,6 +185,23 @@ function HelpDrawer({
   );
 }
 
+const inlineHelpStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 18,
+  height: 18,
+  marginLeft: 6,
+  fontSize: 11,
+  fontWeight: 700,
+  lineHeight: 1,
+  color: "var(--c-navy)",
+  backgroundColor: "transparent",
+  border: "1px solid var(--c-border-strong)",
+  borderRadius: "var(--r-pill)",
+  cursor: "pointer",
+  verticalAlign: "middle",
+};
 const triggerStyle: React.CSSProperties = {
   display: "inline-flex",
   alignItems: "center",

@@ -76,6 +76,9 @@ export interface Project {
   project_nature: ProjectNature | null;
   target_platform: TargetPlatform | null;
   understanding_summary: string | null;
+  // v0.9 — Preference-Drift-Guard: AEGIRA-internes Projekt? + Preferences aktiv?
+  aegira_internal: boolean | null;
+  use_preferences: boolean;
   created_at: string;
   updated_at: string | null;
   status: ProjectStatus;
@@ -103,6 +106,9 @@ export interface UpdateUnderstandingRequest {
   project_nature?: ProjectNature;
   target_platform?: TargetPlatform;
   understanding_summary?: string;
+  // v0.9 — Preference-Drift-Guard.
+  aegira_internal?: boolean;
+  use_preferences?: boolean;
 }
 
 export type SuggestionKind =

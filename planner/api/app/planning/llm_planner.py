@@ -59,6 +59,18 @@ ANTWORTFORMAT — gib AUSSCHLIESSLICH ein JSON-Objekt zurück, ohne Markdown:
 }"""
 
 
+# v0.9 — Preference-Drift-Guard: AEGIRA-Framing nur bei AEGIRA-internen Projekten.
+_AEGIRA_FRAME = (
+    "für den AEGIRA-Planner. AEGIRA ist Trust-Infrastructure "
+    "(nachweisbar, audit-ready) — niemals 100%-Garantien."
+)
+_NEUTRAL_FRAME = "für einen professionellen Projektplaner. Mache niemals 100%-Garantien."
+
+
+def _system(apply_preferences: bool) -> str:
+    return _SYSTEM if apply_preferences else _SYSTEM.replace(_AEGIRA_FRAME, _NEUTRAL_FRAME)
+
+
 def _render_user(project: Project, context_text: str) -> str:
     lines = [
         f"PROJEKT-TITEL: {project.title}",
@@ -135,7 +147,7 @@ async def generate_plan(
         return zgpm_composer.compose(project, version=version, plan_id=plan_id)
     try:
         raw = await foundry.complete(
-            _SYSTEM, _render_user(project, context_text), max_tokens=2000
+            _system(project.apply_preferences), _render_user(project, context_text), max_tokens=2000
         )
         outline, narrative = _parse_outline(raw)
         return zgpm_composer.compose(

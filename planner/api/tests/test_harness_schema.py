@@ -48,11 +48,39 @@ def test_hooks_are_canonical(client: TestClient, gate2_project: str) -> None:
     hooks = settings["hooks"]
     schema_check.validate_hooks(hooks)
     assert set(hooks) <= {"PreToolUse", "PostToolUse", "Stop"}
-    # constitution-guard liegt als ausführbares Command-Skript vor.
-    assert ".claude/hooks/constitution-guard.sh" in files
-    guard = files[".claude/hooks/constitution-guard.sh"]
-    assert guard.startswith("#!")
-    assert "permissionDecision" in guard and "deny" in guard
+    # Generische, deterministische Hooks immer vorhanden.
+    assert ".claude/hooks/audit-log.sh" in files
+    assert ".claude/hooks/checkpoint.sh" in files
+
+
+def _internal_gate2(client: TestClient) -> str:
+    """v0.9 — AEGIRA-internes Projekt mit aktivierten Preferences bis Gate 2."""
+    pid = client.post("/v1/projects", json={"title": "AEGIRA intern", "description": "x"}).json()["id"]
+    client.patch(f"/v1/projects/{pid}/understanding", json={
+        "project_type": "it", "project_subtype": "software-app", "target_platform": "azure",
+        "understanding_summary": "Internes Vorhaben.", "aegira_internal": True, "use_preferences": True,
+    })
+    client.post(f"/v1/projects/{pid}/approve-understanding")
+    client.post(f"/v1/projects/{pid}/guardrails/clear", json={"proceed": True})
+    client.post(f"/v1/projects/{pid}/plan")
+    client.post(f"/v1/projects/{pid}/plan/milestones/done")
+    client.post(f"/v1/projects/{pid}/approve-plan")
+    return pid
+
+
+def test_preference_drift_guard(client: TestClient, gate2_project: str) -> None:
+    """v0.9 — extern (Default): KEINE AEGIRA-Preferences; intern: Constitution da."""
+    ext = _compiled_files(client, gate2_project)  # gate2_project ist NICHT AEGIRA-intern
+    claude = ext["CLAUDE.md"]
+    assert "AI Navigator" not in claude and "AEGIRA-Constitution" not in claude
+    assert ".claude/hooks/constitution-guard.sh" not in ext
+    assert ".claude/rules/zones.md" not in ext
+    assert "00_CLAUDE_KNOWLEDGE_ARCHITECTURE" not in ext[".claude/settings.json"]
+
+    intern = _compiled_files(client, _internal_gate2(client))
+    assert "AI Navigator" in intern["CLAUDE.md"]
+    assert ".claude/hooks/constitution-guard.sh" in intern
+    assert ".claude/rules/zones.md" in intern
 
 
 def test_agent_frontmatter_is_schema_valid(client: TestClient, gate2_project: str) -> None:
@@ -83,8 +111,7 @@ def test_commands_migrated_to_skills(client: TestClient, gate2_project: str) -> 
 
 def test_rules_and_matrix_present(client: TestClient, gate2_project: str) -> None:
     files = _compiled_files(client, gate2_project)
-    assert ".claude/rules/zones.md" in files
-    assert "00_CLAUDE_KNOWLEDGE_ARCHITECTURE" in files[".claude/rules/zones.md"]
+    # v0.9 — Zonen-Regeln sind AEGIRA-intern → nur bei internem Projekt (s. drift-guard).
     assert "plan/matrix.md" in files
     assert "RACI" in files["plan/matrix.md"]
     # B5 — AGENTS.md als Cross-Tool-Einstieg, importiert CLAUDE.md.

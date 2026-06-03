@@ -156,6 +156,11 @@ async def update_understanding(
     # (it→technical, non-it→concept), solange nicht explizit gesetzt.
     if "project_type" in patch and "project_nature" not in patch:
         patch["project_nature"] = "technical" if patch["project_type"] == "it" else "concept"
+    # v0.9 — Preference-Drift-Guard: kein AEGIRA-internes Projekt ⇒ Preferences hart aus.
+    if patch.get("aegira_internal") is False:
+        patch["use_preferences"] = False
+    if patch.get("use_preferences") is None:
+        patch.pop("use_preferences", None)
     updated = project.model_copy(
         update={**patch, "updated_at": datetime.now(timezone.utc)}
     )

@@ -60,7 +60,8 @@ export function StatusBadge({
   gateApproved: boolean;
 }): React.ReactElement {
   const label = gateApproved ? "Gate 1 ✓ · " + STATUS_LABEL[status] : "Verständnis offen";
-  const color = gateApproved ? "var(--c-green)" : "var(--c-steel)";
+  // AA-konformer Grün-Textwert (der helle --c-green unterschreitet als kleine Schrift 4.5:1).
+  const color = gateApproved ? "var(--c-green-text)" : "var(--c-steel)";
   return (
     <span
       style={{

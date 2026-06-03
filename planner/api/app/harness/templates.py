@@ -311,7 +311,7 @@ als Zustände, Verantwortlichkeiten als PVM-Codes, Risiken mit Ampel, Token-Budg
 
 ## Methodik
 
-Pläne folgen ZGPM (Glasner et al., methodisch genutzt) plus McKinsey-Prinzipien
+Pläne folgen ZGPM (Zielgeführtes Generatives Projekt Management) plus McKinsey-Prinzipien
 (MECE, Pyramid, hypothesengetrieben). Ergebnisse sind „nachweisbar / audit-ready",
 keine 100%-Garantien.
 """
@@ -492,7 +492,7 @@ def license_txt() -> str:
     return (
         "Proprietär — exmachinAI GmbH · AEGIRA AI Trust Platform.\n"
         "Dieser Harness und der enthaltene Plan sind für den lizenzierten "
-        "internen Gebrauch bestimmt. Keine ZGPM-/PwC-Markenattribution als "
+        "internen Gebrauch bestimmt. Keine Fremdmarken-Attribution als "
         "Eigenmarke. Alle Rechte vorbehalten.\n"
     )
 

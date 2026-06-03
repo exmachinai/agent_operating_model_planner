@@ -5,10 +5,13 @@
   "scripts": {
     "test": "playwright test",
     "report": "playwright show-report",
-    "install:browsers": "playwright install --with-deps chromium webkit"
+    "install:browsers": "playwright install --with-deps chromium webkit",
+    "lh:a11y": "node lighthouse/a11y.mjs"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.10.1",
     "@playwright/test": "1.49.1",
-    "@axe-core/playwright": "4.10.1"
+    "lighthouse": "^13.3.0",
+    "puppeteer": "^25.1.0"
   }
 }

@@ -34,7 +34,7 @@ export interface ReviewerFinding {
 }
 
 export interface HitlApprovalPromptProps {
-  /** Milestone ID (ZGPM, e.g. "M02"). */
+  /** Milestone ID (e.g. "M02"). */
   milestoneId: string;
   /** Milestone title in Verb-im-Perfekt form. */
   milestoneTitle: string;

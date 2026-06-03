@@ -71,6 +71,7 @@ export function HelpButton({ topic }: { topic: HelpTopic }): React.ReactElement 
     <>
       <button
         type="button"
+        data-testid="help-button"
         onClick={() => { setTarget(undefined); setOpen(true); }}
         aria-label="Hilfe zu diesem Schritt"
         title="Hilfe zu diesem Schritt"
@@ -113,6 +114,7 @@ function HelpDrawer({
     <div style={overlayStyle} onClick={onClose} role="presentation">
       <aside
         style={drawerStyle}
+        data-testid="help-drawer"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -133,9 +135,9 @@ function HelpDrawer({
           </button>
         </div>
 
-        <p style={summaryStyle}>{entry.summary}</p>
+        <p data-testid="help-summary" style={summaryStyle}>{entry.summary}</p>
 
-        <div style={bodyScrollStyle}>
+        <div data-testid="help-body" style={bodyScrollStyle}>
           {entry.sections.map((sec, i) => {
             const sid = sectionId(sec);
             return (

@@ -236,7 +236,7 @@ def _build_prl(project: Project) -> list[Risk]:
     prl = [
         Risk(
             id="PRL-1",
-            description="ZGPM-Methodik-Konsistenz nicht durchgehend gewahrt.",
+            description="Methodik-Konsistenz nicht durchgehend gewahrt.",
             probability=2,
             impact=4,
             ampel=_ampel_for(2 * 4),
@@ -447,7 +447,7 @@ def review(
         findings.append(
             ReviewerFinding(
                 severity="info",
-                rule="zgpm.konform",
+                rule="plan.konform",
                 message="Plan erfüllt PVM-Regeln und Ampel-Propagation.",
             )
         )

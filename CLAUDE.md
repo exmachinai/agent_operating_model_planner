@@ -14,7 +14,7 @@ Dieses Repo ist Teil der **AEGIRA AI Trust Platform** von exmachinAI. AEGIRA ist
 - Niemals „DACH" verwenden. Kundenrechtsräume sind `DE` · `EU27-Rest` · `UK` · `CH`. US-Nexus ist Vendor-Layer.
 - Maturity = AIMS (ISO 42001 × CMMI v3). MITRE und GMS sind deprecated als Primärmodell (MITRE höchstens als Tiefenanalyse via Skill).
 - Produktnamen sind eingefroren: **AI Navigator** / **AI Guardian** / **AI Commander**. Keine anderen.
-- ZGPM ist PwC-Methodik (Glasner et al.). Wir nutzen sie methodisch, ohne PwC-Marken zu suggerieren.
+- ZGPM = **Zielgeführtes Generatives Projekt Management**. Methodisch genutzt; in der user-sichtbaren App-UI vermieden (Persona = Lower-Medium Coder), intern/im Harness-Deliverable zulässig.
 
 ## Knowledge-Repo (Constitution)
 

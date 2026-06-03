@@ -21,6 +21,12 @@
   --c-green: #5A9367;
   --c-amber: #E8A33A;
   --c-red: #C3423F;
+  /* AA-konforme Textvarianten: --c-green/--c-amber unterschreiten als kleine
+   * Schrift WCAG AA (4.5:1) auf Vellum/Weiß. Diese dunkleren Werte erfüllen ≥4.5:1
+   * und werden überall genutzt, wo der Status-Token TEXT ist (Badges/Labels). Die
+   * hellen Swatches bleiben für Flächen (Dots, Rahmen, SVG-Füllungen). Aus BRAND.md. */
+  --c-green-text: #3F7D52;
+  --c-amber-text: #8C6510;
 
   /* ---------- Surfaces ---------- */
   --c-bg: var(--c-vellum);
@@ -106,6 +112,9 @@
   --c-text-caption: #8A93A6;
   --c-border: rgba(202, 220, 252, 0.16);
   --c-border-strong: var(--c-vellum);
+  /* Dark-Mode: hellere Textvarianten (≥4.5:1 auf Navy/Navy-Dark). */
+  --c-green-text: #8FBF9C;
+  --c-amber-text: #EFC07A;
 }
 
 @media (prefers-reduced-motion: reduce) {

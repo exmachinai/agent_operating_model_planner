@@ -117,7 +117,7 @@ export function GanttChart({ plan }: { plan: Plan }): React.ReactElement {
 // RACI / PVM-Matrix
 // ---------------------------------------------------------------------------
 
-// PVM = interne ZGPM-Wahrheit. Code → (Kurz-Bedeutung).
+// PVM = interne Planungs-Wahrheit. Code → (Kurz-Bedeutung).
 const PVM_TITLE: Record<PVMCode, string> = {
   A: "führt aus",
   B: "wird beteiligt",
@@ -163,11 +163,11 @@ export function RaciMatrix({ plan }: { plan: Plan }): React.ReactElement {
   const isRaci = true;
 
   return (
-    <div>
+    <div data-testid="raci-matrix">
       <span className="aegira-only-sm" style={{ ...legendStyle, display: "block" }} aria-hidden="true">
         ← horizontal wischen · Meilenstein-Spalte bleibt fixiert →
       </span>
-      <div className="aegira-scroll-x">
+      <div className="aegira-scroll-x" data-testid="raci-matrix-scroll">
         <table style={matrixStyle}>
           <thead>
             <tr>
@@ -212,9 +212,9 @@ export function RaciMatrix({ plan }: { plan: Plan }): React.ReactElement {
                   })}
                   <td style={matrixTdStyle} title={isRaci ? raci : pvm}>
                     {ok ? (
-                      <span style={{ color: "var(--c-green)" }} aria-label="konsistent">✓ ok</span>
+                      <span style={{ color: "var(--c-green-text)" }} aria-label="konsistent">✓ ok</span>
                     ) : (
-                      <span style={{ color: "var(--c-amber)" }} aria-label="Abweichung">⚠ prüfen</span>
+                      <span style={{ color: "var(--c-amber-text)" }} aria-label="Abweichung">⚠ prüfen</span>
                     )}
                   </td>
                 </tr>
@@ -225,7 +225,7 @@ export function RaciMatrix({ plan }: { plan: Plan }): React.ReactElement {
       </div>
 
       {/* Sichtbare Code-Legende (P0.1) — als umbrechende Chips (mobil-tauglich, P1.10). */}
-      <div style={legendChipsStyle} aria-label="Legende">
+      <div style={legendChipsStyle} aria-label="Legende" data-testid="raci-legend">
         {isRaci
           ? (["R", "A", "C", "I"] as RaciCode[]).map((c) => (
               <span key={c} style={legendChipStyle}>
@@ -243,7 +243,7 @@ export function RaciMatrix({ plan }: { plan: Plan }): React.ReactElement {
           <>
             Konsistenz (auf RACI gemappt): pro Meilenstein <strong>genau ein Accountable</strong>{" "}
             und <strong>≥1 Responsible</strong>. ⚠ markiert eine Abweichung. RACI ist die
-            Anzeige-/Audit-Sprache; intern prüft weiterhin die ZGPM-PVM-Rules-Engine
+            Anzeige-/Audit-Sprache; intern prüft weiterhin die PVM-Rules-Engine
             (A→R · L/F→A · E/e/B→C · I/V→I).
           </>
         ) : (
@@ -379,7 +379,7 @@ export function TokenLiveCounter({
       <div
         style={{
           ...tokenSummaryStyle,
-          color: over ? "var(--c-red)" : nearWarn ? "var(--c-amber)" : "var(--c-green)",
+          color: over ? "var(--c-red)" : nearWarn ? "var(--c-amber-text)" : "var(--c-green-text)",
           borderColor: over ? "var(--c-red)" : nearWarn ? "var(--c-amber)" : "var(--c-green)",
         }}
       >

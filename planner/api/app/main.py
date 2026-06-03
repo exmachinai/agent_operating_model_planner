@@ -67,13 +67,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS — locked to the public app domain.
+    # CORS — locked to the public app domain. Non-Prod: lokales Frontend auf
+    # beliebigem Dev-Port (Next dev / E2E, z. B. :3000/:3001) via Regex; Prod bleibt
+    # strikt auf die Allowlist beschränkt (kein Regex).
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
             "https://zgpm.aegira.ai",
             "https://docs.aegira.ai",
         ] + (["http://localhost:3000"] if settings.app_env != "prod" else []),
+        allow_origin_regex=(
+            r"https?://(localhost|127\.0\.0\.1):\d+" if settings.app_env != "prod" else None
+        ),
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],

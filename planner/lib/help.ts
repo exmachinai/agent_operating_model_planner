@@ -4,7 +4,7 @@
  * beide Oberflächen denselben Text rendern und der User-Guide konsistent bleibt.
  *
  * Sprache: Deutsch (Nutzeroberfläche). Begriffe folgen der Constitution:
- * Trust-Infrastructure, AIMS, Rechtsräume DE/EU27-Rest/UK/CH, ZGPM-Methodik.
+ * Trust-Infrastructure, AIMS, Rechtsräume DE/EU27-Rest/UK/CH, strukturierte Planung.
  */
 
 export type HelpTopic =
@@ -82,7 +82,7 @@ export const GATES: Record<"gate1" | "gate2" | "gate3", HelpEntry> = {
     marker: "Gate 2",
     title: "Plan-Freigabe",
     summary:
-      "Du prüfst und editierst den ZGPM-Plan und gibst die Version frei, die gebaut werden soll.",
+      "Du prüfst und editierst den Plan und gibst die Version frei, die gebaut werden soll.",
     sections: [
       {
         heading: "Was passiert hier",
@@ -134,7 +134,7 @@ export const HELP: Record<HelpTopic, HelpEntry> = {
         heading: "Der Planner in drei Phasen",
         body: [
           "VERSTEHEN — Vorhaben beschreiben, im Interview schärfen, Verständnis freigeben (Gate 1).",
-          "PLANEN — Kontext verwalten, Leitplanken prüfen, ZGPM-Plan erzeugen, Plan freigeben (Gate 2).",
+          "PLANEN — Kontext verwalten, Leitplanken prüfen, Plan erzeugen, Plan freigeben (Gate 2).",
           "BAUEN — Agent-Harness kompilieren, exportieren (Gate 3).",
         ],
       },
@@ -251,9 +251,9 @@ export const HELP: Record<HelpTopic, HelpEntry> = {
   },
   plan: {
     marker: "Schritt 6",
-    title: "ZGPM-Plan",
+    title: "Plan",
     summary:
-      "Aus deinem freigegebenen Verständnis erzeugt die KI einen strukturierten Plan nach ZGPM-Methodik.",
+      "Aus deinem freigegebenen Verständnis erzeugt die KI einen strukturierten Plan.",
     sections: [
       {
         heading: "Was der Plan enthält",
@@ -265,7 +265,7 @@ export const HELP: Record<HelpTopic, HelpEntry> = {
       {
         heading: "Methodik",
         body: [
-          "Der Plan folgt der ZGPM-Methodik (methodisch genutzt) plus McKinsey-Prinzipien (MECE, Pyramid, hypothesengetrieben).",
+          "Der Plan folgt einer strukturierten Methodik plus McKinsey-Prinzipien (MECE, Pyramid, hypothesengetrieben).",
           "Die Generierung ist deterministisch und nachvollziehbar — gleicher Input, gleicher plan_hash.",
         ],
       },

@@ -32,9 +32,11 @@ Drei Adjektive, die jedes UI-Detail bestehen muss:
 
 | Token | Hex | Verwendung |
 |---|---|---|
-| `--c-green` | `#5A9367` | Risiko grün, PASS-States |
-| `--c-amber` | `#E8A33A` | Risiko gelb (verwandt mit Gold, aber nie als CTA) |
-| `--c-red` | `#C3423F` | Risiko rot, HARD_FAIL |
+| `--c-green` | `#5A9367` | Risiko grün, PASS-States — **nur Flächen** (Dots, Rahmen, Füllungen) |
+| `--c-green-text` | `#3F7D52` | Grün als **Text** (Badges/Labels), WCAG-AA-konform (≥ 4.5:1 auf Vellum/Weiß) |
+| `--c-amber` | `#E8A33A` | Risiko gelb (verwandt mit Gold, aber nie als CTA) — **nur Flächen** |
+| `--c-amber-text` | `#8C6510` | Gelb als **Text** (Badges/Labels), WCAG-AA-konform (≥ 4.5:1 auf Vellum/Weiß) |
+| `--c-red` | `#C3423F` | Risiko rot, HARD_FAIL (als Text bereits AA-konform, ≥ 4.5:1) |
 | `--c-ink` | `#0E1735` | Primärtext (knapp dunkler als Navy) |
 | `--c-steel` | `#5B6B85` | Sekundärtext |
 | `--c-gray` | `#8A93A6` | Caption, Meta |
@@ -45,6 +47,7 @@ Drei Adjektive, die jedes UI-Detail bestehen muss:
 - **Navy + Vellum** ist die Default-Kombination im Light-Mode. **Navy-Dark + Vellum** ist die Default-Kombination im Dark-Mode (wenig „echtes Schwarz").
 - **Niemals** AEGIRA-Logo auf Foto-Hintergründen, Mustern oder fremden Farben.
 - **Keine eigenen Akzent-Farben** außerhalb dieser Palette (z.B. Coral, Cyan, Magenta) — schwächt Sovereign-Anspruch.
+- **Status als Text:** `--c-green`/`--c-amber` sind zu hell für kleine Schrift (WCAG AA). Für Statustext (Badges/Labels) `--c-green-text`/`--c-amber-text` verwenden; die hellen Swatches bleiben für Flächen.
 
 ---
 
@@ -189,6 +192,11 @@ Für die Planner App, in `app/styles/tokens.css`:
   --c-green: #5A9367;
   --c-amber: #E8A33A;
   --c-red: #C3423F;
+  /* AA-konforme Textvarianten (≥ 4.5:1 auf Vellum/Weiß) — nutze diese, wenn der
+     Status als Text gerendert wird (Badges/Labels); die hellen Swatches bleiben
+     für Flächen (Dots/Rahmen/SVG-Füllungen). */
+  --c-green-text: #3F7D52;
+  --c-amber-text: #8C6510;
 
   /* Surfaces */
   --c-bg: var(--c-vellum);

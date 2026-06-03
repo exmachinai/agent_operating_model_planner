@@ -29,6 +29,25 @@ export default function Dashboard(): React.ReactElement {
   const [statusFilter, setStatusFilter] = React.useState<string>("");
   const [sort, setSort] = React.useState<"new" | "old" | "title">("new");
 
+  // Flow MFA → Explainer → Planner: Erstnutzer (noch ohne „gesehen"-Marke) werden
+  // einmalig aufs Explainer-Onboarding geleitet; danach direkt in den Planner.
+  const [onboardChecked, setOnboardChecked] = React.useState(false);
+  React.useEffect(() => {
+    try {
+      // Nur NACH MFA umleiten (Session vorhanden) — im gesperrten Zustand deckt der
+      // LockScreen die Seite ab; ein Redirect dorthin wäre sinnlos/fehlerträchtig.
+      const authed = !!window.sessionStorage.getItem("aegira.session");
+      const seen = window.localStorage.getItem("aegira.explainer.seen") === "1";
+      if (authed && !seen) {
+        router.replace("/explainer");
+        return;
+      }
+    } catch {
+      /* Storage nicht verfügbar → Planner direkt zeigen */
+    }
+    setOnboardChecked(true);
+  }, [router]);
+
   const fmtDate = (iso: string): string =>
     new Date(iso).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
 
@@ -70,11 +89,29 @@ export default function Dashboard(): React.ReactElement {
     }
   }
 
+  if (!onboardChecked) {
+    return (
+      <PageShell subtitle="Projekte" helpTopic="overview">
+        <p style={mutedStyle}>Lade…</p>
+      </PageShell>
+    );
+  }
+
   return (
     <PageShell subtitle="Projekte" helpTopic="overview">
       <div style={titleRowStyle}>
         <h1>Projekte</h1>
-        <Button onClick={() => router.push("/projects/new")}>Neues Projekt</Button>
+        <span style={{ display: "inline-flex", gap: "var(--sp-2)", alignItems: "center" }}>
+          <button
+            type="button"
+            style={explainerLinkStyle}
+            onClick={() => router.push("/explainer")}
+            data-testid="open-explainer"
+          >
+            Explainer
+          </button>
+          <Button data-testid="new-project" onClick={() => router.push("/projects/new")}>Neues Projekt</Button>
+        </span>
       </div>
 
       {error ? <p style={errorStyle}>{error}</p> : null}
@@ -280,6 +317,17 @@ const titleRowStyle: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "space-between",
   marginBottom: "var(--sp-6)",
+};
+const explainerLinkStyle: React.CSSProperties = {
+  minHeight: 40,
+  padding: "0 12px",
+  fontSize: 13,
+  fontWeight: 600,
+  color: "var(--c-steel)",
+  background: "transparent",
+  border: "1px solid var(--c-border-strong)",
+  borderRadius: "var(--r-md)",
+  cursor: "pointer",
 };
 const listStyle: React.CSSProperties = {
   listStyle: "none",

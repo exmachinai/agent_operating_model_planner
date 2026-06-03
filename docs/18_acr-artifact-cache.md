@@ -46,24 +46,20 @@ definiert in [`planner/infra/modules/acrCache.bicep`](../planner/infra/modules/a
 | 2 | **Credential-Set** `dockerhub` | System-Assigned-Identity; verweist auf die KV-Secret-URIs; `loginServer=docker.io` |
 | 3 | **Role-Assignment** | Credential-Set-Identity → `Key Vault Secrets User` |
 | 4 | **Cache-Rule** `docker-hub-node` | `docker.io/library/node` → `docker-hub/library/node` (authentifiziert) |
-| 5 | **Import** `docker-hub/library/python:3.12-slim` | gepinnter `az acr import` (siehe Hinweis unten) |
+| 5 | **Cache-Rule** `docker-hub-python` | `docker.io/library/python` → `docker-hub/library/python` (authentifiziert) |
 
-> **Warum python als Import statt Cache-Rule?** Beim Bootstrap lag `docker-hub/library/python`
-> bereits als Import in der Registry; ACR lässt **keine Cache-Rule über ein existierendes
-> Repo** zu (`TargetRepositoryAlreadyPresentInRegistry`). python wird daher als gepinnter
-> Import geführt (kontrollierte Updates), node als Cache-Rule (Auto-Refresh). Beide werden
-> aus der ACR ausgeliefert — Ziel (keine anonymen Docker-Hub-Pulls) ist erreicht.
-> Im Bicep-Modul ist die python-Cache-Rule per `enablePythonCacheRule=false` deaktiviert.
+> **Hinweis (Historie):** Beim Bootstrap lag `docker-hub/library/python` kurzzeitig als
+> `az acr import` in der Registry; ACR lässt **keine Cache-Rule über ein existierendes Repo**
+> zu (`TargetRepositoryAlreadyPresentInRegistry`). Das Import-Repo wurde gelöscht und python
+> auf eine **Cache-Rule konvergiert** (Stand jetzt: `enablePythonCacheRule=true`, beide Images
+> als authentifizierte Cache-Rule mit Auto-Refresh).
 >
-> **Auf Cache-Rule konvergieren** (optional, einheitlich + Auto-Refresh):
+> Neu erstellte Cache-Rules brauchen ~1–3 Min Data-Plane-Propagation, bevor der erste Pull
+> greift (sonst `not found`). Authentifiziert vorwärmen:
 > ```bash
-> az acr repository delete -n aegiraacrprodtgygvmrc --repository docker-hub/library/python --yes
-> # dann acrCache.bicep mit enableCacheRules=true enablePythonCacheRule=true erneut deployen
-> ```
-> python neu pinnen (authentifiziert, ohne Cache-Rule):
-> ```bash
-> az acr import -n aegiraacrprodtgygvmrc --source docker.io/library/python:3.12-slim \
->   --image docker-hub/library/python:3.12-slim --username exmachinai --password <PAT> --force
+> az acr login -n aegiraacrprodtgygvmrc
+> docker pull aegiraacrprodtgygvmrc.azurecr.io/docker-hub/library/python:3.12-slim
+> docker pull aegiraacrprodtgygvmrc.azurecr.io/docker-hub/library/node:22-alpine
 > ```
 
 ### Dockerfile-FROM-Zeilen

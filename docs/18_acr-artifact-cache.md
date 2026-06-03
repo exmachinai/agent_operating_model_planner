@@ -21,8 +21,13 @@ Docker-Hub-Abhängigkeit, kein Account, kein Token, kein Rate-Limit**.
 
 Beide Images server-seitig via `az acr build` getestet — grün, Pull ausschließlich
 von `mcr.microsoft.com`. Damit ist die unten beschriebene ACR-Artifact-Cache-Lösung
-(Credential-Set/Key Vault) **abgelöst** und wird dekommissioniert (Cache-Rules,
-Credential-Set `dockerhub`, KV `kv-aegira-dhub-prod`).
+(Credential-Set/Key Vault) **abgelöst**.
+
+**Dekommissioniert (2026-06-03, erledigt):** Cache-Rules `docker-hub-{python,node}`,
+Credential-Set `dockerhub`, KV `kv-aegira-dhub-prod` (soft-deleted, Token entfernt),
+Wegwerf-Repos `docker-hub/library/*` in der ACR. Die Modul-/Skript-Dateien
+`planner/infra/modules/acrCache.bicep` und `_deploy-acr-cache.sh` wurden entfernt.
+Der folgende Abschnitt bleibt nur als Historie erhalten.
 
 ---
 

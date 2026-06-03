@@ -1,5 +1,12 @@
+# WICHTIG zur Syntax: `az acr build` wertet diese Datei NICHT mit Docker-Glob aus,
+# sondern wandelt jede Zeile in eine Regex und matched sie mit re.match gegen den
+# relativen Pfad OHNE Trailing-Slash (azure-cli _archive_utils.IgnoreRule). Ein
+# Eintrag `api/` wird zu `^api/$` und matched das Verzeichnis `api` NIE → der ganze
+# api-Baum (inkl. volatiler __pycache__/*.pyc) landete bislang im Frontend-Kontext
+# und blähte ihn auf. Verzeichnisse daher OHNE Trailing-Slash notieren.
 node_modules
 .next
+out
 .git
 .gitignore
 README.md
@@ -13,5 +20,14 @@ npm-debug.log
 .DS_Store
 .vscode
 .idea
-api/
-infra/
+
+# Backend & Infra gehören nicht in den Frontend-Build-Kontext.
+api
+infra
+
+# Untracked Build-Artefakte (Parität mit .gitignore) — sonst nur lokal vorhanden,
+# verfälschen die Kontextgröße und können den Layer-Cache-Schlüssel destabilisieren.
+*.tsbuildinfo
+**/__pycache__
+**/*.pyc
+.pytest_cache

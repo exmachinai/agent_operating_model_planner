@@ -12,7 +12,7 @@ import json
 from datetime import datetime
 from typing import Any
 
-from ..schemas.harness import HarnessGraph
+from ..schemas.harness import MAX_HARNESS_ITERATIONS, HarnessGraph
 from ..schemas.plan import Milestone, Plan
 from ..schemas.project import Project
 
@@ -140,7 +140,8 @@ def plan_version_json(
             "compiled_by": compiler_id,
             "compiled_at": compiled_at.isoformat(),
             "runtime_requirements": {
-                "claude_code": ">=0.8",
+                # v0.9 (A5) — gegen reale aktuelle Versionen gepflegt (BP-MD §9).
+                "claude_code": ">=2.0",
                 "cowork": ">=0.4",
                 "anthropic_api": "required",
             },
@@ -227,7 +228,7 @@ def install_md(project: Project, graph: HarnessGraph) -> str:
 
 ## 1. Voraussetzungen
 
-- **Claude Code** (`>=0.8`) **oder Cowork** (`>=0.4`).
+- **Claude Code** (`>=2.0`) **oder Cowork** (`>=0.4`).
 - Erreichbarer **Anthropic-Endpoint** (kein lokales LLM — Trust-Anforderung).
 - `bash`, `unzip`, `shasum` (macOS/Linux) bzw. `CertUtil` (Windows).
 
@@ -326,44 +327,125 @@ def handover_md(project: Project, plan: Plan, graph: HarnessGraph) -> str:
 ## 1. Was Claude Code beim Start lädt
 
 - `CLAUDE.md` — System-Prompt (auto-loaded), inkl. Constitution-Leitplanken.
-- `.claude/settings.json` — Modell, Hooks, MCP-Server, Pfade.
+- `.claude/settings.json` — Modell, **Permissions** (deny→ask→allow, `defaultMode`
+  je Reifegrad), `env`-Hygiene und **Hooks** im kanonischen Event-Schema.
+- `.claude/hooks/*.sh` — ausführbare Command-Hooks (`constitution-guard`, `audit-log`,
+  `stop-on-red`, `checkpoint`). Vor dem Lauf ausführbar machen:
+  `chmod +x .claude/hooks/*.sh`. Voraussetzung: `jq` installiert.
 - `.claude/agents/*.md` — die Subagenten (s. u.).
-- `plan/` — der freigegebene ZGPM-Plan als Single Source of Truth.
+- `.claude/skills/*` — Skills inkl. der Slash-Befehle (`/run-harness` …).
+- `.claude/rules/*.md` — Zonen-/Naming-Regeln (Schicht 3).
+- `.mcp.json` — MCP-Server (nur falls ein Skill einen verlangt; Secrets nur als `${{ENV}}`).
+- `plan/` — der freigegebene ZGPM-Plan als Single Source of Truth (inkl. `plan/matrix.md`).
 
 ## 2. Agententeam
 
 {agent_lines}
 
-## 3. HITL — wann du gefragt wirst
+## 3. Autonomie-/Reifegrad
+
+Stufe **{graph.autonomy_level.value} — {graph.autonomy_level.label}**
+(`permissions.defaultMode: {graph.autonomy_level.default_mode}`). Die Stufe koppelt
+Permission-Modus, HITL-Dichte und Telemetrie. Prinzip: Autonomie an Reversibilität,
+nicht an Mechanik — irreversible Aktionen bleiben stets HITL-pflichtig.
+
+## 4. HITL — wann du gefragt wirst
 
 {chr(10).join("- " + p for p in graph.hitl_points)}
 
-## 4. Leitplanken (nicht verhandelbar)
+## 5. Leitplanken (nicht verhandelbar)
 
 Trust-Infrastructure-Framing · keine 100%-Claims · Rechtsräume DE/EU27-Rest/UK/CH ·
 AIMS-Maturity · Produktnamen AI Navigator/Guardian/Commander · keine Secrets im
-Klartext. Der `constitution-guard`-Hook blockt Schreibzugriffe auf
-`00_CLAUDE_KNOWLEDGE_ARCHITECTURE/**`.
+Klartext. Der `constitution-guard`-Hook (PreToolUse, `permissionDecision:"deny"`)
+blockt Schreibzugriffe auf `00_CLAUDE_KNOWLEDGE_ARCHITECTURE/**` — zusätzlich zur
+deny-Regel in `settings.json`.
 
-## 5. Wenn etwas hakt
+## 6. Telemetrie & Audit (C4)
+
+Die Cowork-/App-seitige Audit-Tiefe (OTel) ist nicht datei-erzwingbar
+(Virtualisierungsgrenze, BP-MD §5/§9). Datei-seitige Kompensation: der
+`audit-log`-Hook schreibt append-only nach `.harness/audit.log`. Ab Reifegrad 4 setzt
+`settings.json` zusätzlich `CLAUDE_CODE_ENABLE_TELEMETRY=1`. Optionales OTel-Setup:
+
+```bash
+export CLAUDE_CODE_ENABLE_TELEMETRY=1
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://<collector>:4317"
+export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+```
+
+## 7. Stopping-Conditions (C5)
+
+- **Build/Revision:** max. {MAX_HARNESS_ITERATIONS} Harness-Iterationen (kein Endlos-Loop).
+- **Reviewer (Evaluator-Optimizer):** max. 3 Runden je Knoten, dann HITL-Entscheid.
+  Bewusst unterschiedliche Schwellen (Build = Struktur, Reviewer = Qualität je Output).
+
+## 8. Wenn etwas hakt
 
 - Integritätsfehler → Harness im Planner neu exportieren (Gate 3).
 - Reviewer-FAIL nach 3 Runden → HITL-PM entscheidet.
-- Rote Ampel → `stop-on-red`-Hook hält; `/risk-view` zeigt Details.
+- Rote Ampel → `stop-on-red`-Hook hält (`continue:false`); `/risk-view` zeigt Details.
 
 *exmachinAI · AEGIRA AI Trust Platform · Handover für Claude Code / Cowork.*
 """
 
 
-def changelog_md(graph: HarnessGraph) -> str:
+def changelog_md(graph: HarnessGraph, schema_version: str) -> str:
     return f"""# CHANGELOG
 
 ## {graph.created_at.date()} — kompiliert (Iteration {graph.iteration})
 
 - Harness aus freigegebenem Plan v{graph.plan_version} (`{graph.plan_hash}`).
 - {len(graph.agents)} Agenten, {len(graph.nodes)} Graph-Knoten.
-- Schema `2.0.0-claude-native` (LangGraph-frei).
+- Schema `{schema_version}` (LangGraph-frei).
+- Autonomie-/Reifegrad-Stufe: {graph.autonomy_level.value} — {graph.autonomy_level.label}.
 """
+
+
+def agents_md(project: Project) -> str:
+    """`AGENTS.md` (B5, v0.9) — Cross-Tool-Einstieg, importiert die `CLAUDE.md`.
+
+    `AGENTS.md` ist der tool-übergreifende Standard (Codex, Cursor, …). Wir halten
+    ihn bewusst dünn: er verweist per `@import` auf die kanonische `CLAUDE.md`, damit
+    es keine zweite Quelle der Wahrheit gibt (Single Source of Truth bleibt CLAUDE.md).
+    """
+    return f"""# AGENTS.md — {project.title}
+
+> Tool-übergreifender Einstieg. Die verbindlichen Anweisungen stehen in `CLAUDE.md`
+> (Single Source of Truth). Dieses Dokument importiert sie nur.
+
+@CLAUDE.md
+
+## Hinweis
+
+Dieser Harness ist für **Claude Code / Cowork** kompiliert. Andere Agenten-Tools
+sollten `CLAUDE.md`, `.claude/agents/` und `plan/` als verbindlich behandeln.
+"""
+
+
+def devcontainer_files(project: Project) -> dict[str, str]:
+    """`.devcontainer/` (B6, v0.9) — nur für IT-Harnesses (Non-Root-Sandbox).
+
+    Voraussetzung für `acceptEdits`/höhere Autonomie laut BP-MD §8 (Sandbox).
+    Gibt ein leeres Dict für Nicht-IT-Vorhaben zurück (kein Datei-Output)."""
+    if (project.project_type or "non-it") != "it":
+        return {}
+    devcontainer = json.dumps(
+        {
+            "name": "aegira-harness",
+            "image": "mcr.microsoft.com/devcontainers/base:bookworm",
+            # Non-Root (BP-MD §8) — höhere Autonomie nur in der Sandbox.
+            "remoteUser": "vscode",
+            "features": {
+                "ghcr.io/devcontainers/features/node:1": {},
+                "ghcr.io/devcontainers/features/github-cli:1": {},
+            },
+            "postCreateCommand": "command -v jq >/dev/null || sudo apt-get update && sudo apt-get install -y jq",
+        },
+        indent=2,
+        ensure_ascii=False,
+    ) + "\n"
+    return {".devcontainer/devcontainer.json": devcontainer}
 
 
 def license_txt() -> str:
@@ -388,6 +470,13 @@ GITHUB_PROTECTED_PATHS=00_CLAUDE_KNOWLEDGE_ARCHITECTURE/**
 
 # Wurzelpfad des Harness (absolut). Beim Start: export HARNESS_ROOT="$(pwd)".
 HARNESS_ROOT=
+
+# --- Transcript-/Credential-Hygiene (v0.9, C3) -------------------------------
+# Prompt-History deaktivieren (keine sensiblen Prompts im Verlauf). Wird auch in
+# .claude/settings.json (env) gesetzt — hier zur Sichtbarkeit/Override.
+CLAUDE_CODE_SKIP_PROMPT_HISTORY=1
+# settings.json verweigert zusätzlich Read(./.env) + Secret-Globs. Niemals echte
+# Secrets committen; .env ist gitignored.
 """
 
 
@@ -415,49 +504,224 @@ Initialisiert aus Plan v{plan.version}. Checkpoints unter `$HARNESS_ROOT/.harnes
 
 
 def settings_json(graph: HarnessGraph) -> str:
+    """`.claude/settings.json` — schematreu (v0.9, P0.3).
+
+    Nur dokumentierte Claude-Code-Felder (gegen die offizielle Settings-Referenz
+    verifiziert). Phantasie-Keys (`thinking_budget`, `*_path`, `log_level`) entfernt.
+    Permissions deny→ask→allow; `defaultMode`, `ask`-Liste und Telemetrie sind an
+    die Autonomie-/Reifegrad-Stufe gekoppelt (C1, BP-MD §7). Hooks im kanonischen
+    Event-Schema (PreToolUse/PostToolUse/Stop) mit Command-Handlern.
+    """
+    from . import catalog
+
+    level = graph.autonomy_level
+    agent_tools = {t for a in graph.agents for t in a.tools}
+    irreversible = sorted(agent_tools & catalog.irreversible_tool_names())
+    high_risk = sorted(agent_tools & catalog.high_risk_tool_names())
+
+    # deny — Credential-/Transcript-Hygiene (C3) + Zone-2-Schutz (Constitution).
+    deny = [
+        "Bash(rm -rf:*)", "Bash(curl:*)", "Bash(wget:*)", "Bash(sudo:*)",
+        "Read(./.env)", "Read(./.env.*)", "Read(./**/.env)",
+        "Read(./**/*.pem)", "Read(./**/*.key)", "Read(./**/id_rsa)",
+        "Read(./**/secrets/**)",
+        "Write(./00_CLAUDE_KNOWLEDGE_ARCHITECTURE/**)",
+        "Edit(./00_CLAUDE_KNOWLEDGE_ARCHITECTURE/**)",
+    ]
+
+    # ask — harte Gates an irreversiblen/risikoreichen Punkten (BP-MD §7), stufenunabhängig.
+    ask = ["Bash(git push:*)"]
+    for name in irreversible + high_risk:
+        ask.append(f"mcp__*__{name}")
+
+    # allow + ask je Reifegrad. Niedrige Stufe: Schreiben/Bash fragt nach.
+    if int(level) <= 2:
+        allow = ["Read", "Glob", "Grep"]
+        ask = ["Write", "Edit", "Bash"] + ask
+    elif int(level) == 3:
+        allow = ["Read", "Glob", "Grep", "Write", "Edit"]
+        ask = ["Bash"] + ask
+    else:  # Stufe 4 — autonom, aber Hooks + Telemetrie bleiben Gate.
+        allow = ["Read", "Glob", "Grep", "Write", "Edit", "Bash"]
+
+    # env — Transcript-Hygiene immer; Telemetrie ab Stufe 4 (Audit-Nachweisbarkeit).
+    env = {"CLAUDE_CODE_SKIP_PROMPT_HISTORY": "1"}
+    if int(level) >= 4:
+        env["CLAUDE_CODE_ENABLE_TELEMETRY"] = "1"
+
+    hook = lambda name: {  # noqa: E731 — kompakte Hook-Referenz
+        "type": "command",
+        "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/" + name,
+    }
     return json.dumps(
         {
-            "$schema": "https://schema.claude.ai/claude-settings.json",
+            "$schema": "https://json.schemastore.org/claude-code-settings.json",
             "model": "claude-sonnet-4-6",
-            "thinking_budget": "high",
+            "includeCoAuthoredBy": False,
+            "cleanupPeriodDays": 30,
+            "env": env,
             "permissions": {
-                "allow": ["Read", "Glob", "Grep", "Write", "Edit"],
-                "deny": ["Bash(rm -rf:*)", "Bash(curl:*)", "Bash(wget:*)"],
+                "defaultMode": level.default_mode,
+                "allow": allow,
+                "ask": ask,
+                "deny": deny,
             },
             "hooks": {
-                "pre_tool_use": [
-                    ".claude/hooks/pre-tool/constitution-guard.json",
-                    ".claude/hooks/pre-tool/token-budget.json",
+                "PreToolUse": [
+                    {
+                        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+                        "hooks": [hook("constitution-guard.sh")],
+                    }
                 ],
-                "post_tool_use": [".claude/hooks/post-tool/audit-log.json"],
-                "stop": [".claude/hooks/stop/stop-on-red.json"],
+                "PostToolUse": [
+                    {"matcher": "*", "hooks": [hook("audit-log.sh"), hook("stop-on-red.sh")]}
+                ],
+                "Stop": [{"matcher": "*", "hooks": [hook("checkpoint.sh")]}],
             },
-            "subagents_path": ".claude/agents/",
-            "skills_path": ".claude/skills/",
-            "commands_path": ".claude/commands/",
-            "memory_path": "memory/",
-            "state_path": ".harness/",
-            "log_level": "info",
         },
         indent=2,
+        ensure_ascii=False,
     ) + "\n"
 
 
 def plugin_json(project: Project, graph: HarnessGraph) -> str:
+    # v0.9 — Befehle sind Skills (kein doppeltes `commands`-Manifest mehr → keine
+    # Kollisionswarnung). Plugin referenziert Agenten + die Slash-only-Skills.
     return json.dumps(
         {
             "name": "aegira-harness",
             "version": "1.0.0",
             "description": f"Cowork-Plugin für {project.title} (AEGIRA-Harness).",
             "agents": [a.name for a in graph.agents],
-            "commands": [
-                "run-harness", "show-plan", "validate-plan", "risk-view",
-                "usage-report", "reset-milestone", "explain",
-            ],
+            "skills": list(_HARNESS_COMMANDS.keys()),
         },
         indent=2,
         ensure_ascii=False,
     ) + "\n"
+
+
+def mcp_json(graph: HarnessGraph) -> str | None:
+    """`.mcp.json` (Schicht 10, v0.9/B1) — MCP-Server aus den Skill-Anforderungen.
+
+    Aggregiert `CatalogSkill.required_mcps` der gewählten Skills zu Server-Einträgen.
+    Credentials NUR als `${ENV}`-Referenz (nie Klartext, Constitution). Transport
+    `http` für URL-artige Namen, sonst `stdio`. Gibt `None`, wenn kein Skill einen
+    MCP-Server verlangt (dann wird keine Datei geschrieben).
+    """
+    needed: set[str] = set()
+    for c in graph.catalog_skills:
+        for m in c.required_mcps:
+            if m and m != "—":
+                needed.add(m)
+    if not needed:
+        return None
+
+    servers: dict[str, Any] = {}
+    for name in sorted(needed):
+        key = name.strip()
+        slug = key.lower().replace(" ", "-")
+        env_token = "${" + slug.upper().replace("-", "_") + "_TOKEN}"
+        if key.startswith("http://") or key.startswith("https://"):
+            servers[slug] = {
+                "type": "http",
+                "url": key,
+                "headers": {"Authorization": f"Bearer {env_token}"},
+            }
+        else:
+            servers[slug] = {
+                "type": "stdio",
+                "command": "npx",
+                "args": ["-y", f"@modelcontextprotocol/server-{slug}"],
+                "env": {f"{slug.upper().replace('-', '_')}_TOKEN": env_token},
+            }
+    return json.dumps({"mcpServers": servers}, indent=2, ensure_ascii=False) + "\n"
+
+
+def rule_files() -> dict[str, str]:
+    """`.claude/rules/*.md` (Schicht 3, v0.9/B2) — pfad-/themenskopierte Regeln.
+
+    Verbindliche Zonen- und Naming-Regeln aus der Constitution, damit sie auch
+    ohne geladenes Knowledge-Repo greifen.
+    """
+    zones = """---
+description: AEGIRA-Zonenregeln — Schreibschutz der Constitution (Zone 2).
+paths:
+  - "00_CLAUDE_KNOWLEDGE_ARCHITECTURE/**"
+---
+
+# Zonenregeln (AEGIRA-Constitution)
+
+- **Zone 2** (`00_CLAUDE_KNOWLEDGE_ARCHITECTURE/**`) ist kanonisch und **schreibgeschützt**.
+  Kein Write/Edit — der `constitution-guard`-Hook blockt dies zusätzlich deterministisch.
+- **Zone 1** (`10_USER_FILES/USER-XXX/_INBOX|_DRAFT|_ARCHIVE/`) ist persönlich.
+- **Zone 3** (alle übrigen Top-Level-Ordner) ist kollaborativ und beschreibbar.
+"""
+    naming = """---
+description: AEGIRA-Naming für User-Files in Zone 1.
+paths:
+  - "10_USER_FILES/**"
+---
+
+# Naming-Konvention (Zone 1)
+
+User-Files folgen `YYMMDD_HHMM_USER-XXX_THEMA-KURZ.ext`
+(z. B. `260603_0930_USER-001_PLAN-REVIEW.md`). Datum/Uhrzeit zuerst, dann User-ID,
+dann Kurzthema. Keine Leerzeichen; Umlaute vermeiden.
+"""
+    return {
+        ".claude/rules/zones.md": zones,
+        ".claude/rules/naming.md": naming,
+    }
+
+
+def matrix_export_md(plan: Plan) -> str:
+    """Verantwortlichkeits-Matrix als eigenständiges Audit-Artefakt (D5, v0.9).
+
+    Enthält BEIDE Sprachen: interne ZGPM-PVM-Codes und das RACI-Mapping (Anzeige-
+    Standard). So ist die Ablage international anschlussfähig und methodisch eindeutig.
+    """
+    roles = list(plan.pvm_roles)
+    header = "| Meilenstein | " + " | ".join(roles) + " | Regel |"
+    sep = "|" + "---|" * (len(roles) + 2)
+    lines = [
+        "# Verantwortlichkeits-Matrix (PVM × RACI)",
+        "",
+        "PVM = interne ZGPM-Wahrheit · RACI = Anzeige-/Audit-Standard "
+        "(A→R · L/F→A · E/e/B→C · I/V→I).",
+        "",
+        "## PVM-Matrix",
+        "",
+        header,
+        sep,
+    ]
+    for m in plan.milestones:
+        by_role = {r.role: r.code for r in m.responsibilities}
+        cells = [by_role.get(role, "·") for role in roles]
+        codes = list(by_role.values())
+        a_ok = codes.count("A") >= 1
+        fl_ok = (codes.count("F") + codes.count("L")) == 1
+        e_ok = "e" not in codes or "E" in codes
+        rule = "ok" if (a_ok and fl_ok and e_ok) else "⚠"
+        lines.append(f"| {m.id} | " + " | ".join(cells) + f" | {rule} |")
+
+    lines += [
+        "",
+        "## RACI-Matrix (Anzeige-Standard)",
+        "",
+        header,
+        sep,
+    ]
+    pvm_to_raci = {"A": "R", "L": "A", "F": "A", "E": "C", "e": "C", "B": "C", "I": "I", "V": "I"}
+    for m in plan.milestones:
+        by_role = {r.role: pvm_to_raci.get(r.code, "·") for r in m.responsibilities}
+        cells = [by_role.get(role, "·") for role in roles]
+        raci = list(by_role.values())
+        a_ok = raci.count("A") == 1
+        r_ok = raci.count("R") >= 1
+        rule = "ok" if (a_ok and r_ok) else "⚠"
+        lines.append(f"| {m.id} | " + " | ".join(cells) + f" | {rule} |")
+    lines.append("")
+    return "\n".join(lines)
 
 
 def agent_md(agent, plan: Plan) -> str:  # noqa: ANN001 — AgentSpec
@@ -472,7 +736,6 @@ def agent_md(agent, plan: Plan) -> str:  # noqa: ANN001 — AgentSpec
 name: {agent.name}
 description: {desc}
 model: {agent.model}
-thinking_budget: high
 tools:
 {tools_yaml}
 ---
@@ -601,21 +864,28 @@ def skill_manifest(graph: HarnessGraph) -> str | None:
     ) + "\n"
 
 
-def command_files() -> dict[str, str]:
-    cmds = {
-        "run-harness": "Startet oder setzt den ZGPM-Plan-Run fort.",
-        "show-plan": "Zeigt den Plan aus `$HARNESS_ROOT/plan/`.",
-        "validate-plan": "Prüft die ZGPM-Konsistenz über die Rules-Engine.",
-        "risk-view": "Listet Risiko-Ampeln (PRL + MRL).",
-        "usage-report": "Zeigt den Token-Verbrauch je Agent/Knoten.",
-        "reset-milestone": "Setzt einen Meilenstein zurück (Argument: id).",
-        "explain": "Erklärt die ZGPM-Methodik im Kontext des Plans.",
-    }
+# v0.9 (B4/P1.4) — die 7 Harness-Befehle sind jetzt **Skills** (Anthropic empfiehlt
+# Skills statt Commands; bei Namenskollision gewinnt der Skill). Als Slash-only
+# (`disable-model-invocation: true`), damit das Modell sie nicht ungefragt auslöst.
+_HARNESS_COMMANDS = {
+    "run-harness": "Startet oder setzt den ZGPM-Plan-Run fort.",
+    "show-plan": "Zeigt den Plan aus `$HARNESS_ROOT/plan/`.",
+    "validate-plan": "Prüft die ZGPM-Konsistenz über die Rules-Engine.",
+    "risk-view": "Listet Risiko-Ampeln (PRL + MRL).",
+    "usage-report": "Zeigt den Token-Verbrauch je Agent/Knoten.",
+    "reset-milestone": "Setzt einen Meilenstein zurück (Argument: id).",
+    "explain": "Erklärt die ZGPM-Methodik im Kontext des Plans.",
+}
+
+
+def command_skill_files() -> dict[str, str]:
+    """Die Harness-Befehle als Slash-only-Skills (`.claude/skills/<name>/SKILL.md`)."""
     out: dict[str, str] = {}
-    for name, desc in cmds.items():
-        out[f".claude/commands/{name}.md"] = f"""---
+    for name, desc in _HARNESS_COMMANDS.items():
+        out[f".claude/skills/{name}/SKILL.md"] = f"""---
 name: {name}
 description: {desc}
+disable-model-invocation: true
 ---
 
 # /{name}
@@ -624,51 +894,80 @@ description: {desc}
 
 Arbeitet ausschließlich auf absoluten Pfaden ab `$HARNESS_ROOT`.
 """
+    # Legacy-Hinweis: `.claude/commands/` ist abgelöst (Skills gewinnen bei Kollision).
+    out[".claude/commands/README.md"] = (
+        "# `.claude/commands/` — abgelöst (v0.9)\n\n"
+        "Die Harness-Befehle (`/run-harness`, `/show-plan`, …) sind jetzt **Skills** "
+        "unter `.claude/skills/<name>/SKILL.md` (Slash-only via `disable-model-invocation`).\n"
+        "Claude Code lädt Skills bevorzugt; bei Namenskollision gewinnt der Skill. "
+        "Dieses Verzeichnis bleibt nur als Migrationshinweis bestehen.\n"
+    )
     return out
 
 
 def hook_files() -> dict[str, str]:
+    """`.claude/hooks/*.sh` — kanonische Command-Hooks (v0.9, P0.2).
+
+    Hooks sind das einzige *deterministische* Trust-Instrument (BP-MD §4). Schema
+    gegen die offizielle Hooks-Referenz verifiziert: Eingabe als JSON auf stdin,
+    Blockieren via Exit-Code 2 **oder** `hookSpecificOutput.permissionDecision:"deny"`,
+    Abbruch via `{"continue":false,"stopReason":…}`. Pfade über `${CLAUDE_PROJECT_DIR}`.
+    Registriert werden sie in `.claude/settings.json` unter `hooks`.
+    """
     return {
-        ".claude/hooks/pre-tool/constitution-guard.json": json.dumps(
-            {
-                "name": "constitution-guard",
-                "trigger": "before_tool",
-                "tool_pattern": "Write|Edit",
-                "condition": "tool_input.path.contains('00_CLAUDE_KNOWLEDGE_ARCHITECTURE/')",
-                "action": "block",
-                "message": "Zone-2-Pfad — Schreibzugriff auf die Constitution ist gesperrt.",
-            },
-            indent=2,
-        ) + "\n",
-        ".claude/hooks/pre-tool/token-budget.json": json.dumps(
-            {
-                "name": "token-budget",
-                "trigger": "before_tool",
-                "action": "warn",
-                "threshold_pct": 80,
-                "message": "Token-Budget > 80% — HITL-PM-Approval vor Fortsetzung.",
-            },
-            indent=2,
-        ) + "\n",
-        ".claude/hooks/post-tool/audit-log.json": json.dumps(
-            {
-                "name": "audit-log",
-                "trigger": "after_tool",
-                "action": "append",
-                "target": "$HARNESS_ROOT/.harness/audit.log",
-            },
-            indent=2,
-        ) + "\n",
-        ".claude/hooks/stop/stop-on-red.json": json.dumps(
-            {
-                "name": "stop-on-red",
-                "trigger": "after_tool",
-                "tool_pattern": "zgpm-rules-engine|risk-traffic-light",
-                "condition": "tool_output.contains('rot') || tool_output.contains('red')",
-                "action": "halt",
-                "message": "Rote Risikoampel — HITL-PM-Approval erforderlich.",
-                "require_hitl_ack": True,
-            },
-            indent=2,
-        ) + "\n",
+        # PreToolUse (matcher Write|Edit|…): blockt Schreibzugriffe auf die
+        # Constitution (Zone 2) — greift auch im bypass-Modus und rekursiv für Subagents.
+        ".claude/hooks/constitution-guard.sh": (
+            "#!/usr/bin/env bash\n"
+            "# AEGIRA constitution-guard (PreToolUse) — Zone-2-Schreibschutz.\n"
+            "# Blockt Write/Edit auf 00_CLAUDE_KNOWLEDGE_ARCHITECTURE/** (Constitution).\n"
+            "set -euo pipefail\n"
+            "input=$(cat)\n"
+            "path=$(printf '%s' \"$input\" | jq -r '.tool_input.file_path // .tool_input.path // \"\"')\n"
+            "case \"$path\" in\n"
+            "  *00_CLAUDE_KNOWLEDGE_ARCHITECTURE/*)\n"
+            "    jq -n '{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\","
+            "permissionDecisionReason:\"Zone-2-Pfad — Schreibzugriff auf die Constitution ist gesperrt (AEGIRA-Constitution).\"}}'\n"
+            "    exit 0 ;;\n"
+            "esac\n"
+            "exit 0\n"
+        ),
+        # PostToolUse (matcher *): append-only Audit-Log als datei-seitige Kompensation
+        # der Cowork-Telemetrie-Lücke (BP-MD §5/§9).
+        ".claude/hooks/audit-log.sh": (
+            "#!/usr/bin/env bash\n"
+            "# AEGIRA audit-log (PostToolUse) — append-only Tool-Audit.\n"
+            "set -euo pipefail\n"
+            "input=$(cat)\n"
+            "tool=$(printf '%s' \"$input\" | jq -r '.tool_name // \"?\"')\n"
+            "ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)\n"
+            "dir=\"${CLAUDE_PROJECT_DIR:-.}/.harness\"\n"
+            "mkdir -p \"$dir\"\n"
+            "printf '%s\\t%s\\n' \"$ts\" \"$tool\" >> \"$dir/audit.log\"\n"
+            "exit 0\n"
+        ),
+        # PostToolUse (matcher *): hält den Lauf an, sobald ein Tool-Ergebnis eine rote
+        # Risiko-Ampel meldet — verlangt HITL-PM-Approval (continue:false).
+        ".claude/hooks/stop-on-red.sh": (
+            "#!/usr/bin/env bash\n"
+            "# AEGIRA stop-on-red (PostToolUse) — Halt bei roter Risiko-Ampel.\n"
+            "set -euo pipefail\n"
+            "input=$(cat)\n"
+            "out=$(printf '%s' \"$input\" | jq -r '.tool_response // .tool_result // \"\" | tostring' 2>/dev/null || echo \"\")\n"
+            "if printf '%s' \"$out\" | grep -qiE 'ampel[\\\": ]*rot|\\\"red\\\"|risk[_-]?red'; then\n"
+            "  jq -n '{continue:false,stopReason:\"Rote Risikoampel erkannt — HITL-PM-Approval erforderlich, bevor fortgesetzt wird.\"}'\n"
+            "fi\n"
+            "exit 0\n"
+        ),
+        # Stop (matcher *): Checkpoint nach jedem Lauf-Ende (docs/04 — Resume-Fähigkeit).
+        ".claude/hooks/checkpoint.sh": (
+            "#!/usr/bin/env bash\n"
+            "# AEGIRA checkpoint (Stop) — markiert Lauf-Ende im Audit-Log.\n"
+            "set -euo pipefail\n"
+            "ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)\n"
+            "dir=\"${CLAUDE_PROJECT_DIR:-.}/.harness\"\n"
+            "mkdir -p \"$dir\"\n"
+            "printf '%s\\tSTOP\\tcheckpoint\\n' \"$ts\" >> \"$dir/audit.log\"\n"
+            "exit 0\n"
+        ),
     }

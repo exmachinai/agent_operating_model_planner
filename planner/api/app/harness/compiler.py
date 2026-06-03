@@ -27,6 +27,7 @@ from ..schemas.harness import (
     MAX_HARNESS_ITERATIONS,
     AgentSpec,
     ArtifactRef,
+    AutonomyLevel,
     CatalogSkill,
     HarnessFinding,
     HarnessGraph,
@@ -38,8 +39,9 @@ from ..schemas.plan import Plan
 from ..schemas.project import Project
 from . import catalog, skill_catalog, templates, yaml_emit
 
+# v0.9 — EINE Schema-Version als Single Source of Truth (P1.1/A4: keine Drift mehr).
 _SCHEMA_VERSION = "2.1.0-claude-native"
-_COMPILER_ID = "aegira-planner@0.4.0"
+_COMPILER_ID = "aegira-planner@0.9.0"
 
 
 # --- Slug / Ableitung ---------------------------------------------------------
@@ -346,6 +348,23 @@ def _hitl_points(plan: Plan) -> list[str]:
     return points
 
 
+def _irreversible_hitl_points(agents: list[AgentSpec]) -> list[str]:
+    """v0.9 (C2) — Pflicht-HITL an irreversiblen Tool-Aufrufen (BP-MD §7).
+
+    Harte Gates gehören nur an irreversible Punkte — hier sichtbar gemacht, sobald
+    ein Agent ein als irreversibel klassifiziertes Tool trägt (z. B. `trigger_deploy`).
+    """
+    irreversible = catalog.irreversible_tool_names()
+    points: list[str] = []
+    for a in agents:
+        for t in a.tools:
+            if t in irreversible:
+                points.append(
+                    f"Irreversible Aktion `{t}` ({a.role}) — Pflicht-HITL-Freigabe vor Ausführung"
+                )
+    return points
+
+
 def _detect_anti_patterns(
     agents: list[AgentSpec], nodes: list[HarnessNode]
 ) -> list[HarnessFinding]:
@@ -397,6 +416,23 @@ def _detect_anti_patterns(
             )
         )
 
+    # v0.9 (D4) — McKinsey-Methodentreue sichtbar machen (MECE/Pyramid/Hypothese).
+    method_markers = {"methodology-agent", "mece", "zgpm-validate", "zgpm-rules-engine", "pvm-validate"}
+    has_method = any(
+        a.name == "methodology-agent" or method_markers & set(a.skills) for a in agents
+    )
+    if not has_method:
+        findings.append(
+            HarnessFinding(
+                severity="warn",
+                rule="mckinsey.mece-ungesichert",
+                message=(
+                    "Keine Methodik-Absicherung (MECE/Pyramid/Hypothese): weder ein "
+                    "Methodik-Agent noch ein ZGPM-/MECE-Skill im Team (docs/01, McKinsey)."
+                ),
+            )
+        )
+
     if not findings:
         findings.append(
             HarnessFinding(
@@ -430,7 +466,7 @@ def compile_graph(project: Project, plan: Plan, *, harness_id: str | None = None
         nodes=nodes,
         imported_skills=imported_skills,
         catalog_skills=catalog_skills,
-        hitl_points=_hitl_points(plan),
+        hitl_points=_hitl_points(plan) + _irreversible_hitl_points(agents),
         artifacts=[],
         findings=findings,
         zip_name=f"{slug}_{date}_{short}.harness.zip",
@@ -458,6 +494,7 @@ def apply_command(graph: HarnessGraph, cmd: ReviseCommand) -> HarnessGraph:
     agents = [a.model_copy(deep=True) for a in graph.agents]
     imported_skills = [s.model_copy(deep=True) for s in graph.imported_skills]
     catalog_skills = [c.model_copy(deep=True) for c in graph.catalog_skills]
+    new_level = graph.autonomy_level  # v0.9 — nur das autonomy-Kommando ändert die Stufe
 
     if cmd.command in ("sequence", "parallel"):
         parallel = cmd.command == "parallel"
@@ -538,6 +575,13 @@ def apply_command(graph: HarnessGraph, cmd: ReviseCommand) -> HarnessGraph:
             else:  # balanced: Orchestrator = Opus, Rest = Sonnet
                 a.model = opus if a.kind == "orchestrator" else sonnet
         nodes = [n.model_copy(deep=True) for n in graph.nodes]
+    elif cmd.command == "autonomy":
+        # v0.9 (C1) — Reifegrad-/Autonomie-Stufe setzen. Knoten unverändert; die Stufe
+        # wirkt beim Kompilieren auf settings.json (defaultMode, ask-Liste, Telemetrie).
+        if cmd.autonomy_level is None:
+            raise ValueError("autonomy-Kommando braucht autonomy_level (1–4).")
+        new_level = AutonomyLevel(cmd.autonomy_level)
+        nodes = [n.model_copy(deep=True) for n in graph.nodes]
     else:  # pragma: no cover — durch Literal abgesichert
         raise ValueError(f"Unbekanntes Kommando: {cmd.command}")
 
@@ -552,6 +596,7 @@ def apply_command(graph: HarnessGraph, cmd: ReviseCommand) -> HarnessGraph:
             "nodes": nodes,
             "imported_skills": imported_skills,
             "catalog_skills": catalog_skills,
+            "autonomy_level": new_level,
             "findings": findings,
             "iteration": graph.iteration + 1,
             "artifacts": [],  # nach Revision neu zu kompilieren
@@ -637,11 +682,12 @@ def build_files(graph: HarnessGraph, plan: Plan, project: Project) -> dict[str, 
     """Instanziert die komplette Harness-Datei-Struktur (Pfad → Inhalt)."""
     files: dict[str, str] = {}
     files["CLAUDE.md"] = templates.claude_md(project, plan, graph)
+    files["AGENTS.md"] = templates.agents_md(project)  # B5 — Cross-Tool-Einstieg
     files["README.md"] = templates.readme_md(project, plan, graph)
     files["INSTALL.md"] = templates.install_md(project, graph)
     files["USERGUIDE.md"] = templates.userguide_md(project, plan, graph)
     files["HANDOVER.md"] = templates.handover_md(project, plan, graph)
-    files["CHANGELOG.md"] = templates.changelog_md(graph)
+    files["CHANGELOG.md"] = templates.changelog_md(graph, _SCHEMA_VERSION)
     files["LICENSE"] = templates.license_txt()
     files[".env.example"] = templates.env_example()
     files[".gitignore"] = templates.gitignore()
@@ -662,6 +708,9 @@ def build_files(graph: HarnessGraph, plan: Plan, project: Project) -> dict[str, 
     files["orchestration.yaml"] = yaml_emit.dump(templates.orchestration(graph))
     files["guardrails.yaml"] = yaml_emit.dump(templates.guardrails_doc())
 
+    # v0.9 (D5) — Matrix als eigenständiges Audit-Artefakt (PVM × RACI).
+    files["plan/matrix.md"] = templates.matrix_export_md(plan)
+
     # .claude/
     files[".claude/settings.json"] = templates.settings_json(graph)
     files[".claude/plugins/aegira-harness/plugin.json"] = templates.plugin_json(project, graph)
@@ -669,9 +718,20 @@ def build_files(graph: HarnessGraph, plan: Plan, project: Project) -> dict[str, 
         files[f".claude/agents/{agent.name}.md"] = templates.agent_md(agent, plan)
     for path, content in templates.skill_files(graph).items():
         files[path] = content
-    for path, content in templates.command_files().items():
+    for path, content in templates.command_skill_files().items():
+        files[path] = content
+    for path, content in templates.rule_files().items():
         files[path] = content
     for path, content in templates.hook_files().items():
+        files[path] = content
+
+    # v0.9 (B1) — .mcp.json nur, wenn ein gewählter Skill einen MCP-Server verlangt.
+    mcp = templates.mcp_json(graph)
+    if mcp is not None:
+        files[".mcp.json"] = mcp
+
+    # v0.9 (B6) — .devcontainer/ nur für IT-Harnesses (Non-Root-Sandbox).
+    for path, content in templates.devcontainer_files(project).items():
         files[path] = content
 
     # memory/
@@ -691,8 +751,12 @@ def _kind_for(path: str) -> str:
         return "skill"
     if path.startswith(".claude/commands/"):
         return "command"
+    if path.startswith(".claude/rules/"):
+        return "rule"
     if path.startswith(".claude/hooks/"):
         return "hook"
+    if path == ".mcp.json":
+        return "mcp"
     return "doc"
 
 

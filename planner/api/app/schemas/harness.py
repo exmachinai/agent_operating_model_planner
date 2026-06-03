@@ -33,9 +33,42 @@ HarnessStatus = Literal["draft", "compiled"]
 # Revisions-Kommandos (Schritt 8, Kommandofeld). `agent` deckt Agent-CRUD ab.
 # v0.4: `layout` (Drag&Drop-Stages) + `stage-pattern` (Muster einer Stage setzen).
 # v0.4.3: `model-strategy` setzt die Modell-Tiers aller Agenten in einem Schritt.
+# v0.9: `autonomy` koppelt Reifegrad ↔ Permission-Modus/HITL-Dichte (BP-MD §7).
 ReviseKind = Literal[
-    "sequence", "parallel", "skill", "tool", "agent", "layout", "stage-pattern", "model-strategy"
+    "sequence", "parallel", "skill", "tool", "agent", "layout", "stage-pattern",
+    "model-strategy", "autonomy",
 ]
+
+
+# v0.9 — Autonomie-/Reifegrad-Achse (BP-MD §7: Autonomie an Reversibilität festmachen,
+# nicht an Pipeline-Mechanik). Die Stufe steuert gebündelt Permission-Modus, HITL-Dichte,
+# Hook-Strenge und Sandbox-Empfehlung; an AIMS-Maturity gekoppelt. Bewusst KEINE
+# 100%-Autonomie — Stufe 4 bleibt audit-pflichtig (Telemetrie + Hooks aktiv).
+class AutonomyLevel(int, Enum):
+    """Reifegrad 1–4. Höhere Stufe = mehr Maschinen-Autonomie an reversiblen Punkten."""
+
+    supervised = 1   # read-only/Plan-Modus, jede Aktion über Approval (defaultMode "plan")
+    assisted = 2     # Standard: Edits/Tools fragen nach (defaultMode "default")
+    delegated = 3    # Edits automatisch, riskante/irreversible Tools fragen ("acceptEdits")
+    autonomous = 4   # weitgehend autonom + Telemetrie ("dontAsk"); Hooks bleiben Gate
+
+    @property
+    def default_mode(self) -> str:
+        """Claude-Code `permissions.defaultMode` je Stufe (gegen offizielles Schema verifiziert).
+
+        `auto` wird in Projekt-/Local-Settings ignoriert (Doku v2.1.142) → Stufe 4
+        nutzt `dontAsk` als effektiv-autonomen, aber hook-/telemetrie-gesicherten Modus.
+        """
+        return {1: "plan", 2: "default", 3: "acceptEdits", 4: "dontAsk"}[int(self)]
+
+    @property
+    def label(self) -> str:
+        return {
+            1: "Beaufsichtigt (Plan/Approvals)",
+            2: "Assistiert (Standard)",
+            3: "Delegiert (Auto-Edits)",
+            4: "Autonom (+Telemetrie)",
+        }[int(self)]
 
 # v0.4.3 — globale Modell-Strategie: balanced = Opus-Orchestrator + Sonnet-Rest,
 # economy = alles Sonnet, premium = alles Opus. HITL-Knoten bleiben „human".
@@ -80,6 +113,10 @@ class ToolSpec(BaseModel):
     name: str
     type: ToolType = "data"
     risk: ToolRisk = "low"
+    # v0.9 (C2) — Reversibilitäts-Klassifikation. Irreversible Tools (Deploy, Delete,
+    # Zahlung, Versand) erzwingen ein HITL-Gate ZUSÄTZLICH zu risk=high (BP-MD §7:
+    # ~0,8 % der Aktionen sind irreversibel — genau dort gehören harte Gates hin).
+    irreversible: bool = False
 
 
 # v0.4 — Agentenklassen für den Subagent-Katalog (docs/11).
@@ -271,6 +308,9 @@ class HarnessGraph(BaseModel):
     status: HarnessStatus = "draft"
     # Revisions-Zähler (Schritt 8). Jede Revision erhöht ihn (kein Endlos-Loop).
     iteration: int = Field(default=1, ge=1)
+    # v0.9 (C1) — Autonomie-/Reifegrad-Stufe. Steuert den Permission-Modus und die
+    # HITL-Dichte des exportierten Harness; Default = assistiert (Stufe 2).
+    autonomy_level: AutonomyLevel = AutonomyLevel.assisted
     agents: list[AgentSpec]
     nodes: list[HarnessNode]
     # v0.6 — vom Anwender importierte echte SKILL.md-Inhalte (je Skill-Slug einmal).
@@ -331,6 +371,8 @@ class ReviseCommand(BaseModel):
     pattern: StagePattern | None = None
     # v0.4.3 — `model-strategy`: setzt die Modell-Tiers aller Agenten auf einmal.
     strategy: ModelStrategy | None = None
+    # v0.9 — `autonomy`: setzt die Reifegrad-/Autonomie-Stufe (1–4) des Harness.
+    autonomy_level: AutonomyLevel | None = None
 
 
 # Max. Revisionen je Harness — verhindert Endlos-Loops (docs/04 Evaluator-Optimizer).

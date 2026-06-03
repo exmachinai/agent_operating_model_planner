@@ -1,0 +1,57 @@
+# CI-Gate — Backend-Tests (inkl. Schema-Validierung P0.4/E1) + Frontend Typecheck/Lint.
+#
+# „Verifikation ist der höchste Hebel" (BP-MD §4). Dieser Workflow ist das
+# blockierende Gate: pytest (Harness-Compiler + Schema-Vertrag), tsc und eslint.
+# Läuft bei jedem PR gegen main und bei Push auf main.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (pytest + Schema-Gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        working-directory: planner/api
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: pytest (inkl. test_harness_schema)
+        working-directory: planner/api
+        run: python -m pytest -q
+
+  frontend:
+    name: Frontend (tsc + eslint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: planner/package-lock.json
+      - name: Install deps
+        working-directory: planner
+        run: npm ci
+      - name: Typecheck
+        working-directory: planner
+        run: npx tsc --noEmit
+      - name: Lint
+        working-directory: planner
+        run: npx eslint .

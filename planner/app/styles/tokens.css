@@ -197,12 +197,18 @@ kbd {
  * sich am Breakpoint ändern, nutzen daher diese Klassen statt Inline-Styles.
  * ============================================================================= */
 
-/* Seitenrahmen: mobil volle Breite + fluides Padding, ab md zentriert auf 880px. */
+/* Seitenrahmen: mobil volle Breite + fluides Padding, ab md zentriert auf 880px.
+ * v0.9 (P0.5) — Safe-Area-Insets (iPhone Notch/Dynamic-Island/Home-Indicator):
+ * das Padding ist mindestens der Token-Wert ODER der jeweilige Safe-Area-Inset,
+ * je nachdem was größer ist (max(...)). So überdeckt nichts die Systembereiche. */
 .aegira-shell {
   width: 100%;
   max-width: 100%;
   margin: 0 auto;
-  padding: clamp(16px, 4vw, 32px) clamp(12px, 4vw, 24px);
+  padding-top: max(clamp(16px, 4vw, 32px), env(safe-area-inset-top));
+  padding-bottom: max(clamp(16px, 4vw, 32px), env(safe-area-inset-bottom));
+  padding-left: max(clamp(12px, 4vw, 24px), env(safe-area-inset-left));
+  padding-right: max(clamp(12px, 4vw, 24px), env(safe-area-inset-right));
   /* Verhindert versehentliches horizontales Scrollen der GANZEN Seite, falls ein
    * Kind (z. B. die breite PVM-Matrix) über die Viewport-Breite hinausragt. Die
    * inneren `.aegira-scroll-x`-Regionen scrollen weiterhin eigenständig. `clip`
@@ -360,5 +366,62 @@ kbd {
 @media (min-width: 1024px) {
   .aegira-lane-nodes {
     flex-direction: column;
+  }
+}
+
+/* =============================================================================
+ * v0.9 — Mobile-Feinschliff (P1.11/P1.12) + iPhone Safe-Area (P0.5)
+ * ============================================================================= */
+
+/* P1.11 — iOS zoomt Inputs unter 16px automatisch heran. 16px verhindert den
+ * Fokus-Zoom; Touch-Verhalten sauber (kein graues Tap-Highlight, kein Doppeltap-Delay). */
+input,
+select,
+textarea {
+  font-size: max(16px, 1em);
+}
+button,
+a,
+[role="button"],
+[role="radio"],
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* P1.12 — Sticky Bottom-Bar: Primäraktion in Daumenreichweite, mit Safe-Area-Polster.
+ * Auf breiten Viewports (≥768px) wird die Leiste statisch (kein Sticky nötig). */
+.aegira-bottom-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin: var(--sp-4) calc(-1 * clamp(12px, 4vw, 24px)) calc(-1 * env(safe-area-inset-bottom));
+  padding: var(--sp-3) clamp(12px, 4vw, 24px);
+  padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom));
+  background-color: var(--c-surface);
+  border-top: 1px solid var(--c-border);
+  box-shadow: var(--sh-2);
+}
+.aegira-bottom-bar > * {
+  flex: 1 1 auto;
+}
+@media (min-width: 768px) {
+  .aegira-bottom-bar {
+    position: static;
+    margin: var(--sp-4) 0 0;
+    padding: 0;
+    background: transparent;
+    border-top: 0;
+    box-shadow: none;
+  }
+  .aegira-bottom-bar > * {
+    flex: 0 0 auto;
   }
 }

@@ -285,13 +285,16 @@ export type HarnessStatus = "draft" | "compiled";
 export type StagePattern =
   | "chain" | "section" | "route" | "vote" | "evaluator-optimizer";
 export type ReviseKind =
-  | "sequence" | "parallel" | "skill" | "tool" | "agent" | "layout" | "stage-pattern" | "model-strategy";
+  | "sequence" | "parallel" | "skill" | "tool" | "agent" | "layout" | "stage-pattern"
+  | "model-strategy" | "autonomy";
 export type ModelStrategy = "balanced" | "economy" | "premium";
+// v0.9 — Autonomie-/Reifegrad-Stufe (1–4). Koppelt Permission-Modus + HITL-Dichte.
+export type AutonomyLevel = 1 | 2 | 3 | 4;
 
 // v0.4 — Subagent-Katalog (Tool-Typ + Risk, Modell-Tiering).
 export type ToolType = "data" | "action" | "orchestration";
 export type ToolRisk = "low" | "medium" | "high";
-export interface ToolSpec { name: string; type: ToolType; risk: ToolRisk; }
+export interface ToolSpec { name: string; type: ToolType; risk: ToolRisk; irreversible?: boolean; }
 export type AgentClass =
   | "control" | "worker-it" | "worker-concept" | "quality" | "human";
 export interface CatalogAgent {
@@ -414,6 +417,8 @@ export interface HarnessGraph {
   plan_hash: string;
   status: HarnessStatus;
   iteration: number;
+  // v0.9 — Autonomie-/Reifegrad-Stufe (1–4); steuert defaultMode + HITL-Dichte.
+  autonomy_level: AutonomyLevel;
   agents: AgentSpec[];
   nodes: HarnessNode[];
   imported_skills: SkillImport[];
@@ -448,6 +453,8 @@ export interface ReviseCommand {
   stage?: number;
   pattern?: StagePattern;
   strategy?: ModelStrategy;
+  // v0.9 — autonomy: setzt die Reifegrad-/Autonomie-Stufe (1–4) des Harness.
+  autonomy_level?: AutonomyLevel;
 }
 
 // --- Multi-User-Auth (Registrierung + E-Mail-Bestätigung + TOTP-2FA) -------

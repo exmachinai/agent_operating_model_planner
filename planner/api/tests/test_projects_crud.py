@@ -14,7 +14,7 @@ def test_rename_before_gate1(client: TestClient) -> None:
 
 def test_rename_blocked_after_gate1(client: TestClient) -> None:
     pid = client.post("/v1/projects", json={"title": "Fixiert"}).json()["id"]
-    client.patch(f"/v1/projects/{pid}/understanding", json={"project_nature": "concept"})
+    client.patch(f"/v1/projects/{pid}/understanding", json={"project_nature": "concept", "aegira_internal": False})
     client.post(f"/v1/projects/{pid}/approve-understanding")
     resp = client.patch(f"/v1/projects/{pid}", json={"title": "Geht nicht mehr"})
     assert resp.status_code == 409
@@ -24,6 +24,49 @@ def test_rename_validation_422(client: TestClient) -> None:
     pid = client.post("/v1/projects", json={"title": "Titel"}).json()["id"]
     resp = client.patch(f"/v1/projects/{pid}", json={"title": "ab"})  # < 3 Zeichen
     assert resp.status_code == 422
+
+
+def test_gate1_requires_aegira_internal(client: TestClient) -> None:
+    """v0.9.3 — Preference-Drift-Frage muss vor Gate 1 beantwortet sein."""
+    pid = client.post("/v1/projects", json={"title": "Ohne Drift-Antwort"}).json()["id"]
+    client.patch(f"/v1/projects/{pid}/understanding", json={"project_nature": "concept"})
+    blocked = client.post(f"/v1/projects/{pid}/approve-understanding")
+    assert blocked.status_code == 422
+    # Nach Beantwortung klappt die Freigabe.
+    client.patch(f"/v1/projects/{pid}/understanding", json={"aegira_internal": False})
+    ok = client.post(f"/v1/projects/{pid}/approve-understanding")
+    assert ok.status_code == 200
+
+
+def test_preference_guard_editable_after_gate1(client: TestClient) -> None:
+    """v0.9.3 — der Governance-Schalter bleibt nach Gate 1 korrigierbar,
+    das übrige Verständnis aber eingefroren."""
+    pid = client.post("/v1/projects", json={"title": "Mühle-Fall"}).json()["id"]
+    client.patch(
+        f"/v1/projects/{pid}/understanding",
+        json={"project_nature": "concept", "aegira_internal": False,
+              "understanding_summary": "Externes Vorhaben."},
+    )
+    assert client.post(f"/v1/projects/{pid}/approve-understanding").status_code == 200
+
+    # Preference-Drift-Guard nachträglich korrigieren → erlaubt, wird übernommen.
+    resp = client.patch(
+        f"/v1/projects/{pid}/understanding",
+        json={"aegira_internal": True, "use_preferences": True},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["aegira_internal"] is True
+    assert body["use_preferences"] is True
+
+    # Eingefrorene Felder bleiben unverändert, auch wenn sie mitgeschickt werden.
+    resp2 = client.patch(
+        f"/v1/projects/{pid}/understanding",
+        json={"understanding_summary": "GEÄNDERT", "aegira_internal": False},
+    )
+    assert resp2.status_code == 200
+    assert resp2.json()["understanding_summary"] == "Externes Vorhaben."
+    assert resp2.json()["aegira_internal"] is False
 
 
 def test_duplicate_resets_gates(client: TestClient, gate2_project: str) -> None:

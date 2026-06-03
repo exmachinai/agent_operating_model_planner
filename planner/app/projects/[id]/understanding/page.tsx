@@ -226,19 +226,26 @@ export default function Understanding(): React.ReactElement {
             ] as const).map((o) => (
               <label key={String(o.v)} style={{
                 display: "inline-flex", alignItems: "center", gap: 8, fontSize: 15, minHeight: 44,
-                cursor: locked ? "default" : "pointer", fontWeight: aegiraInternal === o.v ? 600 : 400,
+                cursor: busy ? "default" : "pointer", fontWeight: aegiraInternal === o.v ? 600 : 400,
               }}>
                 <input
                   type="radio"
                   name="aegira_internal"
                   checked={aegiraInternal === o.v}
-                  disabled={locked || busy}
+                  disabled={busy}
                   onChange={() => { setAegiraInternal(o.v); if (!o.v) setUsePrefs(false); }}
                 />
                 {o.label}
               </label>
             ))}
           </div>
+
+          {locked ? (
+            <p style={{ fontSize: 12, color: "var(--c-text-muted)", margin: "var(--sp-2) 0 0" }}>
+              Hinweis: Dieser Governance-Schalter bleibt auch nach Gate 1 korrigierbar
+              (er wirkt erst bei der Harness-Kompilierung). Das übrige Verständnis ist eingefroren.
+            </p>
+          ) : null}
 
           {aegiraInternal === true ? (
             <div style={{ marginTop: "var(--sp-3)" }}>
@@ -254,13 +261,13 @@ export default function Understanding(): React.ReactElement {
                 ] as const).map((o) => (
                   <label key={String(o.v)} style={{
                     display: "inline-flex", alignItems: "center", gap: 8, fontSize: 15, minHeight: 44,
-                    cursor: locked ? "default" : "pointer", fontWeight: usePrefs === o.v ? 600 : 400,
+                    cursor: busy ? "default" : "pointer", fontWeight: usePrefs === o.v ? 600 : 400,
                   }}>
                     <input
                       type="radio"
                       name="use_preferences"
                       checked={usePrefs === o.v}
-                      disabled={locked || busy}
+                      disabled={busy}
                       onChange={() => setUsePrefs(o.v)}
                     />
                     {o.label}
@@ -306,7 +313,7 @@ export default function Understanding(): React.ReactElement {
         </div>
 
         {error ? <p style={errorStyle}>{error}</p> : null}
-        {saved && !locked ? <p style={savedStyle}>Gespeichert.</p> : null}
+        {saved ? <p style={savedStyle}>Gespeichert.</p> : null}
 
         {!locked ? (
           <div className="aegira-actions" style={actionsStyle}>
@@ -316,8 +323,14 @@ export default function Understanding(): React.ReactElement {
             <Button
               variant="accent"
               onClick={approve}
-              disabled={busy || !ptype}
-              title={!ptype ? "Projektart (IT/Non-IT) muss gesetzt sein" : undefined}
+              disabled={busy || !ptype || aegiraInternal === null}
+              title={
+                !ptype
+                  ? "Projektart (IT/Non-IT) muss gesetzt sein"
+                  : aegiraInternal === null
+                    ? "„AEGIRA-internes Projekt?“ muss vor der Freigabe beantwortet sein"
+                    : undefined
+              }
             >
               Verständnis freigeben (Gate 1)
             </Button>
@@ -326,6 +339,9 @@ export default function Understanding(): React.ReactElement {
           <div className="aegira-actions" style={actionsStyle}>
             <Button variant="secondary" onClick={() => router.push("/")}>
               Zur Übersicht
+            </Button>
+            <Button variant="secondary" onClick={save} disabled={busy}>
+              {busy ? "Speichere…" : "Preference-Einstellung speichern"}
             </Button>
             <Button
               variant="accent"

@@ -137,7 +137,8 @@ def _gate2(client: TestClient) -> str:
     pid = client.post("/v1/projects", json={"title": "Skill v08", "description": "x"}).json()["id"]
     client.patch(f"/v1/projects/{pid}/understanding",
                  json={"project_type": "it", "project_subtype": "software-app",
-                       "target_platform": "azure", "understanding_summary": "Vorhaben mit Zielbild."})
+                       "target_platform": "azure", "understanding_summary": "Vorhaben mit Zielbild.",
+                       "aegira_internal": False})
     client.post(f"/v1/projects/{pid}/approve-understanding")
     client.post(f"/v1/projects/{pid}/guardrails/clear", json={"proceed": True})
     client.post(f"/v1/projects/{pid}/plan")

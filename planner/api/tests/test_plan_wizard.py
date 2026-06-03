@@ -24,6 +24,7 @@ def _prepare_plan(client: TestClient) -> str:
             "project_subtype": "software-app",
             "target_platform": "azure",
             "understanding_summary": "Ein klar umrissenes Vorhaben mit Zielbild.",
+            "aegira_internal": False,
         },
     )
     client.post(f"/v1/projects/{pid}/approve-understanding")

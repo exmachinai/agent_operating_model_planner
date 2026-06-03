@@ -32,14 +32,14 @@ Daher sind 11 Slots als **beschriftete Platzhalter** angelegt; 3 sind bereits ec
 | `04_verstaendnis.png` | Schritt 3 · Verständnis & Klassifizierung | ⬜ Platzhalter |
 | `05_leitplanken.png` | Schritt 5 · Leitplanken | ⬜ Platzhalter |
 | `06_meilensteine.png` | Schritt 6A · Meilensteine festlegen | ⬜ Platzhalter |
-| `07_plan.png` | Schritt 6 · Plan (Meilensteine/Risiko) | ✅ echt |
+| `07_plan.png` | Schritt 6 · Plan (Meilensteine/Risiko) | ⚠️ echt, aber Login-Overlay — ersetzen |
 | `08_plan_gantt_raci.png` | Plan · Gantt & RACI | ⬜ Platzhalter |
 | `09_plan_heatmap_token.png` | Plan · Risiko-Heatmap & Token-Budget | ⬜ Platzhalter |
 | `10_review.png` | Schritt 7 · Review & Freigabe (Gate 2) | ⬜ Platzhalter |
-| `11_harness.png` | Schritt 8 · Agent-Harness (Reifegrad/Flow) | ✅ echt |
-| `12_agenten_flow.png` | Interaktiver Agenten-Flow (Canvas, Vollbild) | ⬜ Platzhalter |
-| `13_export.png` | Export · „Speichern unter" (Gate 3) | ⬜ Platzhalter |
-| `14_ausdruck.png` | Ausdruck · Druck/PDF | ✅ echt |
+| `11_harness.png` | Schritt 8 · Agent-Harness (Reifegrad/Flow) | ⚠️ echt, aber Login-Overlay — ersetzen |
+| `12_agenten_flow.png` | Interaktiver Agenten-Flow (Canvas, Vollbild) | ✅ echt (sauber) |
+| `13_export.png` | Export / „Als PDF speichern"-Dialog | ✅ echt (sauber) |
+| `14_ausdruck.png` | Ausdruck · Druck/PDF-Report | ✅ echt (sauber) |
 
 Sobald die Bilder unter diesen Namen liegen, zeigen Explainer **und** HeyGen-Story automatisch die richtigen Screens —
 keine weiteren Änderungen nötig.

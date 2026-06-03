@@ -1,24 +1,23 @@
 # =============================================================================
 # AEGIRA Planner Frontend — Multi-Stage Build (Next.js 15 standalone output)
 #
-# Stage 1 (deps):   npm install --legacy-peer-deps (React 19 RC + Next 15 conflict)
+# Base-Image: Microsoft Azure Linux (mcr.microsoft.com/azurelinux/base/nodejs:24) —
+# komplett Docker-Hub-frei, keine Auth/Rate-Limits. Migration weg von node:22-alpine
+# (Alpine/musl). Azure Linux führt aktuell Node 20 + 24, KEIN 22 → bewusster Bump auf
+# Node 24 (Next.js 15 unterstützt es). glibc statt musl → kein libc6-compat nötig;
+# Useranlage via shadow-utils (groupadd/useradd) statt busybox addgroup/adduser;
+# Healthcheck via curl (im Base vorhanden) statt wget. Siehe docs/18.
+#
+# Stage 1 (deps):   npm ci --legacy-peer-deps (React 19 RC + Next 15 conflict)
 # Stage 2 (build):  next build → .next/standalone + .next/static + public
-# Stage 3 (runner): minimal Alpine + non-root + standalone bundle, port 3000
-#
-# Final image: ~150 MB (vs ~800 MB without standalone).
-#
-# Base-Image (node:22-alpine) über den ACR-Artifact-Cache statt anonym von Docker Hub —
-# vermeidet das anonyme Pull-Rate-Limit (`toomanyrequests`) im `az acr build`. Cache-Rule
-# + authentifiziertes Credential-Set: planner/infra/modules/acrCache.bicep,
-# Doku: docs/18_acr-artifact-cache.md.
+# Stage 3 (runner): minimal Azure Linux + non-root + standalone bundle, port 3000
 # =============================================================================
 
 # -----------------------------------------------------------------------------
 # Stage 1 — Dependencies
 # -----------------------------------------------------------------------------
-FROM aegiraacrprodtgygvmrc.azurecr.io/docker-hub/library/node:22-alpine AS deps
+FROM mcr.microsoft.com/azurelinux/base/nodejs:24 AS deps
 
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
@@ -27,7 +26,7 @@ RUN npm ci --legacy-peer-deps
 # -----------------------------------------------------------------------------
 # Stage 2 — Build
 # -----------------------------------------------------------------------------
-FROM aegiraacrprodtgygvmrc.azurecr.io/docker-hub/library/node:22-alpine AS builder
+FROM mcr.microsoft.com/azurelinux/base/nodejs:24 AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -61,7 +60,7 @@ RUN npm run build
 # -----------------------------------------------------------------------------
 # Stage 3 — Runner
 # -----------------------------------------------------------------------------
-FROM aegiraacrprodtgygvmrc.azurecr.io/docker-hub/library/node:22-alpine AS runner
+FROM mcr.microsoft.com/azurelinux/base/nodejs:24 AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -69,8 +68,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 --ingroup nodejs nextjs
+# Non-root user via shadow-utils (Azure Linux hat kein busybox addgroup/adduser).
+RUN tdnf install -y shadow-utils && tdnf clean all && \
+    groupadd --system --gid 1001 nodejs && \
+    useradd --system --uid 1001 --gid nodejs nextjs
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
@@ -81,6 +82,6 @@ USER nextjs
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+  CMD curl -fsS http://localhost:3000/health || exit 1
 
 CMD ["node", "server.js"]

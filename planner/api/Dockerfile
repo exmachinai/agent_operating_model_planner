@@ -1,15 +1,14 @@
-# Base-Image über den ACR-Artifact-Cache statt anonym von Docker Hub — vermeidet das
-# anonyme Pull-Rate-Limit (`toomanyrequests`) im `az acr build`. Cache-Rule +
-# authentifiziertes Credential-Set: planner/infra/modules/acrCache.bicep,
-# Doku: docs/18_acr-artifact-cache.md.
-FROM aegiraacrprodtgygvmrc.azurecr.io/docker-hub/library/python:3.12-slim
+# Base-Image: Microsoft Azure Linux (mcr.microsoft.com) — komplett Docker-Hub-frei,
+# keine Auth, keine Rate-Limits. Migration weg von python:3.12-slim (Debian).
+# Siehe docs/18_acr-artifact-cache.md.
+FROM mcr.microsoft.com/azurelinux/base/python:3.12
 
 WORKDIR /app
 
-# OS-deps
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl \
-    && rm -rf /var/lib/apt/lists/*
+# OS-deps: curl ist im Base-Image vorhanden; ca-certificates + shadow-utils (useradd)
+# via tdnf (Azure-Linux-Paketmanager).
+RUN tdnf install -y ca-certificates shadow-utils \
+    && tdnf clean all
 
 # Non-root user
 RUN useradd --create-home --shell /bin/bash app

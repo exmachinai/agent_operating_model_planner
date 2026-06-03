@@ -1,0 +1,26 @@
+token_budget_gesamt: 99200
+token_budget:
+- agent: "PMO-Agent"
+  node: "orchestration"
+  tokens: 17000
+- agent: "Research/Analyse-Agent"
+  node: "worker"
+  tokens: 12000
+- agent: "Architektur-Agent"
+  node: "worker"
+  tokens: 12000
+- agent: "Implementierungs-Agent"
+  node: "worker"
+  tokens: 12000
+- agent: "Security-Agent"
+  node: "worker"
+  tokens: 12000
+- agent: "DevOps/Deploy-Agent"
+  node: "worker"
+  tokens: 12000
+- agent: "Risiko-Agent"
+  node: "worker"
+  tokens: 7200
+- agent: "Reviewer/QA-Agent"
+  node: "evaluator"
+  tokens: 15000

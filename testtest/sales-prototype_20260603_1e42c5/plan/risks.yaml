@@ -1,0 +1,25 @@
+projektrisikoliste:
+- id: "PRL-1"
+  beschreibung: "ZGPM-Methodik-Konsistenz nicht durchgehend gewahrt."
+  eintritt: 2
+  auswirkung: 4
+  ampel: "gelb"
+  massnahme: "Reviewer-Gate prüft PVM-Regeln je Knoten vor Freigabe."
+- id: "PRL-2"
+  beschreibung: "Token-Budget je Agent/Knoten wird im Lauf überschritten."
+  eintritt: 3
+  auswirkung: 3
+  ampel: "gelb"
+  massnahme: "Budget-Counter pro Knoten; Stop-Hook bei Überschreitung."
+- id: "PRL-3"
+  beschreibung: "Scope-Drift trotz freigegebenem Verständnis."
+  eintritt: 2
+  auswirkung: 2
+  ampel: "gruen"
+  massnahme: "Verständnis ist eingefroren (Gate 1); Änderungen re-versionieren."
+- id: "PRL-4"
+  beschreibung: "Lock-in an Zielplattform azure."
+  eintritt: 2
+  auswirkung: 3
+  ampel: "gruen"
+  massnahme: "Portables Harness-Zip; plattformneutrale Artefakte bevorzugen."

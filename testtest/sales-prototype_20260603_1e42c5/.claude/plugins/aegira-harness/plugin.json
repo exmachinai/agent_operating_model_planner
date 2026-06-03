@@ -1,0 +1,26 @@
+{
+  "name": "aegira-harness",
+  "version": "1.0.0",
+  "description": "Cowork-Plugin für Sales Prototype (AEGIRA-Harness).",
+  "agents": [
+    "pmo-orchestrator",
+    "architecture-agent",
+    "implementation-agent",
+    "ux-agent",
+    "methodology-agent",
+    "risk-agent",
+    "reviewer-agent",
+    "test-agent",
+    "hitl-projektleiter",
+    "router-triage"
+  ],
+  "skills": [
+    "run-harness",
+    "show-plan",
+    "validate-plan",
+    "risk-view",
+    "usage-report",
+    "reset-milestone",
+    "explain"
+  ]
+}

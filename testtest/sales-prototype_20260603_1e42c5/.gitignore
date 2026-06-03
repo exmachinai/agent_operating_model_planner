@@ -1,0 +1,4 @@
+.env
+.harness/
+memory/context_compressions/
+*.log

@@ -1,0 +1,21 @@
+meilenstein: "M04"
+name: "Alle Screens mit Mock-Daten lauffähig umgesetzt"
+geplant: 2026-07-29T08:51:07.602738+00:00
+pvm:
+- rolle: "PMO-Agent"
+  code: "L"
+- rolle: "Security-Agent"
+  code: "A"
+- rolle: "Projektleiter (HITL)"
+  code: "E"
+- rolle: "Risiko-Agent"
+  code: "B"
+- rolle: "Fachbereich"
+  code: "I"
+mrl:
+- id: "M04-R1"
+  beschreibung: "Verzögerung oder Qualitätslücke in Phase Umsetzung."
+  eintritt: 2
+  auswirkung: 4
+  ampel: "gelb"
+  massnahme: "Frühes HITL-Review am Phasenübergang; Puffer eingeplant."

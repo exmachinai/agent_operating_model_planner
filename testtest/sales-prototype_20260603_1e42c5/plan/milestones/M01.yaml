@@ -1,0 +1,21 @@
+meilenstein: "M01"
+name: "Scope und Branding-Grundlagen festgelegt"
+geplant: 2026-06-17T08:51:07.602738+00:00
+pvm:
+- rolle: "PMO-Agent"
+  code: "L"
+- rolle: "Research/Analyse-Agent"
+  code: "A"
+- rolle: "Projektleiter (HITL)"
+  code: "E"
+- rolle: "Risiko-Agent"
+  code: "B"
+- rolle: "Fachbereich"
+  code: "I"
+mrl:
+- id: "M01-R1"
+  beschreibung: "Verzögerung oder Qualitätslücke in Phase Discovery."
+  eintritt: 2
+  auswirkung: 3
+  ampel: "gruen"
+  massnahme: "Frühes HITL-Review am Phasenübergang; Puffer eingeplant."

@@ -1,0 +1,60 @@
+meilensteine:
+- id: "M01"
+  code: "S1"
+  text: "Scope und Branding-Grundlagen festgelegt"
+  phase: "PH01"
+  ergebnispfad: "S1"
+  geplant: 2026-06-17T08:51:07.602738+00:00
+  vorgaenger: []
+  risiko: "gruen"
+  status: "offen"
+- id: "M02"
+  code: "D1"
+  text: "Clickflow und Screen-Inventar vollständig dokumentiert"
+  phase: "PH02"
+  ergebnispfad: "D1"
+  geplant: 2026-07-01T08:51:07.602738+00:00
+  vorgaenger:
+  - "M01"
+  risiko: "gelb"
+  status: "offen"
+- id: "M03"
+  code: "O1"
+  text: "Aegira-Branding auf alle Screens angewendet"
+  phase: "PH03"
+  ergebnispfad: "O1"
+  geplant: 2026-07-15T08:51:07.602738+00:00
+  vorgaenger:
+  - "M02"
+  risiko: "gelb"
+  status: "offen"
+- id: "M04"
+  code: "S1"
+  text: "Alle Screens mit Mock-Daten lauffähig umgesetzt"
+  phase: "PH04"
+  ergebnispfad: "S1"
+  geplant: 2026-07-29T08:51:07.602738+00:00
+  vorgaenger:
+  - "M03"
+  risiko: "gelb"
+  status: "offen"
+- id: "M05"
+  code: "D1"
+  text: "Prototyp auf Azure deployed und im Browser erreichbar"
+  phase: "PH05"
+  ergebnispfad: "D1"
+  geplant: 2026-08-12T08:51:07.602738+00:00
+  vorgaenger:
+  - "M04"
+  risiko: "gelb"
+  status: "offen"
+- id: "M06"
+  code: "O1"
+  text: "Prototyp intern abgenommen und sales-ready freigegeben"
+  phase: "PH06"
+  ergebnispfad: "O1"
+  geplant: 2026-08-26T08:51:07.602738+00:00
+  vorgaenger:
+  - "M05"
+  risiko: "gelb"
+  status: "offen"

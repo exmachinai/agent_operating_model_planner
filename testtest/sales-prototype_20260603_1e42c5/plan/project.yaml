@@ -1,0 +1,34 @@
+project: "Sales Prototype"
+project_id: "prj_0f1a29aa7c06"
+project_nature: "technical"
+target_platform: "azure"
+planausgabedatum: 2026-06-03T08:55:44.602173+00:00
+kontrolliert_durch: "stub_user"
+plan_version: 2
+plan_hash: "sha256:1e42c5879c90105f268371733847bea78dd73771facf946781d90fd4e6637b9f"
+phases:
+- id: "PH01"
+  name: "Discovery"
+  order: 1
+- id: "PH02"
+  name: "Konzeption"
+  order: 2
+- id: "PH03"
+  name: "Design"
+  order: 3
+- id: "PH04"
+  name: "Umsetzung"
+  order: 4
+- id: "PH05"
+  name: "Bereitstellung"
+  order: 5
+- id: "PH06"
+  name: "Abnahme"
+  order: 6
+ergebnispfade:
+- code: "S1"
+  label: "Systeme"
+- code: "D1"
+  label: "Daten & Doku"
+- code: "O1"
+  label: "Organisation"

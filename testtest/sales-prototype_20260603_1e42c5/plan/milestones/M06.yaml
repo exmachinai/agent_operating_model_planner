@@ -1,0 +1,21 @@
+meilenstein: "M06"
+name: "Prototyp intern abgenommen und sales-ready freigegeben"
+geplant: 2026-08-26T08:51:07.602738+00:00
+pvm:
+- rolle: "PMO-Agent"
+  code: "L"
+- rolle: "Research/Analyse-Agent"
+  code: "A"
+- rolle: "Projektleiter (HITL)"
+  code: "E"
+- rolle: "Risiko-Agent"
+  code: "B"
+- rolle: "Fachbereich"
+  code: "I"
+mrl:
+- id: "M06-R1"
+  beschreibung: "Verzögerung oder Qualitätslücke in Phase Abnahme."
+  eintritt: 3
+  auswirkung: 3
+  ampel: "gelb"
+  massnahme: "Frühes HITL-Review am Phasenübergang; Puffer eingeplant. Risiko wird geringer eingeschätzt, das komplett lauffähige SaaS von verifywise.ai auf Docker vorliegt (Frontend+Backend)"

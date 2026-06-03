@@ -83,14 +83,18 @@ def test_cg5_aims_not_mitre_gms_as_primary(client: TestClient) -> None:
 
 
 @pytest.mark.xfail(
-    reason="F-CG6 (P0): Compiler strippt AEGIRA-Constitution nicht bei aegira_internal=False. "
+    reason="F-CG6 (P1): HANDOVER.md listet die internen Produktnamen (Constitution-"
+    "Erinnerung) auch bei aegira_internal=False. 'AEGIRA' selbst ist Positivliste/erlaubt. "
     "Siehe gap_analyse/FINDINGS_REMEDIATION_2026-06-03.md.",
     strict=False,
 )
-def test_cg6_external_deliverable_free_of_aegira_brands(client: TestClient) -> None:
-    """CG-6 (P0, Kundenschutz): Externprojekt (aegira_internal=False) → KEINE
-    AEGIRA-Produktnamen/Marken/Constitution im Deliverable."""
+def test_cg6_external_deliverable_free_of_internal_product_names(client: TestClient) -> None:
+    """CG-6 (Kundenschutz): Externprojekt (aegira_internal=False) → KEINE internen
+    AEGIRA-PRODUKTNAMEN (AI Navigator/Guardian/Commander) im Deliverable.
+
+    Hinweis: Der Plattformname „AEGIRA" steht auf der Positivliste und ist erlaubt —
+    geprüft werden NUR die kommerziellen Produktnamen (interne Constitution)."""
     files = _build_harness_files(client, aegira_internal=False)
     blob = "\n".join(files.values())
-    leaks = [t for t in ("AEGIRA", *ALLOWED_PRODUCTS) if t in blob]
-    assert not leaks, f"AEGIRA-Marken im Kundendeliverable: {leaks}"
+    leaks = [t for t in ALLOWED_PRODUCTS if t in blob]
+    assert not leaks, f"interne Produktnamen im Kundendeliverable: {leaks}"

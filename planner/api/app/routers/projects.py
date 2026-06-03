@@ -139,28 +139,36 @@ async def update_understanding(
 ) -> Project:
     """Schritt 3 — Projektverständnis schärfen (project_nature, Plattform, Summary).
 
-    Nur vor Gate 1 erlaubt: nach Freigabe ist das Verständnis eingefroren.
+    Vor Gate 1 frei editierbar. Nach Gate 1 ist das Verständnis eingefroren —
+    Ausnahme: der Preference-Drift-Guard (`aegira_internal`/`use_preferences`)
+    bleibt als Governance-Schalter korrigierbar (wirkt erst bei der Kompilierung).
     """
     repo = get_projects_repo()
     project = await repo.get(project_id, _STUB_TENANT)
     if project is None:
         raise HTTPException(status_code=404, detail="project not found")
-    if project.gate1_approved_at is not None:
-        raise HTTPException(
-            status_code=409,
-            detail="understanding already approved (Gate 1) — kein Edit mehr möglich",
-        )
 
     patch = req.model_dump(exclude_unset=True)
-    # v0.4 — Projekt-Taxonomie steuert die abgeleitete project_nature
-    # (it→technical, non-it→concept), solange nicht explizit gesetzt.
-    if "project_type" in patch and "project_nature" not in patch:
-        patch["project_nature"] = "technical" if patch["project_type"] == "it" else "concept"
     # v0.9 — Preference-Drift-Guard: kein AEGIRA-internes Projekt ⇒ Preferences hart aus.
     if patch.get("aegira_internal") is False:
         patch["use_preferences"] = False
     if patch.get("use_preferences") is None:
         patch.pop("use_preferences", None)
+
+    if project.gate1_approved_at is not None:
+        # Verständnis ist nach Gate 1 eingefroren. Einzige Ausnahme: der
+        # Preference-Drift-Guard (intern/extern + Preferences) bleibt als
+        # Governance-Schalter korrigierbar — er wirkt erst bei der
+        # Harness-Kompilierung, nicht im eingefrorenen Verständnis-Scope.
+        patch = {k: v for k, v in patch.items() if k in {"aegira_internal", "use_preferences"}}
+        if not patch:
+            return project
+    else:
+        # v0.4 — Projekt-Taxonomie steuert die abgeleitete project_nature
+        # (it→technical, non-it→concept), solange nicht explizit gesetzt.
+        if "project_type" in patch and "project_nature" not in patch:
+            patch["project_nature"] = "technical" if patch["project_type"] == "it" else "concept"
+
     updated = project.model_copy(
         update={**patch, "updated_at": datetime.now(timezone.utc)}
     )
@@ -190,6 +198,13 @@ async def approve_understanding(project_id: str) -> Project:
         raise HTTPException(
             status_code=422,
             detail="Projektart (IT/Non-IT) muss vor Gate-1-Freigabe gesetzt sein",
+        )
+    # v0.9.3 — Preference-Drift-Guard muss vor der Freigabe beantwortet sein,
+    # sonst bliebe die Frage eingefroren-unbeantwortet (= unklarer Drift-Status).
+    if project.aegira_internal is None:
+        raise HTTPException(
+            status_code=422,
+            detail="„AEGIRA-internes Projekt?“ muss vor der Gate-1-Freigabe beantwortet sein",
         )
 
     now = datetime.now(timezone.utc)

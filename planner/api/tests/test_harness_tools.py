@@ -22,6 +22,7 @@ def _gate2(client: TestClient) -> str:
             "project_subtype": "software-app",
             "target_platform": "azure",
             "understanding_summary": "Vorhaben mit klarem Zielbild.",
+            "aegira_internal": False,
         },
     )
     client.post(f"/v1/projects/{pid}/approve-understanding")

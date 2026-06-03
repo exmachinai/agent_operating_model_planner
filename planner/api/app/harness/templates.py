@@ -322,9 +322,43 @@ def handover_md(project: Project, plan: Plan, graph: HarnessGraph) -> str:
         f"- `{a.name}` — {a.role} ({a.kind}); Skills: {', '.join(a.skills) or '—'}"
         for a in graph.agents
     )
+    # v0.9.5 (F-CG6, Kundenschutz) — Externdeliverable (apply_preferences=False) wird
+    # markenfrei gerendert: neutrale Generator-Attribution, KEINE Constitution-Produkt-
+    # namen (AI Navigator/Guardian/Commander) und keine Zone-2-/constitution-guard-
+    # Verweise (diese Artefakte werden extern gar nicht erst erzeugt — sonst stünde im
+    # Kundendeliverable ein Verweis auf eine Datei, die fehlt). Der Plattform-/Tool-Name
+    # „AEGIRA" steht auf der Positivliste (PO-Entscheid) und bleibt zulässig.
+    ap = project.apply_preferences
+    quelle = "AEGIRA Agent Operating Model Planner" if ap else "Agent Operating Model Planner"
+    claude_md_note = "inkl. Constitution-Leitplanken" if ap else "inkl. methodischer Leitplanken"
+    hooks_inv = (
+        "`constitution-guard`, `audit-log`, `stop-on-red`, `checkpoint`"
+        if ap else "`audit-log`, `stop-on-red`, `checkpoint`"
+    )
+    rules_line = "- `.claude/rules/*.md` — Zonen-/Naming-Regeln (Schicht 3).\n" if ap else ""
+    if ap:
+        leitplanken = (
+            "Trust-Infrastructure-Framing · keine 100%-Claims · Rechtsräume DE/EU27-Rest/UK/CH ·\n"
+            "AIMS-Maturity · Produktnamen AI Navigator/Guardian/Commander · keine Secrets im\n"
+            "Klartext. Der `constitution-guard`-Hook (PreToolUse, `permissionDecision:\"deny\"`)\n"
+            "blockt Schreibzugriffe auf `00_CLAUDE_KNOWLEDGE_ARCHITECTURE/**` — zusätzlich zur\n"
+            "deny-Regel in `settings.json`."
+        )
+    else:
+        leitplanken = (
+            "Keine 100%-/Garantie-Claims · Methodentreue (ZGPM + McKinsey: MECE, Pyramid,\n"
+            "hypothesengetrieben) · Verifikation vor „fertig\" (Evaluator-Optimizer) · keine\n"
+            "Secrets im Klartext (nur `.env.example`). Permissions deny→ask→allow in\n"
+            "`settings.json`; irreversible Aktionen bleiben stets HITL-pflichtig."
+        )
+    footer = (
+        "*exmachinAI · AEGIRA AI Trust Platform · Handover für Claude Code / Cowork.*"
+        if ap else
+        "*Agent Operating Model Planner · Handover für Claude Code / Cowork.*"
+    )
     return f"""# HANDOVER → Claude Code / Cowork — {project.title}
 
-**Quelle:** AEGIRA Agent Operating Model Planner · Plan v{plan.version}
+**Quelle:** {quelle} · Plan v{plan.version}
 (`{plan.plan_hash}`) · kompiliert {graph.created_at.date()}.
 
 ## 0. In 5 Minuten lauffähig
@@ -337,16 +371,14 @@ def handover_md(project: Project, plan: Plan, graph: HarnessGraph) -> str:
 
 ## 1. Was Claude Code beim Start lädt
 
-- `CLAUDE.md` — System-Prompt (auto-loaded), inkl. Constitution-Leitplanken.
+- `CLAUDE.md` — System-Prompt (auto-loaded), {claude_md_note}.
 - `.claude/settings.json` — Modell, **Permissions** (deny→ask→allow, `defaultMode`
   je Reifegrad), `env`-Hygiene und **Hooks** im kanonischen Event-Schema.
-- `.claude/hooks/*.sh` — ausführbare Command-Hooks (`constitution-guard`, `audit-log`,
-  `stop-on-red`, `checkpoint`). Vor dem Lauf ausführbar machen:
-  `chmod +x .claude/hooks/*.sh`. Voraussetzung: `jq` installiert.
+- `.claude/hooks/*.sh` — ausführbare Command-Hooks ({hooks_inv}). Vor dem Lauf
+  ausführbar machen: `chmod +x .claude/hooks/*.sh`. Voraussetzung: `jq` installiert.
 - `.claude/agents/*.md` — die Subagenten (s. u.).
 - `.claude/skills/*` — Skills inkl. der Slash-Befehle (`/run-harness` …).
-- `.claude/rules/*.md` — Zonen-/Naming-Regeln (Schicht 3).
-- `.mcp.json` — MCP-Server (nur falls ein Skill einen verlangt; Secrets nur als `${{ENV}}`).
+{rules_line}- `.mcp.json` — MCP-Server (nur falls ein Skill einen verlangt; Secrets nur als `${{ENV}}`).
 - `plan/` — der freigegebene ZGPM-Plan als Single Source of Truth (inkl. `plan/matrix.md`).
 
 ## 2. Agententeam
@@ -366,11 +398,7 @@ nicht an Mechanik — irreversible Aktionen bleiben stets HITL-pflichtig.
 
 ## 5. Leitplanken (nicht verhandelbar)
 
-Trust-Infrastructure-Framing · keine 100%-Claims · Rechtsräume DE/EU27-Rest/UK/CH ·
-AIMS-Maturity · Produktnamen AI Navigator/Guardian/Commander · keine Secrets im
-Klartext. Der `constitution-guard`-Hook (PreToolUse, `permissionDecision:"deny"`)
-blockt Schreibzugriffe auf `00_CLAUDE_KNOWLEDGE_ARCHITECTURE/**` — zusätzlich zur
-deny-Regel in `settings.json`.
+{leitplanken}
 
 ## 6. Telemetrie & Audit (C4)
 
@@ -397,7 +425,7 @@ export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 - Reviewer-FAIL nach 3 Runden → HITL-PM entscheidet.
 - Rote Ampel → `stop-on-red`-Hook hält (`continue:false`); `/risk-view` zeigt Details.
 
-*exmachinAI · AEGIRA AI Trust Platform · Handover für Claude Code / Cowork.*
+{footer}
 """
 
 
@@ -441,9 +469,10 @@ def devcontainer_files(project: Project) -> dict[str, str]:
     Gibt ein leeres Dict für Nicht-IT-Vorhaben zurück (kein Datei-Output)."""
     if (project.project_type or "non-it") != "it":
         return {}
+    # Markenfreier Devcontainer-Name bei Externprojekten (konsistent zum Plugin-Namespace).
     devcontainer = json.dumps(
         {
-            "name": "aegira-harness",
+            "name": "aegira-harness" if project.apply_preferences else "agent-harness",
             "image": "mcr.microsoft.com/devcontainers/base:bookworm",
             # Non-Root (BP-MD §8) — höhere Autonomie nur in der Sandbox.
             "remoteUser": "vscode",
@@ -604,14 +633,19 @@ def settings_json(graph: HarnessGraph, apply_preferences: bool = True) -> str:
     ) + "\n"
 
 
-def plugin_json(project: Project, graph: HarnessGraph) -> str:
+def plugin_json(project: Project, graph: HarnessGraph, apply_preferences: bool = True) -> str:
     # v0.9 — Befehle sind Skills (kein doppeltes `commands`-Manifest mehr → keine
     # Kollisionswarnung). Plugin referenziert Agenten + die Slash-only-Skills.
+    # v0.9.5 (F-CG6) — Externprojekte (apply_preferences=False) bekommen einen neutralen
+    # Plugin-Namespace `agent-harness` statt `aegira-harness` (markenfreies Deliverable).
+    # Der Namespace muss zum Plugin-Pfad in compiler.build_files passen.
+    name = "aegira-harness" if apply_preferences else "agent-harness"
+    label = "AEGIRA-Harness" if apply_preferences else "Agent-Harness"
     return json.dumps(
         {
-            "name": "aegira-harness",
+            "name": name,
             "version": "1.0.0",
-            "description": f"Cowork-Plugin für {project.title} (AEGIRA-Harness).",
+            "description": f"Cowork-Plugin für {project.title} ({label}).",
             "agents": [a.name for a in graph.agents],
             "skills": list(_HARNESS_COMMANDS.keys()),
         },

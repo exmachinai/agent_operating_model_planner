@@ -14,7 +14,7 @@ offenen Zeilen.
 | Keine 100%-Claims (CG-2) | R2 | `test_constitution_guards.py::test_cg2_no_positive_hundred_percent_claim` | ✅ |
 | Produktnamen eingefroren (CG-3) | R2 | `test_constitution_guards.py::test_cg3_no_invented_product_names` | ✅ |
 | Maturity = AIMS, nicht MITRE/GMS (CG-5) | R2 | `test_constitution_guards.py::test_cg5_aims_not_mitre_gms_as_primary` | ✅ |
-| Kundendeliverable ohne interne Produktnamen (CG-6; „AEGIRA" = Positivliste) | R2 | `test_constitution_guards.py::test_cg6_external_deliverable_free_of_internal_product_names` | ⚠️ XFAIL (F-CG6, P1) |
+| Kundendeliverable ohne interne Produktnamen (CG-6; „AEGIRA" = Positivliste) | R2 | `test_constitution_guards.py::test_cg6_external_deliverable_free_of_internal_product_names`, `::test_cg6_internal_with_preferences_keeps_product_names` | ✅ (F-CG6 behoben) |
 | Prompt-Injection als Daten, nicht Anweisung (PINJ-1) | R3 | `test_security.py::test_pinj1_injection_is_data_not_instruction` | ✅ |
 | Injection leckt nicht in Deliverables (PINJ-2) | R3 | `test_security.py::test_pinj2_injection_does_not_leak_into_deliverables` | ✅ |
 | Kein Fremd-/Unbekannt-Projektzugriff (AUTHZ-1) | R7 | `test_security.py::test_authz1_unknown_project_404`, `::test_authz1_foreign_project_mutation_404` | ✅ (Stub-Tenant) |

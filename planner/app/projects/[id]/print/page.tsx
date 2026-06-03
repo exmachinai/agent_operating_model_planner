@@ -18,6 +18,7 @@ import {
   type Plan,
   type Project,
 } from "../../../../lib/api";
+import { AgentFlow } from "../../../../components/AgentFlow";
 
 export default function PrintPage(): React.ReactElement {
   const id = useParams<{ id: string }>().id;
@@ -46,7 +47,17 @@ export default function PrintPage(): React.ReactElement {
 
   return (
     <main style={wrap}>
-      <style>{`@media print { .aegira-no-print { display: none !important; } body { background: #fff; } }`}</style>
+      <style>{`
+        @media print {
+          .aegira-no-print { display: none !important; }
+          body { background: #fff; }
+          /* Flow-Ansicht auf eigener Querseite, groß. */
+          @page flow { size: A4 landscape; margin: 12mm; }
+          .aegira-flow-page { page: flow; break-before: page; }
+        }
+        /* Bildschirm: Flow-Block dezent abgesetzt. */
+        .aegira-flow-page { margin-top: 24px; border-top: 1px dashed var(--c-border); padding-top: 16px; }
+      `}</style>
 
       <div className="aegira-no-print" style={toolbar}>
         <Link href={`/projects/${id}/harness`} style={linkStyle}>← Zurück zum Harness</Link>
@@ -145,6 +156,18 @@ export default function PrintPage(): React.ReactElement {
           ) : null}
         </>
       ) : <Section title="Agenten-Harness"><p style={meta}>Noch kein Harness kompiliert.</p></Section>}
+
+      {/* Flow-Ansicht auf eigener Querseite (groß) — Abläufe & Zusammenhänge der Agenten. */}
+      {graph ? (
+        <section className="aegira-flow-page">
+          <h2 style={{ fontSize: 16, marginBottom: 8 }}>Agenten-Flow (Orchestrierung)</h2>
+          <p style={{ ...meta, marginBottom: 12 }}>
+            Knoten = Agenten (nach Stages), Kanten = Abhängigkeiten, Farbe = Rolle. Ablauf:
+            Orchestrator → Worker → Reviewer → HITL.
+          </p>
+          <AgentFlow graph={graph} animated={false} print />
+        </section>
+      ) : null}
 
       <footer style={{ marginTop: 24, borderTop: "1px solid var(--c-border)", paddingTop: 8, ...meta }}>
         AEGIRA — evidence-based AI Trust. Trust-Tier ist eine Einstufung, keine Garantie.

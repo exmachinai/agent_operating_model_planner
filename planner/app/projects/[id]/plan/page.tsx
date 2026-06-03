@@ -343,8 +343,8 @@ export default function PlanPage(): React.ReactElement {
         <GanttChart plan={plan} />
       </Accordion>
 
-      {/* Verantwortlichkeiten — RACI (Standard) ⇄ PVM (ZGPM-intern), umschaltbar */}
-      <Accordion title="Verantwortlichkeiten (RACI / PVM)">
+      {/* Verantwortlichkeiten — RACI (Standard); PVM nur noch intern (Rules-Engine). */}
+      <Accordion title="Verantwortlichkeiten (RACI)">
         <RaciMatrix plan={plan} />
       </Accordion>
 

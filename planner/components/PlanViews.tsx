@@ -141,8 +141,6 @@ const RACI_TITLE: Record<RaciCode, string> = {
   C: "Consulted — beteiligt/Mitsprache",
   I: "Informed — wird informiert",
 };
-type MatrixMode = "raci" | "pvm";
-
 /** Konsistenzprüfung — Logik identisch, nur die Beschriftung wechselt (P1.9). */
 function checkMilestone(codes: PVMCode[]): { ok: boolean; raci: string; pvm: string } {
   const aOk = codes.filter((c) => c === "A").length >= 1; // ≥1 Responsible
@@ -160,29 +158,12 @@ function checkMilestone(codes: PVMCode[]): { ok: boolean; raci: string; pvm: str
 
 export function RaciMatrix({ plan }: { plan: Plan }): React.ReactElement {
   const roles = plan.pvm_roles;
-  const [mode, setMode] = React.useState<MatrixMode>("raci");
-  const isRaci = mode === "raci";
+  // v0.9.x — nur noch RACI (Standard). PVM bleibt intern die Rules-Engine-Wahrheit,
+  // wird aber nicht mehr als Anzeige-Option angeboten (auf RACI gemappt).
+  const isRaci = true;
 
   return (
     <div>
-      {/* Toggle RACI ⇄ PVM (P1.8) */}
-      <div role="radiogroup" aria-label="Matrix-Darstellung" style={toggleRowStyle}>
-        <span style={legendStyle}>Darstellung:</span>
-        {(["raci", "pvm"] as MatrixMode[]).map((m) => (
-          <button
-            key={m}
-            type="button"
-            role="radio"
-            aria-checked={mode === m}
-            onClick={() => setMode(m)}
-            className="aegira-tap"
-            style={{ ...toggleBtnStyle, ...(mode === m ? toggleBtnActive : {}) }}
-          >
-            {m === "raci" ? "RACI (Standard)" : "PVM (ZGPM-intern)"}
-          </button>
-        ))}
-      </div>
-
       <span className="aegira-only-sm" style={{ ...legendStyle, display: "block" }} aria-hidden="true">
         ← horizontal wischen · Meilenstein-Spalte bleibt fixiert →
       </span>
@@ -498,27 +479,6 @@ const stickyColStyle: React.CSSProperties = {
   left: 0,
   zIndex: 1,
   backgroundColor: "var(--c-surface)",
-};
-const toggleRowStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: "var(--sp-2)",
-  flexWrap: "wrap",
-  marginBottom: "var(--sp-2)",
-};
-const toggleBtnStyle: React.CSSProperties = {
-  fontSize: 13,
-  padding: "var(--sp-1) var(--sp-3)",
-  border: "1px solid var(--c-border)",
-  borderRadius: "var(--r-pill)",
-  background: "var(--c-surface)",
-  color: "var(--c-text)",
-  cursor: "pointer",
-};
-const toggleBtnActive: React.CSSProperties = {
-  borderColor: "var(--c-navy)",
-  background: "var(--c-ice)",
-  fontWeight: 600,
 };
 const legendChipsStyle: React.CSSProperties = {
   display: "flex",

@@ -47,9 +47,12 @@ interface Placed {
 export function AgentFlow({
   graph,
   animated,
+  print = false,
 }: {
   graph: HarnessGraph;
   animated: boolean;
+  /** Druck-Variante: volles, an die Seite angepasstes SVG, ohne Scroll/Expand. */
+  print?: boolean;
 }): React.ReactElement {
   const { placed, stages, width, height, edges } = React.useMemo(() => {
     const byStage = new Map<number, HarnessNode[]>();
@@ -99,81 +102,114 @@ export function AgentFlow({
     };
   }, [graph]);
 
+  const [expanded, setExpanded] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setExpanded(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [expanded]);
+
+  // Wiederverwendbares SVG — `tag` macht Marker-IDs eindeutig (Panel vs. Modal),
+  // `animate` schaltet die dynamischen Partikel-Flows, `scale` vergrößert (crisp, SVG).
+  const FlowSvg = ({ animate, scale, tag, fit }: { animate: boolean; scale: number; tag: string; fit?: boolean }) => (
+    <svg
+      width={fit ? "100%" : width * scale}
+      height={fit ? undefined : height * scale}
+      viewBox={`0 0 ${width} ${height}`}
+      role="img"
+      aria-label="Agenten-Flow-Diagramm"
+      style={fit ? { display: "block", width: "100%", height: "auto" } : { display: "block" }}
+    >
+      <defs>
+        <marker id={`af-arrow-${tag}`} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 Z" fill="var(--c-border-strong)" />
+        </marker>
+      </defs>
+      {stages.map((s, ci) => (
+        <text key={`h-${s}`} x={MARGIN + ci * COL_W} y={14} style={stageHeadStyle}>
+          STAGE {s + 1}
+        </text>
+      ))}
+      {edges.map((e) => (
+        <path key={e.id} d={e.d} fill="none" stroke="var(--c-border-strong)" strokeWidth={1.5} markerEnd={`url(#af-arrow-${tag})`} />
+      ))}
+      {animate
+        ? edges.map((e, i) => (
+            <circle key={`p-${e.id}`} r={4} fill="var(--c-gold)">
+              <animateMotion dur="2.4s" begin={`${(i % 5) * 0.4}s`} repeatCount="indefinite" path={e.d} />
+            </circle>
+          ))
+        : null}
+      {placed.map(({ node, x, y }) => (
+        <g key={node.id}>
+          <rect x={x} y={y} width={NODE_W} height={NODE_H} rx={8} fill="var(--c-surface)" stroke={KIND_COLOR[node.kind]} strokeWidth={1.5} />
+          <rect x={x} y={y} width={5} height={NODE_H} rx={2} fill={KIND_COLOR[node.kind]} />
+          <text x={x + 14} y={y + 19} style={nodeTitleStyle}>{truncate(node.label, 20)}</text>
+          <text x={x + 14} y={y + 35} style={nodeKindStyle}>{KIND_LABEL[node.kind]}</text>
+        </g>
+      ))}
+    </svg>
+  );
+
+  const Legend = () => (
+    <div style={legendRow}>
+      {(["orchestrator", "worker", "evaluator", "hitl"] as HarnessNodeKind[]).map((k) => (
+        <span key={k} style={legendItem}>
+          <span style={{ ...legendDot, backgroundColor: KIND_COLOR[k] }} /> {KIND_LABEL[k]}
+        </span>
+      ))}
+    </div>
+  );
+
+  if (print) {
+    return (
+      <div>
+        <div style={{ width: "100%" }}>
+          <FlowSvg animate={false} scale={1} tag="print" fit />
+        </div>
+        <Legend />
+      </div>
+    );
+  }
+
   return (
     <div style={wrapStyle}>
       <div style={headerRow}>
         <strong style={{ fontSize: 13 }}>Flow-Ansicht</strong>
-        <span style={badge(animated ? "var(--c-green)" : "var(--c-steel)")}>
-          {animated ? "● dynamische Flows" : "live · Entwurf"}
+        <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+          <span style={badge(animated ? "var(--c-green)" : "var(--c-steel)")}>
+            {animated ? "● dynamische Flows" : "live · Entwurf"}
+          </span>
+          <button type="button" style={expandBtnStyle} aria-label="Flow vergrößern" title="Vergrößern (animiert)" onClick={() => setExpanded(true)}>
+            ⤢
+          </button>
         </span>
       </div>
-      <div style={scrollStyle}>
-        <svg
-          width={width}
-          height={height}
-          viewBox={`0 0 ${width} ${height}`}
-          role="img"
-          aria-label="Agenten-Flow-Diagramm"
-          style={{ display: "block" }}
-        >
-          <defs>
-            <marker id="af-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-              <path d="M0,0 L8,4 L0,8 Z" fill="var(--c-border-strong)" />
-            </marker>
-          </defs>
-
-          {/* Stage-Spaltenköpfe */}
-          {stages.map((s, ci) => (
-            <text key={`h-${s}`} x={MARGIN + ci * COL_W} y={14} style={stageHeadStyle}>
-              STAGE {s + 1}
-            </text>
-          ))}
-
-          {/* Kanten */}
-          {edges.map((e) => (
-            <path key={e.id} d={e.d} fill="none" stroke="var(--c-border-strong)" strokeWidth={1.5} markerEnd="url(#af-arrow)" />
-          ))}
-
-          {/* Dynamische Flows: Partikel entlang der Kanten (nur final) */}
-          {animated
-            ? edges.map((e, i) => (
-                <circle key={`p-${e.id}`} r={3.5} fill="var(--c-gold)">
-                  <animateMotion dur="2.4s" begin={`${(i % 5) * 0.4}s`} repeatCount="indefinite" path={e.d} />
-                </circle>
-              ))
-            : null}
-
-          {/* Knoten */}
-          {placed.map(({ node, x, y }) => (
-            <g key={node.id}>
-              <rect
-                x={x}
-                y={y}
-                width={NODE_W}
-                height={NODE_H}
-                rx={8}
-                fill="var(--c-surface)"
-                stroke={KIND_COLOR[node.kind]}
-                strokeWidth={1.5}
-              />
-              <rect x={x} y={y} width={5} height={NODE_H} rx={2} fill={KIND_COLOR[node.kind]} />
-              <text x={x + 14} y={y + 19} style={nodeTitleStyle}>
-                {truncate(node.label, 20)}
-              </text>
-              <text x={x + 14} y={y + 35} style={nodeKindStyle}>
-                {KIND_LABEL[node.kind]}
-              </text>
-            </g>
-          ))}
-        </svg>
+      <div
+        style={{ ...scrollStyle, cursor: "zoom-in" }}
+        onClick={() => setExpanded(true)}
+        title="Klicken zum Vergrößern (animiert)"
+      >
+        <FlowSvg animate={animated} scale={1} tag="panel" />
       </div>
-      <div style={legendRow}>
-        {(["orchestrator", "worker", "evaluator", "hitl"] as HarnessNodeKind[]).map((k) => (
-          <span key={k} style={legendItem}>
-            <span style={{ ...legendDot, backgroundColor: KIND_COLOR[k] }} /> {KIND_LABEL[k]}
-          </span>
-        ))}
-      </div>
+      <Legend />
+
+      {expanded ? (
+        <div style={overlayStyle} role="dialog" aria-modal="true" aria-label="Flow-Ansicht (groß)" onClick={() => setExpanded(false)}>
+          <div style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
+            <div style={modalHeadStyle}>
+              <strong style={{ fontSize: 15 }}>Agenten-Flow — dynamische Flows</strong>
+              <button type="button" style={closeBtnStyle} aria-label="Schließen" onClick={() => setExpanded(false)}>✕</button>
+            </div>
+            <div style={modalScrollStyle}>
+              <FlowSvg animate scale={1.7} tag="modal" />
+            </div>
+            <Legend />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -225,6 +261,63 @@ const legendItem: React.CSSProperties = {
   color: "var(--c-text-muted)",
 };
 const legendDot: React.CSSProperties = { width: 8, height: 8, borderRadius: "50%" };
+const expandBtnStyle: React.CSSProperties = {
+  width: 26,
+  height: 22,
+  border: "1px solid var(--c-border-strong)",
+  borderRadius: "var(--r-sm)",
+  background: "var(--c-surface)",
+  color: "var(--c-steel)",
+  cursor: "pointer",
+  fontSize: 13,
+  lineHeight: 1,
+};
+const overlayStyle: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  zIndex: 60,
+  backgroundColor: "rgba(11, 19, 43, 0.6)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "var(--sp-3)",
+};
+const modalCardStyle: React.CSSProperties = {
+  width: "min(1200px, 96vw)",
+  maxHeight: "92vh",
+  display: "flex",
+  flexDirection: "column",
+  gap: "var(--sp-2)",
+  backgroundColor: "var(--c-bg)",
+  border: "1px solid var(--c-border)",
+  borderRadius: "var(--r-lg)",
+  boxShadow: "var(--sh-2)",
+  padding: "var(--sp-3)",
+};
+const modalHeadStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "var(--sp-2)",
+};
+const modalScrollStyle: React.CSSProperties = {
+  overflow: "auto",
+  flex: 1,
+  border: "1px solid var(--c-border)",
+  borderRadius: "var(--r-sm)",
+  backgroundColor: "var(--c-surface)",
+  WebkitOverflowScrolling: "touch",
+};
+const closeBtnStyle: React.CSSProperties = {
+  width: 32,
+  height: 32,
+  fontSize: 16,
+  color: "var(--c-text-muted)",
+  backgroundColor: "transparent",
+  border: "1px solid var(--c-border)",
+  borderRadius: "var(--r-md)",
+  cursor: "pointer",
+};
 const badge = (c: string): React.CSSProperties => ({
   fontSize: 10,
   fontWeight: 600,

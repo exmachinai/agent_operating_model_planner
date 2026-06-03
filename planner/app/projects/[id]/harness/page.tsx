@@ -21,6 +21,7 @@ import {
   api,
   ApiError,
   type AgentSpec,
+  type AutonomyLevel,
   type CatalogSkill,
   type HarnessGraph,
   type HarnessNodeKind,
@@ -183,6 +184,15 @@ export default function HarnessPage(): React.ReactElement {
 
       {error ? <p style={errorStyle}>{error}</p> : null}
 
+      {/* v0.9 (C1) — Autonomie-/Reifegrad-Achse (BP-MD §7) */}
+      <div style={sectionLabel}>Autonomie-/Reifegrad</div>
+      <AutonomySelector
+        level={graph.autonomy_level}
+        frozen={frozen}
+        busy={busy}
+        onChange={(lvl) => run(() => api.reviseHarness(id, { command: "autonomy", autonomy_level: lvl }))}
+      />
+
       {/* v0.4 — Orchestrierungs-Canvas (Drag&Drop, dashboard-grade) */}
       <div style={sectionLabel}>Orchestrierungs-Canvas</div>
       <HarnessCanvas id={id} graph={graph} frozen={frozen} onChange={reload} />
@@ -338,7 +348,7 @@ export default function HarnessPage(): React.ReactElement {
 
       {/* Export / Gate 3 */}
       {frozen ? <SaveExport id={id} graph={graph} /> : null}
-      <div style={actionsStyle}>
+      <div className="aegira-bottom-bar">
         <Button variant="secondary" onClick={() => router.push(`/projects/${id}/review`)}>
           Zurück zum Review
         </Button>
@@ -655,6 +665,81 @@ function AgentCard({
           ) : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * v0.9 (C1) — Autonomie-/Reifegrad-Selektor. Die Stufe koppelt Permission-Modus,
+ * HITL-Dichte und Telemetrie im exportierten Harness (BP-MD §7: Autonomie an
+ * Reversibilität, nicht an Mechanik). Bewusst keine 100%-Autonomie — Stufe 4 bleibt
+ * audit-pflichtig (Hooks + Telemetrie aktiv).
+ */
+const AUTONOMY_LEVELS: { level: AutonomyLevel; label: string; mode: string; desc: string }[] = [
+  { level: 1, label: "Beaufsichtigt", mode: "plan", desc: "Read-only/Plan-Modus — jede Aktion über Approval." },
+  { level: 2, label: "Assistiert", mode: "default", desc: "Standard — Edits/Bash fragen nach (Default)." },
+  { level: 3, label: "Delegiert", mode: "acceptEdits", desc: "Auto-Edits; riskante/irreversible Tools fragen." },
+  { level: 4, label: "Autonom", mode: "dontAsk", desc: "Weitgehend autonom + Telemetrie; Hooks bleiben Gate." },
+];
+
+function AutonomySelector({
+  level,
+  frozen,
+  busy,
+  onChange,
+}: {
+  level: AutonomyLevel;
+  frozen: boolean;
+  busy: boolean;
+  onChange: (lvl: AutonomyLevel) => void;
+}): React.ReactElement {
+  const active = AUTONOMY_LEVELS.find((l) => l.level === level) ?? AUTONOMY_LEVELS[1];
+  return (
+    <div style={{ ...cardStyle, marginBottom: "var(--sp-6)" }}>
+      <p style={{ ...metaStyle, marginTop: 0 }}>
+        Steuert gebündelt den Permission-Modus (<code style={ruleStyle}>defaultMode</code>),
+        die HITL-Dichte und die Telemetrie des exportierten Harness. Höhere Stufe nur an
+        reversiblen Punkten — irreversible Aktionen bleiben stets HITL-pflichtig.
+      </p>
+      <div
+        role="radiogroup"
+        aria-label="Autonomie-/Reifegrad-Stufe"
+        style={{ display: "flex", gap: "var(--sp-2)", flexWrap: "wrap", margin: "var(--sp-2) 0" }}
+      >
+        {AUTONOMY_LEVELS.map((l) => {
+          const on = l.level === level;
+          return (
+            <button
+              key={l.level}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              disabled={frozen || busy}
+              onClick={() => onChange(l.level)}
+              className="aegira-tap"
+              style={{
+                flex: "1 1 140px",
+                textAlign: "left",
+                padding: "var(--sp-2) var(--sp-3)",
+                border: `1px solid ${on ? "var(--c-navy)" : "var(--c-border)"}`,
+                borderRadius: "var(--r-md)",
+                background: on ? "var(--c-ice)" : "var(--c-surface)",
+                cursor: frozen ? "default" : "pointer",
+                opacity: frozen && !on ? 0.6 : 1,
+              }}
+            >
+              <strong style={{ display: "block", fontSize: 14 }}>
+                {on ? "● " : "○ "}Stufe {l.level} · {l.label}
+              </strong>
+              <span style={{ ...metaStyle, display: "block", marginTop: 2 }}>{l.desc}</span>
+            </button>
+          );
+        })}
+      </div>
+      <p style={{ ...metaStyle, marginBottom: 0 }}>
+        Aktiv: <strong>Stufe {active.level} · {active.label}</strong> →{" "}
+        <code style={ruleStyle}>defaultMode: {active.mode}</code>.
+      </p>
     </div>
   );
 }

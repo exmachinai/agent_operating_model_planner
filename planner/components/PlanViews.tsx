@@ -117,6 +117,7 @@ export function GanttChart({ plan }: { plan: Plan }): React.ReactElement {
 // RACI / PVM-Matrix
 // ---------------------------------------------------------------------------
 
+// PVM = interne ZGPM-Wahrheit. Code → (Kurz-Bedeutung).
 const PVM_TITLE: Record<PVMCode, string> = {
   A: "führt aus",
   B: "wird beteiligt",
@@ -128,72 +129,148 @@ const PVM_TITLE: Record<PVMCode, string> = {
   V: "ist verfügbar",
 };
 
+// v0.9 (D2) — RACI ist der angezeigte/exportierte Standard; PVM bleibt die interne
+// Rules-Engine-Wahrheit. Mapping (Entscheidung D1): A→R · L/F→A · E/e/B→C · I/V→I.
+type RaciCode = "R" | "A" | "C" | "I";
+const PVM_TO_RACI: Record<PVMCode, RaciCode> = {
+  A: "R", L: "A", F: "A", E: "C", e: "C", B: "C", I: "I", V: "I",
+};
+const RACI_TITLE: Record<RaciCode, string> = {
+  R: "Responsible — ausführend",
+  A: "Accountable — rechenschaftspflichtig (genau einer)",
+  C: "Consulted — beteiligt/Mitsprache",
+  I: "Informed — wird informiert",
+};
+type MatrixMode = "raci" | "pvm";
+
+/** Konsistenzprüfung — Logik identisch, nur die Beschriftung wechselt (P1.9). */
+function checkMilestone(codes: PVMCode[]): { ok: boolean; raci: string; pvm: string } {
+  const aOk = codes.filter((c) => c === "A").length >= 1; // ≥1 Responsible
+  const flOk = codes.filter((c) => c === "F" || c === "L").length === 1; // genau 1 Accountable
+  const eOk = !codes.includes("e") || codes.includes("E"); // 'e' nie ohne 'E'
+  const ok = aOk && flOk && eOk;
+  const raci = ok
+    ? "genau ein Accountable · ≥1 Responsible"
+    : `${aOk ? "" : "kein Responsible. "}${flOk ? "" : "nicht genau ein Accountable. "}${eOk ? "" : "Mitentscheid ohne Entscheider."}`;
+  const pvm = ok
+    ? "≥1 A · genau ein F/L · 'e' nie ohne 'E'"
+    : `${aOk ? "" : "kein A. "}${flOk ? "" : "F/L nicht genau 1. "}${eOk ? "" : "'e' ohne 'E'."}`;
+  return { ok, raci, pvm };
+}
+
 export function RaciMatrix({ plan }: { plan: Plan }): React.ReactElement {
   const roles = plan.pvm_roles;
+  const [mode, setMode] = React.useState<MatrixMode>("raci");
+  const isRaci = mode === "raci";
+
   return (
-    <div className="aegira-scroll-x">
-      <table style={matrixStyle}>
-        <thead>
-          <tr>
-            <th style={{ ...matrixThStyle, textAlign: "left" }}>Meilenstein</th>
-            {roles.map((r) => (
-              <th key={r} style={matrixThStyle} title={r}>
-                {r}
-              </th>
+    <div>
+      {/* Toggle RACI ⇄ PVM (P1.8) */}
+      <div role="radiogroup" aria-label="Matrix-Darstellung" style={toggleRowStyle}>
+        <span style={legendStyle}>Darstellung:</span>
+        {(["raci", "pvm"] as MatrixMode[]).map((m) => (
+          <button
+            key={m}
+            type="button"
+            role="radio"
+            aria-checked={mode === m}
+            onClick={() => setMode(m)}
+            className="aegira-tap"
+            style={{ ...toggleBtnStyle, ...(mode === m ? toggleBtnActive : {}) }}
+          >
+            {m === "raci" ? "RACI (Standard)" : "PVM (ZGPM-intern)"}
+          </button>
+        ))}
+      </div>
+
+      <span className="aegira-only-sm" style={{ ...legendStyle, display: "block" }} aria-hidden="true">
+        ← horizontal wischen · Meilenstein-Spalte bleibt fixiert →
+      </span>
+      <div className="aegira-scroll-x">
+        <table style={matrixStyle}>
+          <thead>
+            <tr>
+              <th style={{ ...matrixThStyle, ...stickyColStyle, textAlign: "left" }}>Meilenstein</th>
+              {roles.map((r) => (
+                <th key={r} style={matrixThStyle} title={r}>
+                  {r}
+                </th>
+              ))}
+              <th style={matrixThStyle}>Regel</th>
+            </tr>
+          </thead>
+          <tbody>
+            {plan.milestones.map((m) => {
+              const byRole = new Map(m.responsibilities.map((x) => [x.role, x.code]));
+              const codes = m.responsibilities.map((x) => x.code);
+              const { ok, raci, pvm } = checkMilestone(codes);
+              return (
+                <tr key={m.id}>
+                  <td style={{ ...matrixTdStyle, ...stickyColStyle, textAlign: "left", whiteSpace: "nowrap" }}>
+                    {m.id}
+                  </td>
+                  {roles.map((role) => {
+                    const code = byRole.get(role);
+                    const shown = code ? (isRaci ? PVM_TO_RACI[code] : code) : null;
+                    const title = code
+                      ? isRaci
+                        ? `${RACI_TITLE[PVM_TO_RACI[code]]} (PVM ${code})`
+                        : PVM_TITLE[code]
+                      : undefined;
+                    return (
+                      <td key={role} style={matrixTdStyle}>
+                        {shown ? (
+                          <span style={pvmCellStyle} title={title}>
+                            {shown}
+                          </span>
+                        ) : (
+                          <span style={{ color: "var(--c-ice)" }}>·</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td style={matrixTdStyle} title={isRaci ? raci : pvm}>
+                    {ok ? (
+                      <span style={{ color: "var(--c-green)" }} aria-label="konsistent">✓ ok</span>
+                    ) : (
+                      <span style={{ color: "var(--c-amber)" }} aria-label="Abweichung">⚠ prüfen</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Sichtbare Code-Legende (P0.1) — als umbrechende Chips (mobil-tauglich, P1.10). */}
+      <div style={legendChipsStyle} aria-label="Legende">
+        {isRaci
+          ? (["R", "A", "C", "I"] as RaciCode[]).map((c) => (
+              <span key={c} style={legendChipStyle}>
+                <strong>{c}</strong> {RACI_TITLE[c]}
+              </span>
+            ))
+          : (Object.keys(PVM_TITLE) as PVMCode[]).map((c) => (
+              <span key={c} style={legendChipStyle}>
+                <strong>{c}</strong> {PVM_TITLE[c]}
+              </span>
             ))}
-            <th style={matrixThStyle}>Regel</th>
-          </tr>
-        </thead>
-        <tbody>
-          {plan.milestones.map((m) => {
-            const byRole = new Map(m.responsibilities.map((x) => [x.role, x.code]));
-            const codes = m.responsibilities.map((x) => x.code);
-            const aOk = codes.filter((c) => c === "A").length >= 1;
-            const flOk = codes.filter((c) => c === "F" || c === "L").length === 1;
-            // ZGPM-Regel (docs/01): "e" (entscheidet mit) nie ohne "E" (entscheidet).
-            const eOk = !codes.includes("e") || codes.includes("E");
-            const ok = aOk && flOk && eOk;
-            return (
-              <tr key={m.id}>
-                <td style={{ ...matrixTdStyle, textAlign: "left", whiteSpace: "nowrap" }}>
-                  {m.id}
-                </td>
-                {roles.map((role) => {
-                  const code = byRole.get(role);
-                  return (
-                    <td key={role} style={matrixTdStyle}>
-                      {code ? (
-                        <span style={pvmCellStyle} title={PVM_TITLE[code]}>
-                          {code}
-                        </span>
-                      ) : (
-                        <span style={{ color: "var(--c-ice)" }}>·</span>
-                      )}
-                    </td>
-                  );
-                })}
-                <td
-                  style={matrixTdStyle}
-                  title={
-                    ok
-                      ? "≥1 A · genau ein F/L · 'e' nie ohne 'E'"
-                      : `${aOk ? "" : "kein A. "}${flOk ? "" : "F/L nicht genau 1. "}${eOk ? "" : "'e' ohne 'E'."}`
-                  }
-                >
-                  {ok ? (
-                    <span style={{ color: "var(--c-green)" }}>✓</span>
-                  ) : (
-                    <span style={{ color: "var(--c-amber)" }}>⚠</span>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      </div>
       <p style={legendStyle}>
-        Konsistenzregeln (docs/01): pro Meilenstein mindestens ein <strong>A</strong>,
-        genau ein <strong>F/L</strong>, „e“ nie ohne „E“. ⚠ markiert eine Abweichung.
+        {isRaci ? (
+          <>
+            Konsistenz (auf RACI gemappt): pro Meilenstein <strong>genau ein Accountable</strong>{" "}
+            und <strong>≥1 Responsible</strong>. ⚠ markiert eine Abweichung. RACI ist die
+            Anzeige-/Audit-Sprache; intern prüft weiterhin die ZGPM-PVM-Rules-Engine
+            (A→R · L/F→A · E/e/B→C · I/V→I).
+          </>
+        ) : (
+          <>
+            Konsistenzregeln (docs/01): pro Meilenstein mindestens ein <strong>A</strong>,
+            genau ein <strong>F/L</strong>, „e“ nie ohne „E“. ⚠ markiert eine Abweichung.
+          </>
+        )}
       </p>
     </div>
   );
@@ -414,6 +491,48 @@ const pvmCellStyle: React.CSSProperties = {
   fontWeight: 700,
   color: "var(--c-navy)",
   cursor: "help",
+};
+// v0.9 — erste Spalte mobil fixiert, damit die Meilenstein-Spalte beim H-Scroll sichtbar bleibt.
+const stickyColStyle: React.CSSProperties = {
+  position: "sticky",
+  left: 0,
+  zIndex: 1,
+  backgroundColor: "var(--c-surface)",
+};
+const toggleRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "var(--sp-2)",
+  flexWrap: "wrap",
+  marginBottom: "var(--sp-2)",
+};
+const toggleBtnStyle: React.CSSProperties = {
+  fontSize: 13,
+  padding: "var(--sp-1) var(--sp-3)",
+  border: "1px solid var(--c-border)",
+  borderRadius: "var(--r-pill)",
+  background: "var(--c-surface)",
+  color: "var(--c-text)",
+  cursor: "pointer",
+};
+const toggleBtnActive: React.CSSProperties = {
+  borderColor: "var(--c-navy)",
+  background: "var(--c-ice)",
+  fontWeight: 600,
+};
+const legendChipsStyle: React.CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "var(--sp-1)",
+  marginTop: "var(--sp-2)",
+};
+const legendChipStyle: React.CSSProperties = {
+  fontSize: "var(--fs-caption)",
+  padding: "1px var(--sp-2)",
+  border: "1px solid var(--c-border)",
+  borderRadius: "var(--r-pill)",
+  color: "var(--c-text-muted)",
+  whiteSpace: "nowrap",
 };
 const heatStyle: React.CSSProperties = {
   borderCollapse: "collapse",

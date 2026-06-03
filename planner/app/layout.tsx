@@ -22,6 +22,9 @@ export const viewport: Viewport = {
   // v0.5 — Zoom erlauben (A11y/iOS Safari), aber moderat begrenzen.
   maximumScale: 5,
   userScalable: true,
+  // v0.9 (P0.5) — App nutzt die volle Fläche bis unter Notch/Home-Indicator;
+  // Safe-Area-Insets werden in tokens.css via env(safe-area-inset-*) berücksichtigt.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

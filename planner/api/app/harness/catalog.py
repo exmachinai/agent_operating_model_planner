@@ -20,8 +20,8 @@ SONNET = "claude-sonnet-4-6"
 HAIKU = "claude-haiku-4-5"
 
 
-def _t(name: str, type_: str = "data", risk: str = "low") -> ToolSpec:
-    return ToolSpec(name=name, type=type_, risk=risk)  # type: ignore[arg-type]
+def _t(name: str, type_: str = "data", risk: str = "low", irreversible: bool = False) -> ToolSpec:
+    return ToolSpec(name=name, type=type_, risk=risk, irreversible=irreversible)  # type: ignore[arg-type]
 
 
 # Subtyp-Gruppen für die Vorbelegung.
@@ -106,7 +106,7 @@ _CATALOG: list[CatalogAgent] = [
         mission="CI/CD und IaC entwerfen; Deploy-Pfade definieren. Produktiv-Deploys als Hochrisiko an HITL.",
         responsibility="CI/CD & Deployment.",
         skills=["ci-cd", "iac"],
-        tools=[_t("read_repo", "data", "low"), _t("trigger_deploy", "action", "high")],
+        tools=[_t("read_repo", "data", "low"), _t("trigger_deploy", "action", "high", irreversible=True)],
         applies=["it"], subtypes=["cloud-infra", "software-app", "automation-rpa"],
     ),
     CatalogAgent(
@@ -271,6 +271,29 @@ def list_catalog() -> list[CatalogAgent]:
 
 def by_id(agent_id: str) -> CatalogAgent | None:
     return next((a for a in _CATALOG if a.id == agent_id), None)
+
+
+def tool_specs() -> dict[str, ToolSpec]:
+    """Alle bekannten Tool-Specs (Name → Spec) aus dem Katalog, dedupliziert.
+
+    Quelle der Risk-/Irreversibilitäts-Klassifikation (v0.9, C2). Agenten tragen nur
+    Tool-Namen; hierüber wird die Klassifikation für HITL-Gates rekonstruiert.
+    """
+    specs: dict[str, ToolSpec] = {}
+    for a in _CATALOG:
+        for t in a.tools:
+            specs.setdefault(t.name, t)
+    return specs
+
+
+def irreversible_tool_names() -> set[str]:
+    """Namen aller als irreversibel markierten Tools (erzwingen Pflicht-HITL)."""
+    return {n for n, t in tool_specs().items() if t.irreversible}
+
+
+def high_risk_tool_names() -> set[str]:
+    """Namen aller High-Risk-Tools (Schreiben/Finanz/PII) — `ask`-Kandidaten."""
+    return {n for n, t in tool_specs().items() if t.risk == "high"}
 
 
 def defaults_for(project_type: str | None, project_subtype: str | None) -> list[CatalogAgent]:

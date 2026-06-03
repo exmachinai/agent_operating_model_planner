@@ -343,8 +343,8 @@ export default function PlanPage(): React.ReactElement {
         <GanttChart plan={plan} />
       </Accordion>
 
-      {/* Verantwortlichkeiten (PVM-Matrix) */}
-      <Accordion title="Verantwortlichkeiten (PVM-Matrix)">
+      {/* Verantwortlichkeiten — RACI (Standard) ⇄ PVM (ZGPM-intern), umschaltbar */}
+      <Accordion title="Verantwortlichkeiten (RACI / PVM)">
         <RaciMatrix plan={plan} />
       </Accordion>
 
@@ -391,7 +391,7 @@ export default function PlanPage(): React.ReactElement {
           (kein neuer Input, keine Steuerung). Kommt zurück, sobald der LLM-/Foundry-
           Pfad steht und v2 ein genuin anderer, besserer Plan ist. Inline-Edits am
           Plan erzeugen weiterhin über den Revisions-Pfad (revise) neue Versionen. */}
-      <div style={actionsStyle}>
+      <div className="aegira-bottom-bar">
         <Button variant="secondary" onClick={() => router.push("/")}>
           Zur Übersicht
         </Button>

@@ -159,11 +159,29 @@ def claude_md(project: Project, plan: Plan, graph: HarnessGraph) -> str:
         f"- **{a.role}** (`.claude/agents/{a.name}.md`) — {a.kind}"
         for a in graph.agents
     )
+    # v0.9 — Preference-Drift-Guard: AEGIRA-Constitution/Produktnamen NUR bei
+    # AEGIRA-internen Projekten mit aktivierten Preferences. Sonst neutrale,
+    # methodische Leitplanken (kein Marken-/Produkt-/Constitution-Bezug).
+    if project.apply_preferences:
+        leitplanken = """## Verbindliche Leitplanken (AEGIRA-Constitution)
+
+- AEGIRA ist **Trust-Infrastructure**, nicht Compliance-Software.
+- **Keine 100%-Garantien**; formuliere Ergebnisse „nachweisbar / audit-ready".
+- Rechtsräume: **DE · EU27-Rest · UK · CH**. Niemals „DACH".
+- Maturity-Modell: **AIMS** (ISO 42001 × CMMI v3).
+- Produktnamen eingefroren: **AI Navigator / AI Guardian / AI Commander**.
+- Keine Secrets im Klartext — nur `.env.example` pflegen."""
+    else:
+        leitplanken = """## Verbindliche Leitplanken
+
+- **Keine 100%-/Garantie-Claims**; Ergebnisse nachvollziehbar und belegbar formulieren.
+- Methodentreue: ZGPM (Zustände/Meilensteine, PVM) + McKinsey-Prinzipien (MECE, Pyramid).
+- Verifikation vor „fertig": jeder Output wird gegen klare Kriterien geprüft (Evaluator-Optimizer).
+- Keine Secrets im Klartext — nur `.env.example` pflegen; absolute Pfade ab `$HARNESS_ROOT`."""
     return f"""# CLAUDE.md — {project.title}
 
-> Auto-geladener System-Prompt für diesen Harness. Kompiliert vom AEGIRA Agent
-> Operating Model Planner aus dem bei Gate 2 freigegebenen ZGPM-Plan
-> (v{plan.version}, `{plan.plan_hash}`).
+> Auto-geladener System-Prompt für diesen Harness. Kompiliert aus dem bei Gate 2
+> freigegebenen ZGPM-Plan (v{plan.version}, `{plan.plan_hash}`).
 
 ## Mission
 
@@ -188,14 +206,7 @@ Knoten ein Checkpoint unter `$HARNESS_ROOT/.harness/<run-id>/state.json`.
 
 {chr(10).join("- " + p for p in graph.hitl_points)}
 
-## Verbindliche Leitplanken (AEGIRA-Constitution)
-
-- AEGIRA ist **Trust-Infrastructure**, nicht Compliance-Software.
-- **Keine 100%-Garantien**; formuliere Ergebnisse „nachweisbar / audit-ready".
-- Rechtsräume: **DE · EU27-Rest · UK · CH**. Niemals „DACH".
-- Maturity-Modell: **AIMS** (ISO 42001 × CMMI v3).
-- Produktnamen eingefroren: **AI Navigator / AI Guardian / AI Commander**.
-- Keine Secrets im Klartext — nur `.env.example` pflegen.
+{leitplanken}
 
 ## Start
 
@@ -503,7 +514,7 @@ Initialisiert aus Plan v{plan.version}. Checkpoints unter `$HARNESS_ROOT/.harnes
 # --- .claude/ -----------------------------------------------------------------
 
 
-def settings_json(graph: HarnessGraph) -> str:
+def settings_json(graph: HarnessGraph, apply_preferences: bool = True) -> str:
     """`.claude/settings.json` — schematreu (v0.9, P0.3).
 
     Nur dokumentierte Claude-Code-Felder (gegen die offizielle Settings-Referenz
@@ -511,6 +522,9 @@ def settings_json(graph: HarnessGraph) -> str:
     Permissions deny→ask→allow; `defaultMode`, `ask`-Liste und Telemetrie sind an
     die Autonomie-/Reifegrad-Stufe gekoppelt (C1, BP-MD §7). Hooks im kanonischen
     Event-Schema (PreToolUse/PostToolUse/Stop) mit Command-Handlern.
+
+    v0.9 — Preference-Drift-Guard: der AEGIRA-Zone-2-Schutz (Constitution) wird nur
+    bei AEGIRA-internen Projekten mit aktivierten Preferences eingebaut.
     """
     from . import catalog
 
@@ -519,15 +533,18 @@ def settings_json(graph: HarnessGraph) -> str:
     irreversible = sorted(agent_tools & catalog.irreversible_tool_names())
     high_risk = sorted(agent_tools & catalog.high_risk_tool_names())
 
-    # deny — Credential-/Transcript-Hygiene (C3) + Zone-2-Schutz (Constitution).
+    # deny — Credential-/Transcript-Hygiene (C3) + (nur AEGIRA-intern) Zone-2-Schutz.
     deny = [
         "Bash(rm -rf:*)", "Bash(curl:*)", "Bash(wget:*)", "Bash(sudo:*)",
         "Read(./.env)", "Read(./.env.*)", "Read(./**/.env)",
         "Read(./**/*.pem)", "Read(./**/*.key)", "Read(./**/id_rsa)",
         "Read(./**/secrets/**)",
-        "Write(./00_CLAUDE_KNOWLEDGE_ARCHITECTURE/**)",
-        "Edit(./00_CLAUDE_KNOWLEDGE_ARCHITECTURE/**)",
     ]
+    if apply_preferences:
+        deny += [
+            "Write(./00_CLAUDE_KNOWLEDGE_ARCHITECTURE/**)",
+            "Edit(./00_CLAUDE_KNOWLEDGE_ARCHITECTURE/**)",
+        ]
 
     # ask — harte Gates an irreversiblen/risikoreichen Punkten (BP-MD §7), stufenunabhängig.
     ask = ["Bash(git push:*)"]
@@ -553,6 +570,20 @@ def settings_json(graph: HarnessGraph) -> str:
         "type": "command",
         "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/" + name,
     }
+    hooks: dict = {
+        "PostToolUse": [
+            {"matcher": "*", "hooks": [hook("audit-log.sh"), hook("stop-on-red.sh")]}
+        ],
+        "Stop": [{"matcher": "*", "hooks": [hook("checkpoint.sh")]}],
+    }
+    # v0.9 — Zone-2-Schreibschutz (constitution-guard) nur bei AEGIRA-internen Projekten.
+    if apply_preferences:
+        hooks["PreToolUse"] = [
+            {
+                "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+                "hooks": [hook("constitution-guard.sh")],
+            }
+        ]
     return json.dumps(
         {
             "$schema": "https://json.schemastore.org/claude-code-settings.json",
@@ -566,18 +597,7 @@ def settings_json(graph: HarnessGraph) -> str:
                 "ask": ask,
                 "deny": deny,
             },
-            "hooks": {
-                "PreToolUse": [
-                    {
-                        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
-                        "hooks": [hook("constitution-guard.sh")],
-                    }
-                ],
-                "PostToolUse": [
-                    {"matcher": "*", "hooks": [hook("audit-log.sh"), hook("stop-on-red.sh")]}
-                ],
-                "Stop": [{"matcher": "*", "hooks": [hook("checkpoint.sh")]}],
-            },
+            "hooks": hooks,
         },
         indent=2,
         ensure_ascii=False,
@@ -637,12 +657,17 @@ def mcp_json(graph: HarnessGraph) -> str | None:
     return json.dumps({"mcpServers": servers}, indent=2, ensure_ascii=False) + "\n"
 
 
-def rule_files() -> dict[str, str]:
+def rule_files(apply_preferences: bool = True) -> dict[str, str]:
     """`.claude/rules/*.md` (Schicht 3, v0.9/B2) — pfad-/themenskopierte Regeln.
 
     Verbindliche Zonen- und Naming-Regeln aus der Constitution, damit sie auch
     ohne geladenes Knowledge-Repo greifen.
+
+    v0.9 — Preference-Drift-Guard: diese Regeln sind AEGIRA-intern (Zone 2/Naming)
+    und werden bei externen Projekten NICHT erzeugt.
     """
+    if not apply_preferences:
+        return {}
     zones = """---
 description: AEGIRA-Zonenregeln — Schreibschutz der Constitution (Zone 2).
 paths:
@@ -905,7 +930,7 @@ Arbeitet ausschließlich auf absoluten Pfaden ab `$HARNESS_ROOT`.
     return out
 
 
-def hook_files() -> dict[str, str]:
+def hook_files(apply_preferences: bool = True) -> dict[str, str]:
     """`.claude/hooks/*.sh` — kanonische Command-Hooks (v0.9, P0.2).
 
     Hooks sind das einzige *deterministische* Trust-Instrument (BP-MD §4). Schema
@@ -913,8 +938,11 @@ def hook_files() -> dict[str, str]:
     Blockieren via Exit-Code 2 **oder** `hookSpecificOutput.permissionDecision:"deny"`,
     Abbruch via `{"continue":false,"stopReason":…}`. Pfade über `${CLAUDE_PROJECT_DIR}`.
     Registriert werden sie in `.claude/settings.json` unter `hooks`.
+
+    v0.9 — Preference-Drift-Guard: der `constitution-guard.sh` (AEGIRA-Zone-2) wird
+    nur bei AEGIRA-internen Projekten erzeugt.
     """
-    return {
+    out: dict[str, str] = {
         # PreToolUse (matcher Write|Edit|…): blockt Schreibzugriffe auf die
         # Constitution (Zone 2) — greift auch im bypass-Modus und rekursiv für Subagents.
         ".claude/hooks/constitution-guard.sh": (
@@ -971,3 +999,6 @@ def hook_files() -> dict[str, str]:
             "exit 0\n"
         ),
     }
+    if not apply_preferences:
+        out.pop(".claude/hooks/constitution-guard.sh", None)
+    return out

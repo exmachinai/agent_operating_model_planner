@@ -71,6 +71,19 @@ der drei Felder hast (eine pro Runde). Für project_nature/target_platform MUSS 
 "value" exakt einer der erlaubten Enum-Werte sein."""
 
 
+# v0.9 — Preference-Drift-Guard: bei NICHT-AEGIRA-Projekten das AEGIRA-Framing
+# (Marke/Trust-Infrastructure) aus dem System-Prompt entfernen. Methode bleibt.
+_AEGIRA_FRAME = (
+    "um ein Vorhaben für den AEGIRA-ZGPM-Planner präzise zu verstehen. "
+    "AEGIRA ist Trust-Infrastructure (nachweisbar, audit-ready) — niemals 100%-Garantien."
+)
+_NEUTRAL_FRAME = "um ein Vorhaben präzise zu verstehen. Mache niemals 100%-Garantien."
+
+
+def _system(apply_preferences: bool) -> str:
+    return _SYSTEM if apply_preferences else _SYSTEM.replace(_AEGIRA_FRAME, _NEUTRAL_FRAME)
+
+
 def _render_user(project: Project, transcript: list[InterviewMessage], context_text: str) -> str:
     """Rendert Projekt + Verlauf + (ephemeren) Kontext in einen Prompt."""
     lines = [
@@ -165,7 +178,9 @@ async def next_turn(
         return _mock_next_turn(project, transcript, context_text)
     try:
         raw = await foundry.complete(
-            _SYSTEM, _render_user(project, transcript, context_text), max_tokens=1200
+            _system(project.apply_preferences),
+            _render_user(project, transcript, context_text),
+            max_tokens=1200,
         )
         return _parse(raw)
     except Exception as exc:  # noqa: BLE001 — bewusst breit: Interview muss robust bleiben

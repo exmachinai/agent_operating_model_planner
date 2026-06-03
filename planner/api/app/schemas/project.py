@@ -82,6 +82,10 @@ class UpdateUnderstandingRequest(BaseModel):
     project_nature: ProjectNature | None = None
     target_platform: TargetPlatform | None = None
     understanding_summary: str | None = Field(default=None, max_length=8000)
+    # v0.9 — Preference-Drift-Guard: ist das ein AEGIRA-internes Projekt? Und falls
+    # ja, sollen die AEGIRA-Preferences/Constitution überhaupt angewandt werden?
+    aegira_internal: bool | None = None
+    use_preferences: bool | None = None
 
 
 class Project(BaseModel):
@@ -114,7 +118,18 @@ class Project(BaseModel):
     # Gate 3 — Harness-Freigabe (Schritt 9). Friert den kompilierten Harness ein.
     gate3_approved_at: datetime | None = None
     harness_zip_sha256: str | None = None
+    # v0.9 — Preference-Drift-Guard (vor Gate 1 gesetzt). `aegira_internal=False`
+    # ⇒ NIE AEGIRA-Preferences/Produktnamen/Constitution. `True` + `use_preferences`
+    # erforderlich, damit Preferences greifen (auch interne Projekte dürfen opt-out).
+    aegira_internal: bool | None = None
+    use_preferences: bool = False
     # Schritt 2a — zitierbare Quellen-Nachweise (Inhalt ephemer, Nachweis dauerhaft).
     context_sources: list[ContextSource] = Field(default_factory=list)
+
+    @property
+    def apply_preferences(self) -> bool:
+        """Nur dann AEGIRA-Preferences/Constitution anwenden, wenn das Projekt
+        explizit AEGIRA-intern ist UND Preferences bewusst aktiviert wurden."""
+        return bool(self.aegira_internal) and bool(self.use_preferences)
 
     model_config = {"populate_by_name": True}

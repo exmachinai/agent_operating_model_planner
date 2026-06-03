@@ -711,8 +711,10 @@ def build_files(graph: HarnessGraph, plan: Plan, project: Project) -> dict[str, 
     # v0.9 (D5) — Matrix als eigenständiges Audit-Artefakt (PVM × RACI).
     files["plan/matrix.md"] = templates.matrix_export_md(plan)
 
-    # .claude/
-    files[".claude/settings.json"] = templates.settings_json(graph)
+    # .claude/ — v0.9 Preference-Drift-Guard: AEGIRA-Constitution-Artefakte
+    # (Zone-2-Hook/-Regeln) nur bei AEGIRA-internen Projekten mit Preferences.
+    ap = project.apply_preferences
+    files[".claude/settings.json"] = templates.settings_json(graph, ap)
     files[".claude/plugins/aegira-harness/plugin.json"] = templates.plugin_json(project, graph)
     for agent in graph.agents:
         files[f".claude/agents/{agent.name}.md"] = templates.agent_md(agent, plan)
@@ -720,9 +722,9 @@ def build_files(graph: HarnessGraph, plan: Plan, project: Project) -> dict[str, 
         files[path] = content
     for path, content in templates.command_skill_files().items():
         files[path] = content
-    for path, content in templates.rule_files().items():
+    for path, content in templates.rule_files(ap).items():
         files[path] = content
-    for path, content in templates.hook_files().items():
+    for path, content in templates.hook_files(ap).items():
         files[path] = content
 
     # v0.9 (B1) — .mcp.json nur, wenn ein gewählter Skill einen MCP-Server verlangt.

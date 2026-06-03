@@ -16,9 +16,9 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Container-Image-Tag (z. B. v0.3.2)"
+        description: "Sprechender Image-Tag-Präfix (z. B. v0.9.0). Pro Lauf wird intern '-<run_number>' angehängt, damit immer eine neue Revision rollt."
         required: true
-        default: "v0.3.2"
+        default: "v0.9.0"
       api_base_url:
         description: "NEXT_PUBLIC_API_BASE_URL — wird ins Frontend gebacken! (API-Subdomain)"
         required: true
@@ -49,6 +49,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # MUTABLE-TAG-FALLE: Wird derselbe Tag (z. B. v0.9.0) erneut deployt, rollt
+      # Container Apps KEINE neue Revision — die App läuft mit dem alten Image
+      # weiter, obwohl die ACR ein neues Image gebaut hat. Lösung: pro Lauf einen
+      # garantiert eindeutigen Tag erzeugen (sprechendes Präfix + run_number),
+      # der sowohl beim acr-build als auch beim containerapp-update verwendet wird.
+      - name: Eindeutigen Image-Tag bestimmen
+        run: |
+          echo "IMAGE_TAG=${{ inputs.image_tag }}-${{ github.run_number }}" >> "$GITHUB_ENV"
+          echo "Effektiver Image-Tag: ${{ inputs.image_tag }}-${{ github.run_number }}"
+
       - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
@@ -60,7 +70,7 @@ jobs:
       - name: Build & push API image (ACR)
         run: |
           az acr build --registry "$ACR" \
-            --image "planner-api:${{ inputs.image_tag }}" \
+            --image "planner-api:$IMAGE_TAG" \
             --file planner/api/Dockerfile planner/api
 
       # KRITISCH: NEXT_PUBLIC_API_BASE_URL wird zur Build-Zeit eingebacken → muss
@@ -68,19 +78,24 @@ jobs:
       - name: Build & push Frontend image (ACR)
         run: |
           az acr build --registry "$ACR" \
-            --image "planner-frontend:${{ inputs.image_tag }}" \
+            --image "planner-frontend:$IMAGE_TAG" \
             --build-arg NEXT_PUBLIC_API_BASE_URL="${{ inputs.api_base_url }}" \
             --build-arg NEXT_PUBLIC_LOCK_IDLE_SEC="${{ inputs.lock_idle_sec }}" \
             --file planner/Dockerfile planner
 
+      # APP_VERSION wird auf den effektiven Tag gesetzt, damit /health beweisbar
+      # die NEUE Revision meldet (statt des hartkodierten Config-Defaults). Der
+      # eindeutige Tag erzwingt zusammen mit --set-env-vars garantiert eine neue
+      # Revision für beide Apps.
       - name: Container Apps auf neuen Tag umstellen (image-only)
         run: |
           az containerapp update -g "$RG_PLANNER" -n "$APP_API" \
-            --image "$ACR.azurecr.io/planner-api:${{ inputs.image_tag }}"
+            --image "$ACR.azurecr.io/planner-api:$IMAGE_TAG" \
+            --set-env-vars "APP_VERSION=$IMAGE_TAG"
           az containerapp update -g "$RG_PLANNER" -n "$APP_FRONTEND" \
-            --image "$ACR.azurecr.io/planner-frontend:${{ inputs.image_tag }}"
+            --image "$ACR.azurecr.io/planner-frontend:$IMAGE_TAG"
 
-      - name: Smoke-Test (wartet auf Hochlauf)
+      - name: Smoke-Test + Versions-Assertion (wartet auf Hochlauf)
         run: |
           app=$(curl -sS -o /dev/null -w "%{http_code}" --retry 30 --retry-delay 5 \
             --retry-all-errors --max-time 20 https://zgpm.aegira.ai/ || true)
@@ -90,3 +105,16 @@ jobs:
           echo "api https://api.zgpm.aegira.ai/health -> $api"
           test "$app" = "200" -a "$api" = "200" || {
             echo "::error::Smoke-Test fehlgeschlagen (app=$app api=$api)"; exit 1; }
+          # Beweist, dass die NEUE Revision live ist (nicht der alte Container):
+          # /health.version muss dem effektiven Image-Tag entsprechen. Mehrfach
+          # pollen, bis die neue Revision den Traffic übernimmt.
+          live=""
+          for i in $(seq 1 30); do
+            live=$(curl -sS --max-time 20 https://api.zgpm.aegira.ai/health | jq -r '.version' || true)
+            echo "health.version -> $live (erwartet $IMAGE_TAG)"
+            [ "$live" = "$IMAGE_TAG" ] && break
+            sleep 5
+          done
+          test "$live" = "$IMAGE_TAG" || {
+            echo "::error::Health meldet '$live', erwartet '$IMAGE_TAG' — läuft noch der alte Container?"; exit 1; }
+          echo "::notice::Neue Revision live — /health.version = $IMAGE_TAG"

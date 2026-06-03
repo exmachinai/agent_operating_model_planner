@@ -24,6 +24,27 @@ export default function Dashboard(): React.ReactElement {
   const [renaming, setRenaming] = React.useState<string | null>(null);
   const [renameValue, setRenameValue] = React.useState("");
   const [confirmDel, setConfirmDel] = React.useState<string | null>(null);
+  // Filter/Sortierung der Projektliste.
+  const [query, setQuery] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState<string>("");
+  const [sort, setSort] = React.useState<"new" | "old" | "title">("new");
+
+  const fmtDate = (iso: string): string =>
+    new Date(iso).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+  const visible = React.useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    const list = (projects ?? []).filter((p) => {
+      if (statusFilter && p.status !== statusFilter) return false;
+      if (needle && !`${p.title} ${p.description}`.toLowerCase().includes(needle)) return false;
+      return true;
+    });
+    return [...list].sort((a, b) => {
+      if (sort === "title") return a.title.localeCompare(b.title);
+      const d = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      return sort === "new" ? d : -d;
+    });
+  }, [projects, query, statusFilter, sort]);
 
   const reload = React.useCallback(async () => {
     setProjects(await api.listProjects());
@@ -66,8 +87,46 @@ export default function Dashboard(): React.ReactElement {
           beschreibe dein Vorhaben formlos in eigenen Worten (Schritt 1).
         </p>
       ) : (
+        <>
+          <div style={filterBarStyle}>
+            <input
+              type="search"
+              placeholder="Projekte durchsuchen…"
+              aria-label="Projekte durchsuchen"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              style={filterSearchStyle}
+            />
+            <select
+              aria-label="Status filtern"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={filterSelectStyle}
+            >
+              <option value="">Alle Status</option>
+              <option value="planning">In Planung</option>
+              <option value="reviewing">Review</option>
+              <option value="approved">Freigegeben</option>
+              <option value="compiled">Kompiliert</option>
+              <option value="archived">Archiviert</option>
+            </select>
+            <select
+              aria-label="Sortierung"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as "new" | "old" | "title")}
+              style={filterSelectStyle}
+            >
+              <option value="new">Neueste zuerst</option>
+              <option value="old">Älteste zuerst</option>
+              <option value="title">Titel (A–Z)</option>
+            </select>
+            <span style={countStyle}>{visible.length} / {projects.length}</span>
+          </div>
+          {visible.length === 0 ? (
+            <p style={emptyStyle}>Keine Projekte passen zum Filter.</p>
+          ) : (
         <ul style={listStyle}>
-          {projects.map((p) => {
+          {visible.map((p) => {
             const beforeGate1 = p.gate1_approved_at === null;
             return (
               <li key={p.id} style={{ ...cardStyle, ...itemStyle }}>
@@ -109,6 +168,10 @@ export default function Dashboard(): React.ReactElement {
                   >
                     <div style={itemTitleStyle}>{p.title}</div>
                     {p.description ? <div style={itemDescStyle}>{p.description}</div> : null}
+                    <div style={itemMetaStyle}>
+                      Erstellt {fmtDate(p.created_at)}
+                      {p.updated_at ? ` · geändert ${fmtDate(p.updated_at)}` : ""}
+                    </div>
                   </button>
                 )}
 
@@ -185,6 +248,8 @@ export default function Dashboard(): React.ReactElement {
             );
           })}
         </ul>
+          )}
+        </>
       )}
     </PageShell>
   );
@@ -259,6 +324,44 @@ const itemDescStyle: React.CSSProperties = {
   marginTop: 2,
   overflow: "hidden",
   textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+const itemMetaStyle: React.CSSProperties = {
+  fontSize: 11,
+  color: "var(--c-text-muted)",
+  marginTop: 4,
+  fontFamily: "var(--font-mono)",
+};
+const filterBarStyle: React.CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "var(--sp-2)",
+  alignItems: "center",
+  marginBottom: "var(--sp-3)",
+};
+const filterSearchStyle: React.CSSProperties = {
+  flex: 1,
+  minWidth: 200,
+  padding: "var(--sp-2) var(--sp-3)",
+  fontSize: 14,
+  minHeight: 40,
+  border: "1px solid var(--c-border-strong)",
+  borderRadius: "var(--r-md)",
+  backgroundColor: "var(--c-surface)",
+  color: "var(--c-text)",
+};
+const filterSelectStyle: React.CSSProperties = {
+  padding: "var(--sp-2) var(--sp-3)",
+  fontSize: 14,
+  minHeight: 40,
+  border: "1px solid var(--c-border-strong)",
+  borderRadius: "var(--r-md)",
+  backgroundColor: "var(--c-surface)",
+  color: "var(--c-text)",
+};
+const countStyle: React.CSSProperties = {
+  fontSize: "var(--fs-caption)",
+  color: "var(--c-text-muted)",
   whiteSpace: "nowrap",
 };
 const renameInputStyle: React.CSSProperties = {

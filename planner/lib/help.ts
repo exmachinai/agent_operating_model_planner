@@ -21,6 +21,20 @@ export type HelpTopic =
 export interface HelpSection {
   heading: string;
   body: string[];
+  /** Stabiler Anker zum Deep-Linking aus dem Arbeitsbereich (sonst aus heading abgeleitet). */
+  id?: string;
+}
+
+/** Slug eines Section-Headings — für Deep-Link-Anker (Arbeitsbereich → Hilfe-Sektion). */
+export function sectionId(s: HelpSection): string {
+  return (
+    s.id ??
+    s.heading
+      .toLowerCase()
+      .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+  );
 }
 
 export interface HelpEntry {
@@ -133,6 +147,7 @@ export const HELP: Record<HelpTopic, HelpEntry> = {
     ],
     tips: [
       "Über „Neues Projekt“ startest du ein Vorhaben; die Statusanzeige zeigt, an welchem Gate es steht.",
+      "Die Projektliste lässt sich durchsuchen, nach Status filtern und nach Datum/Titel sortieren; jede Karte zeigt das Erstell- und Änderungsdatum.",
     ],
   },
   new: {
@@ -189,13 +204,23 @@ export const HELP: Record<HelpTopic, HelpEntry> = {
       {
         heading: "Was du festlegst",
         body: [
-          "Projekt-Natur (konzeptionell, technisch oder hybrid), Zielplattform und eine prägnante Verständnis-Zusammenfassung.",
-          "Diese drei Angaben sind die Grundlage für die gesamte spätere Planung.",
+          "Projektart (IT / Non-IT) und Unterart, Projekt-Natur (konzeptionell, technisch oder hybrid), Zielplattform und eine prägnante Verständnis-Zusammenfassung.",
+          "Diese Angaben steuern u. a., welche Agentenrollen und Skills im späteren Harness vorgeschlagen werden — sie sind die Grundlage der gesamten Planung.",
+        ],
+      },
+      {
+        id: "preferences",
+        heading: "AEGIRA-intern? & Preferences (Drift-Schutz)",
+        body: [
+          "Du wählst, ob es sich um ein AEGIRA-internes Projekt handelt. Bei „Nein“ (Kunden-/Externprojekt) werden auf keinen Fall AEGIRA-Preferences angewandt: keine Produktnamen (AI Navigator/Guardian/Commander), keine Constitution-Leitplanken, kein Zone-2-Schutz — der generierte Harness bleibt neutral.",
+          "Bei „Ja“ wirst du zusätzlich gefragt, ob die Preferences/Constitution überhaupt angewandt werden sollen — auch interne Projekte dürfen bewusst opt-out wählen.",
+          "Effektiv gilt: Preferences greifen nur, wenn AEGIRA-intern UND Preferences = Ja. Das schützt Kunden-Deliverables zuverlässig vor Preference-Drift.",
         ],
       },
       GATES.gate1.sections[0],
     ],
     tips: [
+      "Im Zweifel „extern“ wählen — der sichere Default liefert einen markenneutralen Harness.",
       "Prüfe die Kontext-Quellen ein letztes Mal — mit der Freigabe werden sie eingefroren.",
       ...GATES.gate1.tips,
     ],
@@ -233,7 +258,7 @@ export const HELP: Record<HelpTopic, HelpEntry> = {
       {
         heading: "Was der Plan enthält",
         body: [
-          "Phasen, Streams, Meilensteine mit Aktivitäten, Risiken (Projekt- und Meilenstein-Ebene mit Ampel) und Verantwortlichkeiten (PVM-Codes).",
+          "Phasen, Streams, Meilensteine (als Ziel-Zustände — keine Aktivitäten/Personentage; die konkrete Arbeit übernehmen später die Agenten), Risiken (Projekt- und Meilenstein-Ebene mit Ampel) und Verantwortlichkeiten (PVM-Codes).",
           "Dazu Reviewer-Befunde, ein Token-Budget und den Quellen-Nachweis (welche eingefrorenen Kontext-Quellen als Evidenz einfließen).",
         ],
       },
@@ -271,18 +296,60 @@ export const HELP: Record<HelpTopic, HelpEntry> = {
     marker: "Schritt 8",
     title: "Agent-Harness",
     summary:
-      "Aus dem freigegebenen Plan wird der ausführbare Agent-Harness kompiliert.",
+      "Aus dem freigegebenen Plan wird ein editierbares Agententeam kompiliert — Orchestrator, Worker, Reviewer und HITL-Checkpoints, exportierbar als portables ZIP.",
     sections: [
       {
         heading: "Was hier entsteht",
         body: [
-          "Der Harness übersetzt den freigegebenen Plan in eine ausführbare Agent-Konfiguration.",
-          "Grundlage ist ausschließlich der bei Gate 2 freigegebene Plan-Stand.",
+          "Der Harness übersetzt den bei Gate 2 freigegebenen Plan deterministisch in eine ausführbare Agent-Konfiguration (Agenten, Orchestrierung, Skills, Hooks, Guardrails).",
+          "Grundlage ist ausschließlich der freigegebene Plan-Stand. Du kannst den Harness mehrfach revidieren; jede Revision zählt die Iteration hoch (kein Endlos-Loop).",
+        ],
+      },
+      {
+        id: "autonomie-reifegrad",
+        heading: "Autonomie-/Reifegrad-Stufe",
+        body: [
+          "Die Stufe 1–4 koppelt gebündelt den Permission-Modus, die HITL-Dichte und die Telemetrie des exportierten Harness — Autonomie wird an Reversibilität festgemacht, nicht an Pipeline-Mechanik.",
+          "Stufe 1 Beaufsichtigt (Plan/Approvals) · 2 Assistiert (Edits/Bash fragen, Standard) · 3 Delegiert (Auto-Edits, riskante Tools fragen) · 4 Autonom (+Telemetrie). Irreversible/Hochrisiko-Aktionen bleiben auf JEDER Stufe HITL-pflichtig; bewusst keine 100%-Autonomie.",
+          "Die Stufe schreibt `permissions.defaultMode` in die exportierte settings.json (plan/default/acceptEdits/dontAsk).",
+        ],
+      },
+      {
+        id: "orchestrierung-flow",
+        heading: "Orchestrierung & Flow-Ansicht",
+        body: [
+          "Links ordnest du die Agenten per Drag&Drop in Stages (gleiche Stage = parallel, Reihenfolge = sequenziell); Modus Manager (ein Orchestrator delegiert) oder Handoff (Router/Triage übergibt).",
+          "Rechts visualisiert die Flow-Ansicht die Abläufe und Zusammenhänge als Graph (Knoten = Agenten, Kanten = Abhängigkeiten). Sie spiegelt jede Drag&Drop-Änderung live.",
+          "Im finalen (kompilierten) Zustand laufen dynamische Flows: animierte Partikel entlang der Kanten machen die Laufzeit-Dynamik sichtbar (Orchestrator → Worker → Reviewer → HITL).",
+        ],
+      },
+      {
+        id: "skills",
+        heading: "Skills zuordnen (kuratiert)",
+        body: [
+          "Jeder Agent ist mit passenden, vom Admin freigegebenen Skills vorbelegt (Vorschlag). Du als HITL entscheidest: behalten, weitere zuordnen oder entfernen — Skills erscheinen als Tags.",
+          "Trust-Tier ist eine Einstufung, keine Garantie. Neue oder gesperrte Skills verwaltet der Adminbereich (globale Freigabeliste). Die Auswahl landet auditierbar im Harness-ZIP (.claude/skills/_manifest.json).",
+        ],
+      },
+      {
+        id: "architektur-check",
+        heading: "Architektur-Check (Preflight)",
+        body: [
+          "Eine read-only-Validierung prüft die Agenten-Topologie gegen Best-Practice-Anti-Muster (vage Delegation, Über-Spawning, fehlender Checkpoint, fehlender Evaluator). Befunde mit Schweregrad „fail“ blockieren die Gate-3-Freigabe.",
+        ],
+      },
+      {
+        id: "drucken",
+        heading: "Projekt drucken",
+        body: [
+          "Über „Projekt drucken“ öffnest du einen druckoptimierten Gesamt-Report (Plan, Meilensteine, Risiken, Agenten + Skills, HITL-Punkte und das Skill-Manifest) und speicherst ihn als PDF.",
         ],
       },
     ],
     tips: [
-      "Wenn sich der Plan ändern soll, gehört das vor diesen Schritt — über Review & Gate 2.",
+      "Wenn sich der PLAN ändern soll, gehört das vor diesen Schritt — über Review & Gate 2. Hier wird der Plan umgesetzt, nicht neu erfunden.",
+      "Niedrige Autonomie-Stufe für sensible Vorhaben; hohe Stufe nur, wenn HITL-Checkpoints + Hooks die irreversiblen Punkte absichern.",
+      "Die Flow-Ansicht eignet sich gut zum Erklären/Präsentieren des Agententeams.",
     ],
   },
   export: {

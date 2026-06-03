@@ -34,6 +34,8 @@ import {
   type SaveResult,
 } from "../../../../lib/saveHarness";
 import { HarnessCanvas } from "../../../../components/HarnessCanvas";
+import { AgentFlow } from "../../../../components/AgentFlow";
+import { HelpLink } from "../../../../components/HelpDrawer";
 
 const KIND_LABEL: Record<HarnessNodeKind, string> = {
   orchestrator: "Orchestrator",
@@ -185,7 +187,7 @@ export default function HarnessPage(): React.ReactElement {
       {error ? <p style={errorStyle}>{error}</p> : null}
 
       {/* v0.9 (C1) — Autonomie-/Reifegrad-Achse (BP-MD §7) */}
-      <div style={sectionLabel}>Autonomie-/Reifegrad</div>
+      <div style={sectionLabel}>Autonomie-/Reifegrad<HelpLink section="autonomie-reifegrad" label="Autonomie-/Reifegrad" /></div>
       <AutonomySelector
         level={graph.autonomy_level}
         frozen={frozen}
@@ -193,14 +195,21 @@ export default function HarnessPage(): React.ReactElement {
         onChange={(lvl) => run(() => api.reviseHarness(id, { command: "autonomy", autonomy_level: lvl }))}
       />
 
-      {/* v0.4 — Orchestrierungs-Canvas (Drag&Drop, dashboard-grade) */}
-      <div style={sectionLabel}>Orchestrierungs-Canvas</div>
-      <HarnessCanvas id={id} graph={graph} frozen={frozen} onChange={reload} />
+      {/* v0.4 — Orchestrierungs-Canvas (Drag&Drop) + v0.9.2 Flow-Visualisierung (Split) */}
+      <div style={sectionLabel}>Orchestrierung & Flow<HelpLink section="orchestrierung-flow" label="Orchestrierung & Flow" /></div>
+      <div style={splitStyle}>
+        <div style={{ minWidth: 0 }}>
+          <HarnessCanvas id={id} graph={graph} frozen={frozen} onChange={reload} />
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <AgentFlow graph={graph} animated={frozen} />
+        </div>
+      </div>
 
       {/* v0.4.3 — Architektur-Check (read-only). Die Agenten werden NICHT erneut
           gelistet (das macht die Orchestrierungs-Canvas oben editierbar); hier nur
           Klassen-Legende + Worker-Anordnung + die Best-Practice-Befunde. */}
-      <div style={sectionLabel}>Architektur-Check (Preflight, docs/04)</div>
+      <div style={sectionLabel}>Architektur-Check (Preflight, docs/04)<HelpLink section="architektur-check" label="Architektur-Check" /></div>
       <div style={{ ...cardStyle, marginBottom: graph.findings.length > 0 ? "var(--sp-3)" : "var(--sp-6)" }}>
         <p style={{ ...metaStyle, marginTop: 0 }}>
           Read-only-Validierung der Agenten-Topologie gegen die Best-Practice-Anti-Muster.
@@ -257,7 +266,7 @@ export default function HarnessPage(): React.ReactElement {
       ) : null}
 
       {/* Agenten-Panels (Accordion, CRUD, Skill-Zuordnung inline) */}
-      <div style={sectionLabel}>Agenten ({graph.agents.length})</div>
+      <div style={sectionLabel}>Agenten ({graph.agents.length})<HelpLink section="skills" label="Skills zuordnen" /></div>
       <p style={{ ...metaStyle, marginTop: 0, marginBottom: "var(--sp-2)" }}>
         Jeder Agent ist mit passenden, **freigegebenen** Skills vorbelegt (Vorschlag).
         Du entscheidest (HITL): behalten, weitere zuordnen oder entfernen — Skills
@@ -834,6 +843,13 @@ const pillStyle: React.CSSProperties = {
   border: "1px solid",
   borderRadius: "var(--r-pill)",
   whiteSpace: "nowrap",
+};
+const splitStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
+  gap: "var(--sp-3)",
+  alignItems: "start",
+  marginBottom: "var(--sp-6)",
 };
 const sectionLabel: React.CSSProperties = {
   fontSize: "var(--fs-caption)",

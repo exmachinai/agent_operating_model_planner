@@ -3,16 +3,18 @@
 Strukturtests prüfen *Form*; diese Guards prüfen den **Inhalt** der generierten
 Deliverables (entpackter Harness) gegen die eingefrorenen Eckpfeiler der Constitution.
 
-Befund-Hinweis: CG-6 ist aktuell **rot** (dokumentiert als `xfail`) — der Compiler
-strippt die AEGIRA-Constitution NICHT, wenn `aegira_internal=False` (use_preferences
-=False). Siehe gap_analyse/FINDINGS_REMEDIATION_2026-06-03.md (Finding F-CG6).
+Befund-Hinweis: CG-6 war **rot** (F-CG6, P0/Kundenschutz) und ist seit v0.9.5 **grün**:
+bei `aegira_internal=False` (use_preferences=False) rendert der Compiler ein markenfreies
+Deliverable (neutraler Plugin-Namespace `agent-harness`, keine Constitution-Produktnamen,
+neutrale Generator-Attribution). PO-Entscheid: der Plattformname „AEGIRA" bleibt zulässig
+(Positivliste) — gestrippt werden nur die Produktnamen. Siehe
+gap_analyse/FINDINGS_REMEDIATION_2026-06-03.md (Finding F-CG6).
 """
 
 from __future__ import annotations
 
 import re
 
-import pytest
 from fastapi.testclient import TestClient
 
 # Eingefrorene Eckpfeiler (Constitution).
@@ -28,16 +30,18 @@ HUNDRED_CLAIM = re.compile(
 
 
 def _build_harness_files(client: TestClient, *, aegira_internal: bool,
-                         nature: str = "concept") -> dict[str, str]:
+                         use_preferences: bool = False,
+                         nature: str = "concept",
+                         project_type: str | None = None) -> dict[str, str]:
     """Kompiliert ein Projekt bis Gate 3 und gibt {pfad: inhalt} der Deliverables."""
     pid = client.post(
         "/v1/projects", json={"title": "Kundenprojekt", "description": "Beratung"}
     ).json()["id"]
-    client.patch(
-        f"/v1/projects/{pid}/understanding",
-        json={"project_nature": nature, "understanding_summary": "Vorhaben mit klarem Ziel.",
-              "aegira_internal": aegira_internal},
-    )
+    patch = {"project_nature": nature, "understanding_summary": "Vorhaben mit klarem Ziel.",
+             "aegira_internal": aegira_internal, "use_preferences": use_preferences}
+    if project_type is not None:
+        patch["project_type"] = project_type
+    client.patch(f"/v1/projects/{pid}/understanding", json=patch)
     client.post(f"/v1/projects/{pid}/approve-understanding")
     client.post(f"/v1/projects/{pid}/guardrails/clear", json={"proceed": True})
     client.post(f"/v1/projects/{pid}/plan")
@@ -82,19 +86,39 @@ def test_cg5_aims_not_mitre_gms_as_primary(client: TestClient) -> None:
     assert not re.search(r"(Maturity|Reifegrad)[^\n]{0,20}(MITRE|GMS)\b", blob, re.IGNORECASE)
 
 
-@pytest.mark.xfail(
-    reason="F-CG6 (P1): HANDOVER.md listet die internen Produktnamen (Constitution-"
-    "Erinnerung) auch bei aegira_internal=False. 'AEGIRA' selbst ist Positivliste/erlaubt. "
-    "Siehe gap_analyse/FINDINGS_REMEDIATION_2026-06-03.md.",
-    strict=False,
-)
-def test_cg6_external_deliverable_free_of_internal_product_names(client: TestClient) -> None:
-    """CG-6 (Kundenschutz): Externprojekt (aegira_internal=False) → KEINE internen
-    AEGIRA-PRODUKTNAMEN (AI Navigator/Guardian/Commander) im Deliverable.
+def test_cg6_external_deliverable_is_brand_neutral(client: TestClient) -> None:
+    """CG-6 (P0, Kundenschutz): Externprojekt (aegira_internal=False) → markenfreies
+    Deliverable: KEINE internen Produktnamen, neutraler Plugin-Namespace `agent-harness`
+    (kein `aegira-harness`), neutrale Generator-Attribution.
 
-    Hinweis: Der Plattformname „AEGIRA" steht auf der Positivliste und ist erlaubt —
-    geprüft werden NUR die kommerziellen Produktnamen (interne Constitution)."""
-    files = _build_harness_files(client, aegira_internal=False)
+    Hinweis: Der Plattformname „AEGIRA" als Wort steht auf der Positivliste; gestrippt
+    werden die kommerziellen Produktnamen sowie das strukturelle Scaffold-Branding."""
+    # Externprojekt; der Drift-Guard erzwingt use_preferences=False (selbst wenn True übergeben).
+    files = _build_harness_files(client, aegira_internal=False, use_preferences=True)
     blob = "\n".join(files.values())
+
     leaks = [t for t in ALLOWED_PRODUCTS if t in blob]
     assert not leaks, f"interne Produktnamen im Kundendeliverable: {leaks}"
+    # Strukturelles Branding: neutraler Namespace + Attribution.
+    assert not any("aegira-harness" in p for p in files), "aegira-harness-Pfad im Externdeliverable"
+    assert "aegira-harness" not in blob, "aegira-harness im Inhalt des Externdeliverables"
+    assert "AEGIRA Agent Operating Model Planner" not in blob, "AEGIRA-Generator-Attribution extern"
+
+
+def test_cg6_external_it_devcontainer_is_brand_neutral(client: TestClient) -> None:
+    """CG-6 für IT-Externprojekte: auch der Devcontainer-Name ist neutral (`agent-harness`)."""
+    files = _build_harness_files(
+        client, aegira_internal=False, use_preferences=True,
+        nature="technical", project_type="it",
+    )
+    dev = files.get(".devcontainer/devcontainer.json", "")
+    assert dev, "IT-Projekt ohne Devcontainer"
+    assert "aegira-harness" not in dev, "aegira-harness im Devcontainer-Namen (extern)"
+
+
+def test_cg6_internal_with_preferences_keeps_product_names(client: TestClient) -> None:
+    """Gegenprobe/Symmetrie: AEGIRA-internes Projekt MIT Preferences DARF die
+    Produktnamen enthalten (sonst wäre der Guard ein stummer Über-Stripper)."""
+    files = _build_harness_files(client, aegira_internal=True, use_preferences=True)
+    blob = "\n".join(files.values())
+    assert any(p in blob for p in ALLOWED_PRODUCTS), "interne Produktnamen fehlen trotz Preferences"

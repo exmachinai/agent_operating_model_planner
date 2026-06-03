@@ -715,7 +715,9 @@ def build_files(graph: HarnessGraph, plan: Plan, project: Project) -> dict[str, 
     # (Zone-2-Hook/-Regeln) nur bei AEGIRA-internen Projekten mit Preferences.
     ap = project.apply_preferences
     files[".claude/settings.json"] = templates.settings_json(graph, ap)
-    files[".claude/plugins/aegira-harness/plugin.json"] = templates.plugin_json(project, graph)
+    # v0.9.5 (F-CG6) — neutraler Plugin-Namespace bei Externprojekten (markenfrei).
+    plugin_ns = "aegira-harness" if ap else "agent-harness"
+    files[f".claude/plugins/{plugin_ns}/plugin.json"] = templates.plugin_json(project, graph, ap)
     for agent in graph.agents:
         files[f".claude/agents/{agent.name}.md"] = templates.agent_md(agent, plan)
     for path, content in templates.skill_files(graph).items():

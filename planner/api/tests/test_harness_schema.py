@@ -94,7 +94,8 @@ def test_agent_frontmatter_is_schema_valid(client: TestClient, gate2_project: st
 
 def test_plugin_json_is_schema_valid(client: TestClient, gate2_project: str) -> None:
     files = _compiled_files(client, gate2_project)
-    plugin = json.loads(files[".claude/plugins/aegira-harness/plugin.json"])
+    # gate2_project ist ein Externprojekt (aegira_internal=False) → neutraler Namespace (F-CG6).
+    plugin = json.loads(files[".claude/plugins/agent-harness/plugin.json"])
     schema_check.validate_plugin(plugin)
     # B4: Befehle sind Skills, kein doppeltes commands-Manifest.
     assert "commands" not in plugin

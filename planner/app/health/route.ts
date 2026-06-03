@@ -15,6 +15,9 @@ export async function GET(): Promise<NextResponse> {
   return NextResponse.json({
     status: "ok",
     service: "aegira-planner-frontend",
+    // Build-Zeit-Tag (NEXT_PUBLIC_APP_VERSION) — beweist, dass die laufende Revision
+    // das NEUE Image ist. Post-Deploy-Check assertet diesen Wert gegen den Deploy-Tag.
+    version: process.env.NEXT_PUBLIC_APP_VERSION ?? "dev",
     now: new Date().toISOString(),
   });
 }

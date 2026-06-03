@@ -26,6 +26,19 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
+
+# Cache-Bust + Deploy-Marker — MUSS vor `COPY . .` stehen.
+# `az acr build` kennt KEIN --no-cache; der ACR-Task-Layer-Cache kann sonst einen
+# vor-Änderungs-Stand der `COPY . .`/`npm run build`-Layer wiederverwenden (genau
+# der beobachtete „Compiled successfully, aber alter Build"-Fall). Ein pro Deploy
+# eindeutiger APP_VERSION-Wert invalidiert diese ENV-Layer und damit zwingend alle
+# folgenden — der Build läuft garantiert frisch gegen den hochgeladenen Kontext.
+# Zusätzlich wird der Tag als NEXT_PUBLIC_* zur Build-Zeit als String-Literal in die
+# (route-stabilen) Client-Chunks gebacken → der ausgelieferte Inhalt ist per Grep
+# verifizierbar (siehe deploy.yml „Frontend-Build-Marker verifizieren").
+ARG APP_VERSION=dev
+ENV NEXT_PUBLIC_APP_VERSION=$APP_VERSION
+
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1

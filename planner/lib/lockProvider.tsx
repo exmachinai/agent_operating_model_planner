@@ -24,6 +24,13 @@ import { usePathname } from "next/navigation";
 import { LockScreen } from "../components/LockScreen";
 import { api } from "./api";
 
+// Deploy-Marker: NEXT_PUBLIC_APP_VERSION wird zur Build-Zeit als String-Literal in
+// diesen (route-stabilen) Client-Chunk gebacken und unten verborgen gerendert. Der
+// Post-Deploy-Check greift den ausgelieferten Inhalt direkt an der
+// *.azurecontainerapps.io-FQDN ab und prüft auf genau diesen Tag → erkennt einen
+// veralteten Frontend-Build, den /health der API nicht sieht.
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "dev";
+
 const IDLE_SEC = Number(process.env.NEXT_PUBLIC_LOCK_IDLE_SEC ?? "900");
 const IDLE_MS = IDLE_SEC * 1000;
 const CHECK_MS = Math.max(1000, Math.min(IDLE_MS || 15000, 15000));
@@ -156,6 +163,9 @@ export function LockProvider({
   return (
     <>
       {children}
+      {/* Verborgener Deploy-Marker (keine UI-Wirkung) — landet im SSR-HTML jeder
+          Route UND im Client-Chunk; vom Post-Deploy-Inhalts-Grep ausgewertet. */}
+      <span data-aomp-version={APP_VERSION} aria-hidden="true" style={{ display: "none" }} />
       {!locked && !bypass && isAdmin ? (
         <Link href="/admin" className="aegira-no-print" style={adminLinkStyle}>
           ⚙ Adminbereich

@@ -19,3 +19,8 @@ pypdf==6.10.2
 qrcode==7.4.2
 # Dev/Test — Harness-Compiler + Router-Tests (WP-1/4/5).
 pytest==9.0.3
+# P2-Teststrategie: Property-based (hypothesis) + Golden/Snapshot (syrupy) +
+# Mutation (mutmut, nur CI-Job — siehe setup.cfg). KEIN externes jsonschema.
+hypothesis==6.155.1
+syrupy==5.3.1
+mutmut==3.5.0

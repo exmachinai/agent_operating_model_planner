@@ -15,6 +15,10 @@ test("MFA → Explainer: Erstnutzer landet auf dem Explainer-Onboarding", async 
   await page.goto("/");
   await expect(page).toHaveURL(/\/explainer$/);
   await expect(page.getByTestId("explainer-frame")).toBeVisible();
+  // iframe-Inhalt muss laden (Framing erlaubt, kein X-Frame-Options/CSP-Block).
+  await expect(
+    page.frameLocator('[data-testid="explainer-frame"]').locator("h1").first(),
+  ).toBeVisible({ timeout: 10000 });
 });
 
 test("Explainer → Planner: Weiter-Button führt in den Planner", async ({ page }) => {

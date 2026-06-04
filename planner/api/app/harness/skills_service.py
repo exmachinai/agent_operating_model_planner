@@ -52,10 +52,10 @@ def any_by_id(catalog_id: str, reg: SkillRegistry) -> CatalogSkill | None:
 
 
 def hydrate(skill: CatalogSkill) -> CatalogSkill:
-    """Setzt content (Custom-Inhalt oder Referenz-Stub) + content_sha256."""
+    """Setzt content (Custom-Inhalt oder echte ausführbare SKILL.md) + content_sha256."""
     import hashlib
 
-    content = skill.content or skill_catalog.render_stub(skill)
+    content = skill.content or skill_catalog.render_skill(skill)
     sha = "sha256:" + hashlib.sha256(content.encode("utf-8")).hexdigest()
     return skill.model_copy(update={"content": content, "content_sha256": sha})
 

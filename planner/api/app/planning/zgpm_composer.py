@@ -546,6 +546,9 @@ def compose(
         "milestones": [m.model_dump(mode="json") for m in milestones],
         "prl": [r.model_dump(mode="json") for r in prl],
         "evidence_sources": [e.model_dump(mode="json") for e in evidence],
+        # v0.10 (AP8) — Team-Fingerprint im Hash: jede Roster-Änderung (auch nicht-
+        # accountable Worker/Evaluatoren) macht den plan_hash verschieden → Drift sichtbar.
+        "team": sorted(a.id for a in team),
         "version": version,
     }
     plan_hash = _hashable(content)

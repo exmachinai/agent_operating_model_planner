@@ -24,6 +24,9 @@ def plan_project(project: Project, plan: Plan) -> dict[str, Any]:
     return {
         "project": project.title,
         "project_id": project.id,
+        # v0.10 (AP6) — feine Klassifizierung jetzt auch im Deliverable (audit-bar).
+        "project_type": project.project_type,
+        "project_subtype": project.project_subtype,
         "project_nature": project.project_nature or "concept",
         "target_platform": project.target_platform or "claude-code-only",
         "planausgabedatum": plan.planausgabedatum,
@@ -32,6 +35,57 @@ def plan_project(project: Project, plan: Plan) -> dict[str, Any]:
         "plan_hash": plan.plan_hash,
         "phases": [{"id": p.id, "name": p.name, "order": p.order} for p in plan.phases],
         "ergebnispfade": [{"code": s.code, "label": s.label} for s in plan.streams],
+    }
+
+
+def plan_audit(project: Project, plan: Plan) -> dict[str, Any]:
+    """v0.10 (AP6) — Audit-Bündel: alle Gate-Ergebnisse 1:1 im portablen Deliverable.
+
+    Bisher gingen Klassifizierung, Gesamtrisiko-Begründung, Plan-Reviewer-Verdikt,
+    Leitplanken-Freigabe und Quellen-Nachweise verloren (nur im Plan-Dokument). Für
+    die Buyer-Promise „evidence-based, audit-ready" werden sie hier exportiert."""
+    return {
+        "klassifizierung": {
+            "project_type": project.project_type,
+            "project_subtype": project.project_subtype,
+            "project_nature": project.project_nature,
+            "target_platform": project.target_platform,
+        },
+        "preferences": {
+            "aegira_internal": project.aegira_internal,
+            "apply_preferences": project.apply_preferences,
+        },
+        "gesamtrisiko": {
+            "ampel": plan.overall_ampel,
+            "begruendung": plan.risk_narrative,
+        },
+        "plan_review": {
+            "status": plan.reviewer_status,
+            "runden": plan.reviewer_rounds,
+            "befunde": [
+                {"schwere": f.severity, "regel": f.rule, "text": f.message}
+                for f in plan.reviewer_findings
+            ],
+        },
+        "leitplanken": {
+            "geprueft_am": project.guardrails_cleared_at,
+            "status": "freigegeben" if project.guardrails_cleared_at else "offen",
+        },
+        "gates": {
+            "gate1_approved_at": project.gate1_approved_at,
+            "gate2_approved_at": project.gate2_approved_at,
+        },
+        "evidence_sources": [
+            {
+                "id": e.id,
+                "filename": e.filename,
+                "fmt": e.fmt,
+                "origin": e.origin,
+                "content_sha256": e.content_sha256,
+                "frozen_at": e.frozen_at,
+            }
+            for e in plan.evidence_sources
+        ],
     }
 
 

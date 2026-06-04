@@ -114,6 +114,47 @@ def test_clean_compile_has_no_consistency_fail() -> None:
     assert bad == [], f"Unerwartete Konsistenz-Findings: {[f.message for f in bad]}"
 
 
+def test_skills_real_and_manifest_matches_disk() -> None:
+    """AP7: emittierte Katalog-SKILL.md sind echt/ausführbar; Manifest deckt die Dateien."""
+    from app.harness import compiler, templates
+
+    project = _project("it", "prototype-mvp", 0)
+    plan = zc.compose(project, version=1, plan_id="pl_sk")
+    graph = compiler.compile_graph(project, plan)
+
+    # Keine Skill-Konsistenz-fails (Manifest==Platte hält).
+    assert not [f for f in graph.findings if f.rule.startswith("skills.")]
+
+    files = templates.skill_files(graph)
+    skill_md = {p: c for p, c in files.items() if p.endswith("SKILL.md")}
+    assert skill_md, "keine SKILL.md emittiert"
+    for path, content in skill_md.items():
+        assert content.startswith("---") and "name:" in content, f"{path}: kein Frontmatter"
+        assert "## Vorgehen" in content, f"{path}: kein ausführbarer Body"
+        assert "reference-stub" not in content, f"{path}: noch alter Stub"
+
+    # Jeder Manifest-Eintrag hat eine Datei (Manifest ⊆ Platte).
+    written_slugs = {p.split("/")[-2] for p in skill_md}
+    for c in graph.catalog_skills:
+        assert c.slug in written_slugs, f"Manifest-Skill ohne Datei: {c.slug}"
+
+
+def test_skill_manifest_invariant_blocks_missing_file() -> None:
+    """AP7: ein Manifest-Eintrag ohne referenzierte/gefüllte Datei MUSS ein `fail` erzeugen."""
+    from app.harness import compiler
+
+    project = _project("it", "prototype-mvp", 0)
+    plan = zc.compose(project, version=1, plan_id="pl_skinv")
+    graph = compiler.compile_graph(project, plan)
+    # Drift simulieren: Skill aus allen Agenten entfernen, aber im Manifest lassen.
+    if graph.catalog_skills:
+        orphan = graph.catalog_skills[0].slug
+        for a in graph.agents:
+            a.skills = [s for s in a.skills if s != orphan]
+        extra = compiler._skill_consistency_findings(graph.agents, graph.imported_skills, graph.catalog_skills)
+        assert any(f.rule == "skills.manifest-ohne-datei" and f.severity == "fail" for f in extra)
+
+
 def test_composer_team_matches_compiler_source() -> None:
     """SSOT: ohne explizites Team leitet der Composer dasselbe Team ab wie der Compiler."""
     project = _project("it", "prototype-mvp", 0)

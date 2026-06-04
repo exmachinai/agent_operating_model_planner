@@ -477,6 +477,41 @@ def _detect_anti_patterns(
     return findings
 
 
+def _skill_consistency_findings(agents, imported_skills, catalog_skills) -> list[HarnessFinding]:  # noqa: ANN001
+    """v0.10 (AP7) — Manifest == Platte (harte Invariante, Gate-3-Block).
+
+    Jeder im `_manifest.json` (= catalog_skills) gelistete Skill MUSS als echte
+    SKILL.md mit Inhalt geschrieben werden (von einem Agenten referenziert), und kein
+    referenzierter Skill darf leer sein. Verhindert die Drift „Manifest count ≠ Ordner"."""
+    findings: list[HarnessFinding] = []
+    referenced = {s for a in agents for s in a.skills}
+    on_disk = {imp.name for imp in imported_skills if imp.name in referenced and imp.content.strip()}
+    manifest_slugs = {c.slug for c in catalog_skills}
+
+    manifest_without_file = manifest_slugs - on_disk
+    if manifest_without_file:
+        findings.append(
+            HarnessFinding(
+                severity="fail",
+                rule="skills.manifest-ohne-datei",
+                message=(
+                    "Manifest listet Skill(s) ohne geschriebene SKILL.md: "
+                    + ", ".join(sorted(manifest_without_file))
+                ),
+            )
+        )
+    empty = {imp.name for imp in imported_skills if imp.name in referenced and not imp.content.strip()}
+    if empty:
+        findings.append(
+            HarnessFinding(
+                severity="fail",
+                rule="skills.leerer-inhalt",
+                message="Referenzierte SKILL.md ohne Inhalt: " + ", ".join(sorted(empty)),
+            )
+        )
+    return findings
+
+
 def compile_graph(project: Project, plan: Plan, *, harness_id: str | None = None) -> HarnessGraph:
     """Erzeugt den Harness-Graph aus dem freigegebenen Plan (Status `draft`)."""
     now = datetime.now(timezone.utc)
@@ -484,6 +519,7 @@ def compile_graph(project: Project, plan: Plan, *, harness_id: str | None = None
     imported_skills, catalog_skills = _prepopulate_skills(agents)
     nodes = _build_nodes(agents, parallel=True)
     findings = _detect_anti_patterns(agents, nodes, plan)
+    findings += _skill_consistency_findings(agents, imported_skills, catalog_skills)
     slug = slugify(project.title)
     short = plan.plan_hash.split(":")[-1][:6]
     date = plan.planausgabedatum.strftime("%Y%m%d")
@@ -731,6 +767,9 @@ def build_files(graph: HarnessGraph, plan: Plan, project: Project) -> dict[str, 
     files["plan/pvm.yaml"] = yaml_emit.dump(templates.plan_pvm(plan))
     files["plan/risks.yaml"] = yaml_emit.dump(templates.plan_risks(plan))
     files["plan/cost.yaml"] = yaml_emit.dump(templates.plan_cost(plan))
+    # v0.10 (AP6) — Audit-Bündel: Klassifizierung, Gesamtrisiko-Begründung,
+    # Plan-Reviewer-Verdikt, Leitplanken-Freigabe, Quellen-Nachweise (audit-ready).
+    files["plan/audit.yaml"] = yaml_emit.dump(templates.plan_audit(project, plan))
     files["plan/_version.json"] = templates.plan_version_json(
         plan, _SCHEMA_VERSION, _COMPILER_ID, graph.created_at
     )

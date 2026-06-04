@@ -55,6 +55,7 @@
     'memory/lead_plan.md',
     'orchestration.yaml',
     'plan/_version.json',
+    'plan/audit.yaml',
     'plan/cost.yaml',
     'plan/matrix.md',
     'plan/milestones/M01.yaml',

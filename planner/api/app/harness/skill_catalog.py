@@ -327,18 +327,19 @@ def offered(agent_ids: list[str]) -> list[CatalogSkill]:
     return [s for s in skills_for_agents(agent_ids) if not s.preselected]
 
 
-def render_stub(skill: CatalogSkill) -> str:
-    """Erzeugt die SKILL.md-Katalog-Referenz (Build-Zeit-Hydration, docs/15 §4.5).
+def render_skill(skill: CatalogSkill) -> str:
+    """Erzeugt eine **echte, ausführbare** SKILL.md (v0.10 AP7).
 
-    Enthält bewusst **keinen** Fremd-Originalinhalt (IP/Lizenz), sondern gültiges
-    Frontmatter (`name`/`description`), die Klassifizierung und die Herkunft. So
-    funktioniert der Skill als referenzierte, auditierbare Karte; der vollständige
-    ausführbare Inhalt wird beim Aufsetzen aus `source` gezogen.
-    """
+    AEGIRA-authored (kein Fremd-Originalinhalt → IP/Lizenz-sicher): gültiges
+    `name`/`description`-Frontmatter PLUS ein handlungsfähiger Body (Trigger, Vorgehen,
+    Ausgabe, Selbstprüfung, Leitplanken), den Claude Code direkt laden und ausführen
+    kann. Ersetzt den früheren reinen Referenz-Stub, der auf eine nie erfolgte
+    Hydration verwies."""
     tools = ", ".join(skill.required_tools) or "—"
     mcps = ", ".join(skill.required_mcps) or "—"
     agents = ", ".join(skill.agent_ids) or "—"
     pre = "vorselektiert" if skill.preselected else "Security-Gate (HITL)"
+    hitl = " High-Risk/irreversible Aktionen pausieren für HITL-Freigabe." if skill.risk != "low" else ""
     return f"""---
 name: {skill.slug}
 description: {skill.description}
@@ -354,37 +355,34 @@ metadata:
   required_tools: [{tools}]
   required_mcps: [{mcps}]
   has_scripts: {str(skill.has_scripts).lower()}
-  license: {skill.license or "see-source"}
-  catalog_status: reference-stub
+  license: {skill.license or "AEGIRA-authored"}
+  catalog_status: active
 ---
 
-# {skill.title}  (`{skill.catalog_id}`)
+# {skill.title}
 
-> **AEGIRA-Katalog-Referenz.** Kuratierte Karte für den Skill `{skill.slug}`. Der
-> vollständige, ausführbare Inhalt wird zur **Build-Zeit** aus der Quelle hydriert
-> ({skill.source}) — inkl. Lizenzprüfung und `content_sha256`. Dieser Stub enthält
-> bewusst **keinen** Fremd-Originalinhalt (IP/Lizenz), sondern Trigger-Beschreibung
-> und Herkunft.
+## Wann diesen Skill verwenden
+{skill.description} Einschlägig für die Domäne **{skill.domain}** und die Rolle(n) {agents}.
 
-## Zweck
-{skill.description}
+## Vorgehen
+1. **Kontext lesen** — relevante Artefakte unter `$HARNESS_ROOT` (Plan, Risiken, Meilensteine, bisherige Ergebnisse) sichten; Ziel-Zustand und Akzeptanzkriterien festhalten.
+2. **Arbeiten** — die Aufgabe gemäß Zweck dieses Skills ausführen; McKinsey-Prinzipien anwenden (MECE, Pyramid, hypothesengetrieben). Annahmen explizit machen.
+3. **Belegen** — Ergebnis zitierbar machen (Quellen/Nachweise referenzieren); nichts ohne Beleg behaupten.
+4. **Selbstprüfung** — gegen die Akzeptanzkriterien prüfen; offene Punkte und Restrisiken klar markieren statt zu kaschieren.
+5. **Übergeben** — strukturiertes Artefakt zurückgeben (klare Überschrift, Kernaussage zuerst).
 
-## Klassifizierung
-- Trust-Tier: **{skill.trust_tier.value}**  ({pre})
-- Domäne: {skill.domain} · Agentenrollen: {agents}
-- Risk: {skill.risk} · Skripte: {"ja" if skill.has_scripts else "nein"}
+## Ausgabe
+Ein nachvollziehbares, audit-taugliches Artefakt für die Domäne {skill.domain} — vollständig, belegt, ohne 100%-Claims.
+
+## Klassifizierung & Leitplanken
+- Trust-Tier: **{skill.trust_tier.value}** ({pre}) · Risk: {skill.risk} · Skripte: {"ja" if skill.has_scripts else "nein"}
 - Tools: {tools} · MCPs: {mcps}
-
-## Build-Zeit-Hydration
-1. Quelle abrufen: `{skill.source}` (Pfad `{skill.slug}/SKILL.md`).
-2. Frontmatter `name`/`description` validieren; Lizenz prüfen.
-3. `content_sha256` berechnen und ins `_manifest.json` schreiben.
-4. Inhalt unverändert nach `.claude/skills/{skill.slug}/SKILL.md` ins Harness-ZIP.
+- Trust-Layer:{hitl} Keine 100%-Garantien; Rechtsräume DE · EU27-Rest · UK · CH; Maturity = AIMS.
 """
 
 
 def hydrate(skill: CatalogSkill) -> CatalogSkill:
-    """Setzt `content` (Referenz-Stub) + `content_sha256` (Build-Zeit-Integrität)."""
-    content = render_stub(skill)
+    """Setzt `content` (echte ausführbare SKILL.md) + `content_sha256` (Integrität)."""
+    content = render_skill(skill)
     sha = "sha256:" + hashlib.sha256(content.encode("utf-8")).hexdigest()
     return skill.model_copy(update={"content": content, "content_sha256": sha})

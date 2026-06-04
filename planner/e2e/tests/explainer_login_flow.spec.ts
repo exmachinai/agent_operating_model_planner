@@ -79,3 +79,24 @@ test("MFA-Login über LockScreen → Erstnutzer landet auf dem Explainer", async
   await expect(page.locator("#lk-email")).toHaveCount(0); // nicht zurück auf MFA
   await expect(page).not.toHaveURL(/explainer/); // nicht zurück auf den Explainer
 });
+
+test("Re-MFA zeigt den Explainer ERNEUT — auch wenn schon gesehen (force)", async ({ page, request, context }) => {
+  const { email, secret } = await enrollUser(request);
+  // Simuliert: in dieser Tab-Session wurde der Explainer bereits gesehen/übersprungen.
+  await context.addInitScript(() => {
+    try { window.sessionStorage.setItem("aegira.explainer.seen", "1"); } catch {}
+  });
+
+  await page.goto("/");
+  await expect(page.locator("#lk-email")).toBeVisible();
+  await page.locator("#lk-email").fill(email);
+  await page.locator("#lk-pw").fill(PASSWORD);
+  await page.getByRole("button", { name: "Anmelden" }).click();
+  await expect(page.locator("#lk-code")).toBeVisible();
+  await page.locator("#lk-code").fill(totpNow(secret));
+  await page.getByRole("button", { name: "Anmelden" }).click();
+
+  // Trotz gesetzter „gesehen"-Marke muss der echte MFA-Login zum Explainer führen.
+  await expect(page).toHaveURL(/\/explainer$/, { timeout: 10000 });
+  await expect(page.getByTestId("explainer-frame")).toBeVisible();
+});

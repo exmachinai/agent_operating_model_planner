@@ -48,3 +48,18 @@ test("J3 — Harness-Download liefert ein nicht-leeres ZIP", async ({ page, requ
     await expect(page.getByTestId("harness-download")).toBeVisible();
   }
 });
+
+test("J3 — Entpackt-Speichern fällt ohne Ordner-Dialog robust auf ZIP-Download zurück", async ({ page }) => {
+  // Robustheit für künftige Use-Cases: Ist die File-System-Access-API nicht verfügbar
+  // (headless / Browser ohne Support / IT-Policy), darf „Entpackt" nicht still scheitern,
+  // sondern MUSS die ZIP herunterladen — niemand bleibt ohne Deliverable.
+  const pid = await seedProject({ toGate: 3 });
+  if (!(await gotoWorkspace(page, `/projects/${pid}/harness`))) return;
+
+  await page.getByText("Entpackt (ganze Struktur)").click();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByTestId("harness-save-as").click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/\.harness\.zip$/);
+});

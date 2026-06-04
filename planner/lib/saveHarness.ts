@@ -123,21 +123,29 @@ export async function saveUnzipped(
     return "unsupported";
   }
   // Benennbarer neuer Ordner im gewählten Verzeichnis (Default = Harness-Slug).
-  const folder = (newFolderName?.trim() || root).replace(/[\\/]+/g, "-");
-  const base = await dir.getDirectoryHandle(folder, { create: true });
-  for (const f of files) {
-    const segments = f.path.split("/");
-    const name = segments.pop();
-    if (!name) continue;
-    let cur = base;
-    for (const seg of segments) {
-      if (!seg) continue;
-      cur = await cur.getDirectoryHandle(seg, { create: true });
+  // Der Schreibvorgang ist abgesichert: schlägt eine einzelne Datei fehl (z. B.
+  // Rechte/Quota), liefern wir "unsupported" → der Aufrufer fällt sauber auf den
+  // Zip-Download zurück, statt eine harte Exception zu werfen (Robustheit für alle
+  // künftigen Use-Cases).
+  try {
+    const folder = (newFolderName?.trim() || root).replace(/[\\/]+/g, "-");
+    const base = await dir.getDirectoryHandle(folder, { create: true });
+    for (const f of files) {
+      const segments = f.path.split("/");
+      const name = segments.pop();
+      if (!name) continue;
+      let cur = base;
+      for (const seg of segments) {
+        if (!seg) continue;
+        cur = await cur.getDirectoryHandle(seg, { create: true });
+      }
+      const fh = await cur.getFileHandle(name, { create: true });
+      const writable = await fh.createWritable();
+      await writable.write(f.content);
+      await writable.close();
     }
-    const fh = await cur.getFileHandle(name, { create: true });
-    const writable = await fh.createWritable();
-    await writable.write(f.content);
-    await writable.close();
+    return "saved";
+  } catch {
+    return "unsupported";
   }
-  return "saved";
 }

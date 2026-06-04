@@ -3,7 +3,7 @@
 Spec: docs/03_harness-zip-spec.md + docs/04_agent-best-practices.md.
 
 Drei Schritte:
-1. `compile_graph()` leitet aus PVM-Rollen + Meilensteinen den Agenten-Graph ab
+1. `compile_graph()` leitet aus RACI-Rollen + Meilensteinen den Agenten-Graph ab
    (Orchestrator → Worker → Evaluator → HITL) und macht Anti-Muster sichtbar.
 2. `apply_command()` revidiert den Graph (Sequenz/Parallel/Skill/Agent-CRUD),
    versioniert (max. Iterationen, kein Endlos-Loop).
@@ -84,7 +84,7 @@ def _validate_skill_frontmatter(content: str) -> None:
         raise ValueError("SKILL.md-Frontmatter braucht ein nicht-leeres Feld `description:`.")
 
 
-# PVM-Rolle → Agenten-Bauplan. `None` = keine autonome Agentendatei (z. B. nur
+# RACI-Rolle → Agenten-Bauplan. `None` = keine autonome Agentendatei (z. B. nur
 # informierte Stakeholder). Skills folgen docs/03 (verfügbare SKILL.md).
 _ROLE_BLUEPRINT: dict[str, dict] = {
     "PMO-Agent": {
@@ -112,10 +112,10 @@ _ROLE_BLUEPRINT: dict[str, dict] = {
         "name": "methodology-agent",
         "kind": "worker",
         "mission": (
-            "Hält die ZGPM-Methodik durch (Meilensteine als Zustände, PVM-Codes, "
+            "Hält die ZGPM-Methodik durch (Meilensteine als Zustände, RACI-Codes, "
             "Ergebnispfade) und prüft die Konsistenzregeln je Knoten."
         ),
-        "skills": ["zgpm-compose", "zgpm-rules-engine", "pvm-validate"],
+        "skills": ["zgpm-compose", "zgpm-rules-engine", "raci-validate"],
         "tools": ["Read", "Write", "Edit", "Glob", "Grep"],
     },
     "Risiko-Agent": {
@@ -214,7 +214,7 @@ def _tasks_for(name: str, plan: Plan) -> list[str]:
         ]
     if name == "reviewer-agent":
         return [
-            "PVM-Regeln je Knoten prüfen (≥1 A, genau ein F/L, 'e' nie allein)",
+            "RACI-Regeln je Knoten prüfen (≥1 A, genau ein F/L, 'e' nie allein)",
             "Anti-Muster aus docs/04 flaggen; Ampel-Propagation verifizieren",
         ]
     if name == "hitl-projektleiter":
@@ -376,7 +376,7 @@ def _detect_anti_patterns(
     # MUSS als Agent im Harness-Team existieren — sonst Geister-Accountable/-Budget.
     if plan is not None:
         team_roles = {a.role for a in agents}
-        raci_roles = set(plan.pvm_roles) | {
+        raci_roles = set(plan.raci_roles) | {
             r.role for m in plan.milestones for r in m.responsibilities
         }
         missing_roles = raci_roles - team_roles
@@ -450,7 +450,7 @@ def _detect_anti_patterns(
         )
 
     # v0.9 (D4) — McKinsey-Methodentreue sichtbar machen (MECE/Pyramid/Hypothese).
-    method_markers = {"methodology-agent", "mece", "zgpm-validate", "zgpm-rules-engine", "pvm-validate"}
+    method_markers = {"methodology-agent", "mece", "zgpm-validate", "zgpm-rules-engine", "raci-validate"}
     has_method = any(
         a.name == "methodology-agent" or method_markers & set(a.skills) for a in agents
     )
@@ -764,7 +764,7 @@ def build_files(graph: HarnessGraph, plan: Plan, project: Project) -> dict[str, 
     # plan/
     files["plan/project.yaml"] = yaml_emit.dump(templates.plan_project(project, plan))
     files["plan/msp.yaml"] = yaml_emit.dump(templates.plan_msp(plan))
-    files["plan/pvm.yaml"] = yaml_emit.dump(templates.plan_pvm(plan))
+    files["plan/raci.yaml"] = yaml_emit.dump(templates.plan_raci(plan))
     files["plan/risks.yaml"] = yaml_emit.dump(templates.plan_risks(plan))
     files["plan/cost.yaml"] = yaml_emit.dump(templates.plan_cost(plan))
     # v0.10 (AP6) — Audit-Bündel: Klassifizierung, Gesamtrisiko-Begründung,
@@ -780,7 +780,7 @@ def build_files(graph: HarnessGraph, plan: Plan, project: Project) -> dict[str, 
     files["orchestration.yaml"] = yaml_emit.dump(templates.orchestration(graph))
     files["guardrails.yaml"] = yaml_emit.dump(templates.guardrails_doc())
 
-    # v0.9 (D5) — Matrix als eigenständiges Audit-Artefakt (PVM × RACI).
+    # v0.9 (D5) — Matrix als eigenständiges Audit-Artefakt (RACI).
     files["plan/matrix.md"] = templates.matrix_export_md(plan)
 
     # .claude/ — v0.9 Preference-Drift-Guard: AEGIRA-Constitution-Artefakte

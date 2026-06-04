@@ -170,11 +170,11 @@ _SEED: list[tuple] = [
     # Intern geprüft, funktionsfähig. Ersetzen die früheren Platzhalter-Tags, damit
     # JEDE Agentenrolle echte, freigegebene Skills trägt (keine Fakes mehr).
     ("zgpm-plan_skill", "zgpm-plan", "ZGPM-Plan komponieren",
-     "Komponiert und prüft ZGPM-Pläne (Phasen, Meilensteine, PVM, Konsistenzregeln: ≥1 A, genau 1 F/L, 'e' nie allein). Trigger: Plan strukturieren/validieren.",
+     "Komponiert und prüft ZGPM-Pläne (Phasen, Meilensteine, RACI, Konsistenzregeln: ≥1 A, genau 1 F/L, 'e' nie allein). Trigger: Plan strukturieren/validieren.",
      "exmachinAI", "internal:aegira", "aegira-certified", "methodology",
      ("pmo-orchestrator", "methodology-agent"), "low", ("read", "write"), (), False),
-    ("pvm-validate_skill", "pvm-validate", "PVM-Matrix validieren",
-     "Validiert die Personen-Verantwortungs-Matrix gegen die ZGPM-Konsistenzregeln. Trigger: PVM/Rollenmatrix prüfen.",
+    ("raci-validate_skill", "raci-validate", "RACI-Matrix validieren",
+     "Validiert die RACI-Matrix gegen die Konsistenzregeln (genau ein A, mindestens ein R). Trigger: RACI/Rollenmatrix prüfen.",
      "exmachinAI", "internal:aegira", "aegira-certified", "methodology",
      ("methodology-agent", "reviewer-agent"), "low", ("read",), (), False),
     ("mece-check_skill", "mece-check", "MECE-/Pyramid-Prüfung",

@@ -41,7 +41,7 @@ def test_plan_has_narrative_and_no_activities(client: TestClient) -> None:
     # v0.6 — Meilensteine haben kein activities-Feld mehr.
     ms = plan["milestones"][0]
     assert "activities" not in ms
-    # Methodentreue bleibt: PVM + MRL je Meilenstein.
+    # Methodentreue bleibt: RACI + MRL je Meilenstein.
     assert ms["responsibilities"]
     assert ms["mrl"]
 

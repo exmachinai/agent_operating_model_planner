@@ -40,7 +40,7 @@ def test_aegira_method_strang_present() -> None:
     aegira = [s for s in cat if s.trust_tier is SkillTrustTier.aegira_certified]
     assert len(aegira) == 16
     ids = {s.catalog_id for s in aegira}
-    assert {"zgpm-plan_skill", "pvm-validate_skill", "risk-traffic-light_skill"} <= ids
+    assert {"zgpm-plan_skill", "raci-validate_skill", "risk-traffic-light_skill"} <= ids
 
 
 def test_every_default_agent_has_preselected_skill() -> None:

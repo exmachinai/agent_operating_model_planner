@@ -5,7 +5,7 @@ Spec: docs/09_process-flow.md (Schritt 6), docs/12_tools-mcp-suggestions.md.
 Leitprinzip (User-Vorgabe): Der Anwender ist oft Laie. Der LLM liefert eine
 projektspezifische **Gliederung** (Meilenstein-Namen im Perfekt + Phasenname)
 sowie eine qualitative Gesamtrisiko-Begründung. Aus dieser Gliederung baut der
-`zgpm_composer` einen voll ZGPM-konformen Plan (PVM-Matrix, Risiken, Termine).
+`zgpm_composer` einen voll ZGPM-konformen Plan (RACI-Matrix, Risiken, Termine).
 
 v0.6 — Aktivitäten entfallen: der Plan endet auf Meilenstein-Ebene, die konkrete
 Arbeit übernehmen die Agenten autonom im Betrieb.
@@ -141,7 +141,7 @@ async def generate_plan(
     """Schritt 6 — Plan generieren: LLM-Gliederung, sonst deterministisch.
 
     Der LLM liefert nur die Gliederung + Risiko-Narrativ; den voll ZGPM-konformen
-    Plan (PVM/Risiken/Termine) baut der deterministische Composer daraus.
+    Plan (RACI/Risiken/Termine) baut der deterministische Composer daraus.
     """
     if not foundry.is_configured():
         return zgpm_composer.compose(project, version=version, plan_id=plan_id)

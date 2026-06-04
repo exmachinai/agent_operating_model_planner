@@ -163,13 +163,13 @@ export interface GuardrailCheck {
 
 // --- Schritt 6: Plan -------------------------------------------------------
 
-export type PVMCode = "A" | "B" | "E" | "e" | "F" | "L" | "I" | "V";
+export type ResponsibilityCode = "A" | "B" | "E" | "e" | "F" | "L" | "I" | "V";
 export type RiskAmpel = "rot" | "gelb" | "gruen";
 export type ReviewerStatus = "PASS" | "NEEDS_REVISION" | "HARD_FAIL";
 
 export interface Responsibility {
   role: string;
-  code: PVMCode;
+  code: ResponsibilityCode;
 }
 
 export interface Risk {
@@ -246,7 +246,7 @@ export interface Plan {
   streams: Stream[];
   milestones: Milestone[];
   prl: Risk[];
-  pvm_roles: string[];
+  raci_roles: string[];
   token_budget: TokenBudgetEntry[];
   overall_ampel: RiskAmpel;
   reviewer_status: ReviewerStatus;

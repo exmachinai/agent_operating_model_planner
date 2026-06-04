@@ -25,7 +25,7 @@ import {
   api,
   ApiError,
   type Plan,
-  type PVMCode,
+  type ResponsibilityCode,
   type RiskAmpel,
   type ReviewerStatus,
 } from "../../../../lib/api";
@@ -59,7 +59,7 @@ const REVIEWER_TEXT_COLOR: Record<ReviewerStatus, string> = {
   HARD_FAIL: "var(--c-red)",
 };
 
-const PVM_LABEL: Record<PVMCode, string> = {
+const PVM_LABEL: Record<ResponsibilityCode, string> = {
   A: "führt aus",
   B: "wird beteiligt",
   E: "entscheidet",
@@ -138,7 +138,7 @@ export default function PlanPage(): React.ReactElement {
         <h1 style={{ marginBottom: "var(--sp-2)" }}>Plan</h1>
         <p style={leadStyle}>
           Aus dem freigegebenen Verständnis bauen die Agenten einen vollständigen,
-          methodischen Plan: Meilensteine, Risk-Matrix, Verantwortlichkeiten (PVM)
+          methodischen Plan: Meilensteine, Risk-Matrix, Verantwortlichkeiten (RACI)
           und Token-Budget. Der Reviewer prüft gegen die Plan-Regeln.
         </p>
         {error ? <p style={errorStyle}>{error}</p> : null}

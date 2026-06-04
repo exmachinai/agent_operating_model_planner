@@ -154,7 +154,7 @@ async def _persist_new_version(project: Project, plan: Plan) -> Plan:
 async def edit_milestones(project_id: str, ops: list[MilestoneOp]) -> Plan:
     """Schritt 6a — Meilensteine bearbeiten (add/update/delete/reorder), neue Version.
 
-    Nur vor dem Meilenstein-DONE und vor Gate 2. PVM/Risiken/Termine werden im
+    Nur vor dem Meilenstein-DONE und vor Gate 2. RACI/Risiken/Termine werden im
     Composer regelkonform neu abgeleitet (recompute)."""
     plans = get_plans_repo()
     project = await _load_project(project_id)

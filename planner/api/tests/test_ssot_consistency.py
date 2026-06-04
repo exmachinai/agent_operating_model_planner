@@ -1,6 +1,6 @@
 """SSOT-Konsistenz (v0.10) — RACI/Cost/Accountable ⊆ reales Harness-Team.
 
-Regressionsschutz für die PVM/Roster-Divergenz (HANDOVER 2026-06-04): Plan-Layer
+Regressionsschutz für die RACI/Roster-Divergenz (HANDOVER 2026-06-04): Plan-Layer
 (zgpm_composer) und Harness-Team (catalog.defaults_for) leiten ihr Agenten-Roster
 seit v0.10 aus EINER Quelle ab. Diese 10 Szenarien decken alle Klassifikations-Zweige
 ab und erzwingen die Akzeptanzkriterien AC-1 (Roster-Identität), AC-2 (Accountable
@@ -61,7 +61,7 @@ def test_plan_roster_subset_of_team(ptype: str, subtype: str | None) -> None:
     assert accountables <= labels, f"Geister-Accountable: {accountables - labels}"
 
     # AC-1: alle RACI-Rollen ⊆ Team.
-    assert set(plan.pvm_roles) <= labels, f"RACI-Rolle nicht im Team: {set(plan.pvm_roles) - labels}"
+    assert set(plan.raci_roles) <= labels, f"RACI-Rolle nicht im Team: {set(plan.raci_roles) - labels}"
 
     # AC-3: jeder budgetierte Agent existiert; Summe == Summe der festen Katalog-Budgets.
     budgeted = {e.agent for e in plan.token_budget}
@@ -84,8 +84,8 @@ def test_pmo_canonical_name() -> None:
     """PMO-Drift behoben: kanonischer Name ist „PMO-Orchestrator" (nicht „PMO-Agent")."""
     project = _project("it", "software-app", 1)
     plan = zc.compose(project, version=1, plan_id="pl_pmo")
-    assert "PMO-Orchestrator" in plan.pvm_roles
-    assert "PMO-Agent" not in plan.pvm_roles
+    assert "PMO-Orchestrator" in plan.raci_roles
+    assert "PMO-Agent" not in plan.raci_roles
 
 
 def test_invariant_blocks_ghost_role() -> None:
@@ -95,7 +95,7 @@ def test_invariant_blocks_ghost_role() -> None:
     project = _project("it", "prototype-mvp", 0)
     plan = zc.compose(project, version=1, plan_id="pl_inv")
     # Drift simulieren: RACI verweist auf einen Agenten, der nicht im Team ist.
-    plan.pvm_roles = list(plan.pvm_roles) + ["Geister-Agent"]
+    plan.raci_roles = list(plan.raci_roles) + ["Geister-Agent"]
     graph = compiler.compile_graph(project, plan)
     fails = [f for f in graph.findings if f.severity == "fail"]
     assert any(f.rule == "consistency.raci-rolle-ohne-agent" for f in fails), (
@@ -160,4 +160,4 @@ def test_composer_team_matches_compiler_source() -> None:
     project = _project("it", "prototype-mvp", 0)
     plan = zc.compose(project, version=1, plan_id="pl_ssot")  # kein team= → interne Ableitung
     team_labels = {a.label for a in catalog.defaults_for("it", "prototype-mvp")}
-    assert set(plan.pvm_roles) <= team_labels
+    assert set(plan.raci_roles) <= team_labels

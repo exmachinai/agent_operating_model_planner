@@ -108,24 +108,29 @@ def plan_msp(plan: Plan) -> dict[str, Any]:
     }
 
 
+# Mapping der internen Verantwortungs-Codes → RACI (Anzeige/Export-Standard).
+_CODE_TO_RACI = {"A": "R", "L": "A", "F": "A", "E": "C", "e": "C", "B": "C", "I": "I", "V": "I"}
+
+
 def _role_resource_ids(plan: Plan) -> dict[str, str]:
-    """Stabile R-IDs je Rolle — sichere YAML-Schlüssel für die PVM-Matrix."""
-    return {role: f"R{idx + 1:02d}" for idx, role in enumerate(plan.pvm_roles)}
+    """Stabile R-IDs je Rolle — sichere YAML-Schlüssel für die RACI-Matrix."""
+    return {role: f"R{idx + 1:02d}" for idx, role in enumerate(plan.raci_roles)}
 
 
-def plan_pvm(plan: Plan) -> dict[str, Any]:
+def plan_raci(plan: Plan) -> dict[str, Any]:
+    """RACI-Matrix je Meilenstein (R/A/C/I), exportiert nach plan/raci.yaml."""
     rids = _role_resource_ids(plan)
     ressourcen = [
-        {
-            "id": rid,
-            "name": role,
-            "typ": "human" if "HITL" in role or "Fachbereich" in role else "agent",
-        }
+        {"id": rid, "name": role, "typ": "human" if "HITL" in role else "agent"}
         for role, rid in rids.items()
     ]
     matrix: dict[str, dict[str, str]] = {}
     for m in plan.milestones:
-        matrix[m.id] = {rids[r.role]: r.code for r in m.responsibilities if r.role in rids}
+        matrix[m.id] = {
+            rids[r.role]: _CODE_TO_RACI.get(r.code, "·")
+            for r in m.responsibilities
+            if r.role in rids
+        }
     return {"ressourcen": ressourcen, "matrix": matrix}
 
 
@@ -158,15 +163,15 @@ def plan_cost(plan: Plan) -> dict[str, Any]:
 
 
 def plan_milestone(m: Milestone) -> dict[str, Any]:
-    """Meilenstein-Detail: PVM + Meilensteinrisikoliste (v0.6 — ohne Aktivitäten).
+    """Meilenstein-Detail: RACI + Meilensteinrisikoliste (v0.6 — ohne Aktivitäten).
 
     Die konkrete Arbeit zum Erreichen des Zustands übernehmen die Agenten autonom;
-    der Harness-Plan beschreibt nur Ziel-Zustand, Termin, PVM und Risiken."""
+    der Harness-Plan beschreibt nur Ziel-Zustand, Termin, RACI und Risiken."""
     return {
         "meilenstein": m.id,
         "name": m.name,
         "geplant": m.planned_date,
-        "pvm": [{"rolle": r.role, "code": r.code} for r in m.responsibilities],
+        "raci": [{"rolle": r.role, "code": _CODE_TO_RACI.get(r.code, "·")} for r in m.responsibilities],
         "mrl": [
             {
                 "id": r.id,
@@ -229,7 +234,7 @@ def claude_md(project: Project, plan: Plan, graph: HarnessGraph) -> str:
         leitplanken = """## Verbindliche Leitplanken
 
 - **Keine 100%-/Garantie-Claims**; Ergebnisse nachvollziehbar und belegbar formulieren.
-- Methodentreue: ZGPM (Zustände/Meilensteine, PVM) + McKinsey-Prinzipien (MECE, Pyramid).
+- Methodentreue: ZGPM (Zustände/Meilensteine, RACI) + McKinsey-Prinzipien (MECE, Pyramid).
 - Verifikation vor „fertig": jeder Output wird gegen klare Kriterien geprüft (Evaluator-Optimizer).
 - Keine Secrets im Klartext — nur `.env.example` pflegen; absolute Pfade ab `$HARNESS_ROOT`."""
     return f"""# CLAUDE.md — {project.title}
@@ -348,7 +353,7 @@ def userguide_md(project: Project, plan: Plan, graph: HarnessGraph) -> str:
 ## Was dieser Harness tut
 
 Er führt den ZGPM-Plan (v{plan.version}) aus: {len(plan.milestones)} Meilensteine
-als Zustände, Verantwortlichkeiten als PVM-Codes, Risiken mit Ampel, Token-Budget.
+als Zustände, Verantwortlichkeiten als RACI-Codes, Risiken mit Ampel, Token-Budget.
 
 ## Slash-Commands
 
@@ -788,50 +793,27 @@ dann Kurzthema. Keine Leerzeichen; Umlaute vermeiden.
 
 
 def matrix_export_md(plan: Plan) -> str:
-    """Verantwortlichkeits-Matrix als eigenständiges Audit-Artefakt (D5, v0.9).
+    """RACI-Matrix als eigenständiges Audit-Artefakt (D5, v0.10 — RACI-only).
 
-    Enthält BEIDE Sprachen: interne ZGPM-PVM-Codes und das RACI-Mapping (Anzeige-
-    Standard). So ist die Ablage international anschlussfähig und methodisch eindeutig.
+    R verantwortlich · A rechenschaftspflichtig · C konsultiert · I informiert.
     """
-    roles = list(plan.pvm_roles)
+    roles = list(plan.raci_roles)
     header = "| Meilenstein | " + " | ".join(roles) + " | Regel |"
     sep = "|" + "---|" * (len(roles) + 2)
     lines = [
-        "# Verantwortlichkeits-Matrix (PVM × RACI)",
+        "# RACI-Matrix",
         "",
-        "PVM = interne ZGPM-Wahrheit · RACI = Anzeige-/Audit-Standard "
-        "(A→R · L/F→A · E/e/B→C · I/V→I).",
-        "",
-        "## PVM-Matrix",
+        "Verantwortlichkeiten je Meilenstein — **R** verantwortlich · **A** rechenschaftspflichtig · "
+        "**C** konsultiert · **I** informiert. Regel: genau ein A, mindestens ein R je Meilenstein.",
         "",
         header,
         sep,
     ]
     for m in plan.milestones:
-        by_role = {r.role: r.code for r in m.responsibilities}
-        cells = [by_role.get(role, "·") for role in roles]
-        codes = list(by_role.values())
-        a_ok = codes.count("A") >= 1
-        fl_ok = (codes.count("F") + codes.count("L")) == 1
-        e_ok = "e" not in codes or "E" in codes
-        rule = "ok" if (a_ok and fl_ok and e_ok) else "⚠"
-        lines.append(f"| {m.id} | " + " | ".join(cells) + f" | {rule} |")
-
-    lines += [
-        "",
-        "## RACI-Matrix (Anzeige-Standard)",
-        "",
-        header,
-        sep,
-    ]
-    pvm_to_raci = {"A": "R", "L": "A", "F": "A", "E": "C", "e": "C", "B": "C", "I": "I", "V": "I"}
-    for m in plan.milestones:
-        by_role = {r.role: pvm_to_raci.get(r.code, "·") for r in m.responsibilities}
+        by_role = {r.role: _CODE_TO_RACI.get(r.code, "·") for r in m.responsibilities}
         cells = [by_role.get(role, "·") for role in roles]
         raci = list(by_role.values())
-        a_ok = raci.count("A") == 1
-        r_ok = raci.count("R") >= 1
-        rule = "ok" if (a_ok and r_ok) else "⚠"
+        rule = "ok" if (raci.count("A") == 1 and raci.count("R") >= 1) else "⚠"
         lines.append(f"| {m.id} | " + " | ".join(cells) + f" | {rule} |")
     lines.append("")
     return "\n".join(lines)

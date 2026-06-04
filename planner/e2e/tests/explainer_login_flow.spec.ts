@@ -71,4 +71,11 @@ test("MFA-Login über LockScreen → Erstnutzer landet auf dem Explainer", async
   // Inhalt im iframe MUSS laden (sonst Framing-Block via X-Frame-Options/CSP).
   const frame = page.frameLocator('[data-testid="explainer-frame"]');
   await expect(frame.locator("h1").first()).toBeVisible({ timeout: 10000 });
+
+  // „Überspringen → App" im iframe MUSS same-tab in den Planner führen — KEIN neuer
+  // Tab (sonst Session-Verlust → erneutes MFA), KEINE Onboarding-Schleife.
+  await frame.getByRole("link", { name: /Überspringen/ }).first().click();
+  await expect(page.getByTestId("new-project")).toBeVisible({ timeout: 10000 });
+  await expect(page.locator("#lk-email")).toHaveCount(0); // nicht zurück auf MFA
+  await expect(page).not.toHaveURL(/explainer/); // nicht zurück auf den Explainer
 });

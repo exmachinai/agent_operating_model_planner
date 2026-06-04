@@ -31,6 +31,18 @@ export default function ExplainerPage(): React.ReactElement {
     [router],
   );
 
+  // Der eingebettete Explainer (iframe) signalisiert „weiter zur App" per postMessage,
+  // statt per <a target="_top"> hart neu zu laden. So bleibt der LockProvider gemountet
+  // und der Übergang ist clientseitig — kein kurzes Aufblitzen des MFA-/Lock-Screens.
+  React.useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return; // nur eigene Origin akzeptieren
+      if (e.data === "aegira:explainer-proceed") proceed(true);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [proceed]);
+
   return (
     <main style={pageStyle} data-testid="explainer">
       <header style={barStyle}>

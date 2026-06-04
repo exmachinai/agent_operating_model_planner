@@ -19,7 +19,12 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
+          // SAMEORIGIN (nicht DENY): erlaubt das same-origin-Einbetten des
+          // Explainer-Onboardings (/explainer rahmt /explainer/index.html); blockt
+          // weiterhin Cross-Origin-Framing (Clickjacking). frame-ancestors 'self'
+          // setzt dasselbe modern/explizit für Browser, die CSP bevorzugen.
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         ],
       },

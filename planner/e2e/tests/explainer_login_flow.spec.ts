@@ -68,4 +68,7 @@ test("MFA-Login über LockScreen → Erstnutzer landet auf dem Explainer", async
   // Nach erfolgreichem Unlock → Onboarding-Redirect.
   await expect(page).toHaveURL(/\/explainer$/, { timeout: 10000 });
   await expect(page.getByTestId("explainer-frame")).toBeVisible();
+  // Inhalt im iframe MUSS laden (sonst Framing-Block via X-Frame-Options/CSP).
+  const frame = page.frameLocator('[data-testid="explainer-frame"]');
+  await expect(frame.locator("h1").first()).toBeVisible({ timeout: 10000 });
 });

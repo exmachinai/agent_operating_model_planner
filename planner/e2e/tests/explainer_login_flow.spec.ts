@@ -72,12 +72,21 @@ test("MFA-Login über LockScreen → Erstnutzer landet auf dem Explainer", async
   const frame = page.frameLocator('[data-testid="explainer-frame"]');
   await expect(frame.locator("h1").first()).toBeVisible({ timeout: 10000 });
 
+  // Marker, der NUR einen harten Full-Reload NICHT überlebt — beweist den
+  // clientseitigen Übergang (kein Remount des LockProviders → kein MFA-Aufblitzen).
+  await page.evaluate(() => { (window as Window & { __aegiraNoReload?: string }).__aegiraNoReload = "1"; });
+
   // „Überspringen → App" im iframe MUSS same-tab in den Planner führen — KEIN neuer
-  // Tab (sonst Session-Verlust → erneutes MFA), KEINE Onboarding-Schleife.
+  // Tab (sonst Session-Verlust → erneutes MFA), KEINE Onboarding-Schleife, KEIN Reload.
   await frame.getByRole("link", { name: /Überspringen/ }).first().click();
   await expect(page.getByTestId("new-project")).toBeVisible({ timeout: 10000 });
   await expect(page.locator("#lk-email")).toHaveCount(0); // nicht zurück auf MFA
   await expect(page).not.toHaveURL(/explainer/); // nicht zurück auf den Explainer
+
+  // Der Marker überlebt → die Navigation war clientseitig (postMessage → router.push),
+  // KEIN harter Reload, der den LockProvider neu mountet und MFA kurz aufblitzen ließe.
+  const survived = await page.evaluate(() => (window as Window & { __aegiraNoReload?: string }).__aegiraNoReload);
+  expect(survived).toBe("1");
 });
 
 test("Re-MFA zeigt den Explainer ERNEUT — auch wenn schon gesehen (force)", async ({ page, request, context }) => {

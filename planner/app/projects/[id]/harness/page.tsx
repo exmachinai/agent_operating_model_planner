@@ -425,8 +425,9 @@ function SaveExport({ id, graph }: { id: string; graph: HarnessGraph }): React.R
           const blob = await api.harnessZipBlob(id);
           await saveZip(blob, graph.zip_name);
           setNote(
-            "Entpacktes Speichern braucht Chrome/Edge — die Zip wurde stattdessen " +
-              "heruntergeladen, bitte manuell entpacken.",
+            "Der Ordner-Dialog ist hier nicht verfügbar (Browser ohne File-System-Access " +
+              "oder durch IT-Richtlinie gesperrt). Die ZIP wurde stattdessen heruntergeladen — " +
+              "doppelklicken zum Entpacken ergibt dieselbe Ordnerstruktur.",
           );
         } else {
           setNote(resultNote(r, "unzip"));

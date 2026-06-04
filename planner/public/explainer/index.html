@@ -199,15 +199,13 @@ footer .muted{color:hsl(220 18% 78%)}
   <div class="eyebrow">Explainer-Video</div>
   <h2 style="margin:8px 0 18px">Der ganze Weg in 2½ Minuten</h2>
   <div class="videocard">
-    <div class="videoframe">
-      <div class="inner">
-        <button class="play" aria-label="Video abspielen" onclick="document.getElementById('vhint').style.display='block'">▶</button>
-        <h3>zgpm.aegira.ai — Explainer</h3>
-        <div class="sub">Planung → Prototyp → Product · ~2:30 min</div>
-        <div id="vhint" style="display:none;margin-top:12px;color:var(--ice);font-size:.82rem">HeyGen-Video hier einbetten (siehe Kommentar im Code / README).</div>
-      </div>
-      <div class="slot-note">▶ Video-Slot · HeyGen-Embed an dieser Stelle einsetzen</div>
-    </div>
+    <video class="vid" controls preload="metadata" playsinline
+           style="display:block;width:100%;aspect-ratio:16/9;background:#000"
+           aria-label="AEGIRA ZGPM Explainer-Video — Vom Vorhaben zum KI-System (Untertitel im Video eingebrannt)">
+      <source src="assets/video/zgpm-explainer.mp4" type="video/mp4" />
+      Dein Browser kann das Video nicht abspielen —
+      <a href="assets/video/zgpm-explainer.mp4">direkt herunterladen</a>.
+    </video>
   </div>
   <div class="cap">
     <span>Empfohlene Platzierung: <b>hier</b> (Hero-nah, vor der Journey) — plus optionaler Wiederaufruf über „▶ Explainer" im Header.</span>

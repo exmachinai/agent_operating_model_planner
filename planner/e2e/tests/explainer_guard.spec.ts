@@ -29,4 +29,11 @@ test("Explainer — Brand/Content-Guards erfüllt", async () => {
   for (const bad of FORBIDDEN_PRODUCTS) {
     expect(html.includes(bad), `erfundener Produktname: ${bad}`).toBe(false);
   }
+
+  // HeyGen-Video integriert: <video> referenziert die gebündelte MP4, und die Datei existiert.
+  expect(/<video[\s>]/i.test(html), "kein <video>-Element im Explainer").toBe(true);
+  expect(html.includes("assets/video/zgpm-explainer.mp4"), "Video-Quelle nicht referenziert").toBe(true);
+  const video = path.join(FRONTEND_ROOT, "public/explainer/assets/video/zgpm-explainer.mp4");
+  const stat = await fs.stat(video).catch(() => null);
+  expect(stat && stat.size > 100_000, "Video-Datei fehlt oder zu klein").toBeTruthy();
 });

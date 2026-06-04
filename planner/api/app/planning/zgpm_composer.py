@@ -3,7 +3,7 @@
 Spec: docs/09_process-flow.md (Schritt 6) + docs/01_zgpm-method.md.
 
 `compose()` simuliert den Orchestrator-Worker-Lauf: der PMO zerlegt in Phasen &
-Meilensteine, Worker füllen PVM/Risiken/Aufwände, der Reviewer prüft gegen die
+Meilensteine, Worker füllen RACI/Risiken/Aufwände, der Reviewer prüft gegen die
 harten ZGPM-Regeln (Evaluator-Optimizer). Alles deterministisch, ohne LLM —
 ersetzt wird das später durch den Foundry-Hookup. Die Methodentreue (genau ein
 `F`/`L`, mindestens ein `A`, Ampel-Propagation, keine Auto-Grün ohne Risiko-
@@ -273,7 +273,7 @@ def _build_prl(project: Project) -> list[Risk]:
             probability=2,
             impact=4,
             ampel=_ampel_for(2 * 4),
-            mitigation="Reviewer-Gate prüft PVM-Regeln je Knoten vor Freigabe.",
+            mitigation="Reviewer-Gate prüft RACI-Regeln je Knoten vor Freigabe.",
         ),
         Risk(
             id="PRL-2",
@@ -398,8 +398,8 @@ def compose_risk_narrative(milestones: list[Milestone], prl: list[Risk], overall
 # --- Reviewer (Evaluator-Optimizer) -------------------------------------------
 
 
-def _check_pvm(node_label: str, resp: list[Responsibility]) -> list[ReviewerFinding]:
-    """Harte PVM-Konsistenzregeln (docs/01): >=1 A, genau ein F/L, e nie allein."""
+def _check_raci(node_label: str, resp: list[Responsibility]) -> list[ReviewerFinding]:
+    """Harte RACI-Konsistenzregeln (docs/01): >=1 A, genau ein F/L, e nie allein."""
     findings: list[ReviewerFinding] = []
     codes = [r.code for r in resp]
 
@@ -407,7 +407,7 @@ def _check_pvm(node_label: str, resp: list[Responsibility]) -> list[ReviewerFind
         findings.append(
             ReviewerFinding(
                 severity="fail",
-                rule="pvm.mindestens-ein-A",
+                rule="raci.mindestens-ein-A",
                 message=f"{node_label}: kein Verantwortlicher (A).",
             )
         )
@@ -416,7 +416,7 @@ def _check_pvm(node_label: str, resp: list[Responsibility]) -> list[ReviewerFind
         findings.append(
             ReviewerFinding(
                 severity="fail",
-                rule="pvm.genau-ein-F-oder-L",
+                rule="raci.genau-ein-F-oder-L",
                 message=f"{node_label}: {fl} Fortschritts-Steuernde (F/L), erwartet genau 1.",
             )
         )
@@ -424,7 +424,7 @@ def _check_pvm(node_label: str, resp: list[Responsibility]) -> list[ReviewerFind
         findings.append(
             ReviewerFinding(
                 severity="fail",
-                rule="pvm.e-nie-allein",
+                rule="raci.e-nie-allein",
                 message=f"{node_label}: 'e' ohne zugehöriges 'E'.",
             )
         )
@@ -438,7 +438,7 @@ def review(
     findings: list[ReviewerFinding] = []
 
     for ms in milestones:
-        findings += _check_pvm(f"Meilenstein {ms.id}", ms.responsibilities)
+        findings += _check_raci(f"Meilenstein {ms.id}", ms.responsibilities)
         # Keine Auto-Grün ohne MRL-Eintrag (docs/01).
         if ms.ampel == "gruen" and not ms.mrl:
             findings.append(
@@ -468,7 +468,7 @@ def review(
             ReviewerFinding(
                 severity="info",
                 rule="plan.konform",
-                message="Plan erfüllt PVM-Regeln und Ampel-Propagation.",
+                message="Plan erfüllt RACI-Regeln und Ampel-Propagation.",
             )
         )
     # Der deterministische Komponist baut bereits valide Pläne -> eine Runde.
@@ -487,7 +487,7 @@ def compose(
     """Erzeugt eine ZGPM-konforme Planversion aus dem (Gate-1-)Verständnis.
 
     `outline` (optional, vom LLM-Planner) ersetzt die Default-Gliederung durch
-    projektspezifische Meilenstein-Namen + Aktivitätstexte; PVM/Risiken/Termine
+    projektspezifische Meilenstein-Namen + Aktivitätstexte; RACI/Risiken/Termine
     werden weiterhin regelkonform ergänzt. `risk_narrative_override` setzt eine
     LLM-Fassung des Gesamtrisiko-Texts; sonst greift die deterministische."""
     now = datetime.now(timezone.utc)
@@ -561,7 +561,7 @@ def compose(
         streams=streams,
         milestones=milestones,
         prl=prl,
-        pvm_roles=_roles_for(team),
+        raci_roles=_roles_for(team),
         token_budget=token_budget,
         overall_ampel=overall,
         reviewer_status=status,
@@ -606,7 +606,7 @@ def revise(
 ) -> Plan:
     """Erzeugt aus einer Vorgängerversion + Inline-Edits eine neue Planversion.
 
-    Methodentreue bleibt gewahrt: PVM-Struktur, Phasen, Streams und Evidenz werden
+    Methodentreue bleibt gewahrt: RACI-Struktur, Phasen, Streams und Evidenz werden
     übernommen; Ampeln werden nach den Edits neu propagiert (Risiko -> MRL ->
     Meilenstein -> Projekt) und der Reviewer prüft das Ergebnis erneut. Nichts wird
     überschrieben — die Revision ist eine neue, append-only Version.
@@ -676,7 +676,7 @@ def revise(
         streams=previous.streams,
         milestones=milestones,
         prl=prl,
-        pvm_roles=previous.pvm_roles,
+        raci_roles=previous.raci_roles,
         token_budget=previous.token_budget,
         overall_ampel=overall,
         reviewer_status=status,
@@ -693,8 +693,8 @@ def revise(
 
 # --- Schritt 6a: geführte Edit-Operationen + Recompute -----------------------
 # Der Anwender bearbeitet vorgeschlagene Meilensteine (umbenennen, löschen,
-# hinzufügen, sortieren). PVM-Struktur und Risiken bleiben den ZGPM-Regeln
-# vorbehalten: hinzugefügte Knoten erhalten regelkonforme Default-PVM, und nach
+# hinzufügen, sortieren). RACI-Struktur und Risiken bleiben den ZGPM-Regeln
+# vorbehalten: hinzugefügte Knoten erhalten regelkonforme Default-RACI, und nach
 # jeder Operation werden Gantt-Termine, Token-Budget, Ampel-Propagation und das
 # Risiko-Narrativ neu abgeleitet (`recompute`). Append-only: jede Op erzeugt
 # eine neue Version.
@@ -788,7 +788,7 @@ def _rebuild_plan(
         streams=previous.streams,
         milestones=milestones,
         prl=prl,
-        pvm_roles=_roles_for(team),
+        raci_roles=_roles_for(team),
         token_budget=token_budget,
         overall_ampel=overall,
         reviewer_status=status,

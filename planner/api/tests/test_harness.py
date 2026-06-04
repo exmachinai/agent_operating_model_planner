@@ -121,7 +121,7 @@ def test_download_zip_integrity(client: TestClient, gate2_project: str) -> None:
     root = names[0].split("/")[0]
     must_have = [
         "CLAUDE.md", "INSTALL.md", "USERGUIDE.md", "HANDOVER.md", "checksums.txt",
-        "plan/msp.yaml", "plan/pvm.yaml", ".claude/settings.json",
+        "plan/msp.yaml", "plan/raci.yaml", ".claude/settings.json",
     ]
     for rel in must_have:
         assert f"{root}/{rel}" in names, f"fehlt: {rel}"

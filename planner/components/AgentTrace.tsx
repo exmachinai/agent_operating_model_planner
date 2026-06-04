@@ -216,7 +216,7 @@ export function AgentTrace(props: AgentTraceProps): React.ReactElement {
           </button>
           <span style={agentRoleStyle}>{agentRole}</span>
           {pvmCode && (
-            <span style={pvmBadgeStyle} aria-label={`PVM-Code ${pvmCode}`}>
+            <span style={pvmBadgeStyle} aria-label={`Verantwortungs-Code ${pvmCode}`}>
               {pvmCode}
             </span>
           )}

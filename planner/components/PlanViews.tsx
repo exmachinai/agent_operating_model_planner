@@ -17,7 +17,7 @@
 "use client";
 
 import * as React from "react";
-import type { Plan, PVMCode, Risk, RiskAmpel } from "../lib/api";
+import type { Plan, ResponsibilityCode, Risk, RiskAmpel } from "../lib/api";
 
 const AMPEL_COLOR: Record<RiskAmpel, string> = {
   rot: "var(--c-red)",
@@ -118,7 +118,7 @@ export function GanttChart({ plan }: { plan: Plan }): React.ReactElement {
 // ---------------------------------------------------------------------------
 
 // PVM = interne Planungs-Wahrheit. Code → (Kurz-Bedeutung).
-const PVM_TITLE: Record<PVMCode, string> = {
+const PVM_TITLE: Record<ResponsibilityCode, string> = {
   A: "führt aus",
   B: "wird beteiligt",
   E: "entscheidet",
@@ -132,7 +132,7 @@ const PVM_TITLE: Record<PVMCode, string> = {
 // v0.9 (D2) — RACI ist der angezeigte/exportierte Standard; PVM bleibt die interne
 // Rules-Engine-Wahrheit. Mapping (Entscheidung D1): A→R · L/F→A · E/e/B→C · I/V→I.
 type RaciCode = "R" | "A" | "C" | "I";
-const PVM_TO_RACI: Record<PVMCode, RaciCode> = {
+const PVM_TO_RACI: Record<ResponsibilityCode, RaciCode> = {
   A: "R", L: "A", F: "A", E: "C", e: "C", B: "C", I: "I", V: "I",
 };
 const RACI_TITLE: Record<RaciCode, string> = {
@@ -142,7 +142,7 @@ const RACI_TITLE: Record<RaciCode, string> = {
   I: "Informed — wird informiert",
 };
 /** Konsistenzprüfung — Logik identisch, nur die Beschriftung wechselt (P1.9). */
-function checkMilestone(codes: PVMCode[]): { ok: boolean; raci: string; pvm: string } {
+function checkMilestone(codes: ResponsibilityCode[]): { ok: boolean; raci: string; pvm: string } {
   const aOk = codes.filter((c) => c === "A").length >= 1; // ≥1 Responsible
   const flOk = codes.filter((c) => c === "F" || c === "L").length === 1; // genau 1 Accountable
   const eOk = !codes.includes("e") || codes.includes("E"); // 'e' nie ohne 'E'
@@ -157,7 +157,7 @@ function checkMilestone(codes: PVMCode[]): { ok: boolean; raci: string; pvm: str
 }
 
 export function RaciMatrix({ plan }: { plan: Plan }): React.ReactElement {
-  const roles = plan.pvm_roles;
+  const roles = plan.raci_roles;
   // v0.9.x — nur noch RACI (Standard). PVM bleibt intern die Rules-Engine-Wahrheit,
   // wird aber nicht mehr als Anzeige-Option angeboten (auf RACI gemappt).
   const isRaci = true;
@@ -195,7 +195,7 @@ export function RaciMatrix({ plan }: { plan: Plan }): React.ReactElement {
                     const shown = code ? (isRaci ? PVM_TO_RACI[code] : code) : null;
                     const title = code
                       ? isRaci
-                        ? `${RACI_TITLE[PVM_TO_RACI[code]]} (PVM ${code})`
+                        ? `${RACI_TITLE[PVM_TO_RACI[code]]} (${code})`
                         : PVM_TITLE[code]
                       : undefined;
                     return (
@@ -232,7 +232,7 @@ export function RaciMatrix({ plan }: { plan: Plan }): React.ReactElement {
                 <strong>{c}</strong> {RACI_TITLE[c]}
               </span>
             ))
-          : (Object.keys(PVM_TITLE) as PVMCode[]).map((c) => (
+          : (Object.keys(PVM_TITLE) as ResponsibilityCode[]).map((c) => (
               <span key={c} style={legendChipStyle}>
                 <strong>{c}</strong> {PVM_TITLE[c]}
               </span>
@@ -243,7 +243,7 @@ export function RaciMatrix({ plan }: { plan: Plan }): React.ReactElement {
           <>
             Konsistenz (auf RACI gemappt): pro Meilenstein <strong>genau ein Accountable</strong>{" "}
             und <strong>≥1 Responsible</strong>. ⚠ markiert eine Abweichung. RACI ist die
-            Anzeige-/Audit-Sprache; intern prüft weiterhin die PVM-Rules-Engine
+            Anzeige-/Audit-Sprache; intern prüft weiterhin die Rules-Engine
             (A→R · L/F→A · E/e/B→C · I/V→I).
           </>
         ) : (

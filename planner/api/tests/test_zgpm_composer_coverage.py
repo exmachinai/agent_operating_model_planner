@@ -1,7 +1,7 @@
 """Coverage-Tests für den deterministischen ZGPM-Komponisten + Reviewer.
 
 Deckt gezielt: Ampel-Ableitung/-Propagation (rot/gelb/grün), Risiko-Narrativ mit
-Treibern, PVM-Reviewer-Fehlerpfade, compose() mit LLM-Gliederung (outline),
+Treibern, RACI-Reviewer-Fehlerpfade, compose() mit LLM-Gliederung (outline),
 revise() (Risk-/Milestone-Patches, Ampel-Recompute) und apply_milestone_ops
 (add/update/delete/reorder). Rein in-process, ohne Netz/LLM.
 """
@@ -102,45 +102,45 @@ def test_risk_narrative_keine_treiber_auf_stufe() -> None:
     assert "keine Einzeltreiber" in text
 
 
-# --- Reviewer-Fehlerpfade (_check_pvm) ----------------------------------------
+# --- Reviewer-Fehlerpfade (_check_raci) ----------------------------------------
 
 
-def test_check_pvm_kein_A() -> None:
+def test_check_raci_kein_A() -> None:
     resp = [Responsibility(role="PMO-Agent", code="L")]
-    findings = zc._check_pvm("M01", resp)
-    assert any(f.rule == "pvm.mindestens-ein-A" for f in findings)
+    findings = zc._check_raci("M01", resp)
+    assert any(f.rule == "raci.mindestens-ein-A" for f in findings)
 
 
-def test_check_pvm_kein_FL() -> None:
+def test_check_raci_kein_FL() -> None:
     resp = [Responsibility(role="Worker", code="A")]
-    findings = zc._check_pvm("M01", resp)
-    assert any(f.rule == "pvm.genau-ein-F-oder-L" for f in findings)
+    findings = zc._check_raci("M01", resp)
+    assert any(f.rule == "raci.genau-ein-F-oder-L" for f in findings)
 
 
-def test_check_pvm_doppeltes_FL() -> None:
+def test_check_raci_doppeltes_FL() -> None:
     resp = [
         Responsibility(role="A1", code="A"),
         Responsibility(role="F1", code="F"),
         Responsibility(role="L1", code="L"),
     ]
-    findings = zc._check_pvm("M01", resp)
-    assert any(f.rule == "pvm.genau-ein-F-oder-L" for f in findings)
+    findings = zc._check_raci("M01", resp)
+    assert any(f.rule == "raci.genau-ein-F-oder-L" for f in findings)
 
 
-def test_check_pvm_klein_e_ohne_grosses_E() -> None:
+def test_check_raci_klein_e_ohne_grosses_E() -> None:
     resp = [
         Responsibility(role="A1", code="A"),
         Responsibility(role="L1", code="L"),
         Responsibility(role="e1", code="e"),
     ]
-    findings = zc._check_pvm("M01", resp)
-    assert any(f.rule == "pvm.e-nie-allein" for f in findings)
+    findings = zc._check_raci("M01", resp)
+    assert any(f.rule == "raci.e-nie-allein" for f in findings)
 
 
-def test_check_pvm_sauber() -> None:
+def test_check_raci_sauber() -> None:
     roster = {"pmo": "PMO-Orchestrator", "lead": "Projektleiter (HITL)", "risk": "Risiko-Agent"}
     resp = zc._default_ms_responsibilities("Worker", roster)
-    assert zc._check_pvm("M01", resp) == []
+    assert zc._check_raci("M01", resp) == []
 
 
 # --- review() ----------------------------------------------------------------

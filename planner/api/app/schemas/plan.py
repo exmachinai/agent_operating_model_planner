@@ -10,7 +10,7 @@ Methodentreue (nicht verwässern, siehe docs/01):
 - ZGPM ist Methodik nach Glasner et al. (PwC) — keine Marken-Suggestion.
 
 v0.6 — Aktivitäten & Personentage (effort_pt) entfernt: Agenten übernehmen die
-Aktivitäten autonom; der Plan endet auf Meilenstein-Ebene (Name + Datum + PVM +
+Aktivitäten autonom; der Plan endet auf Meilenstein-Ebene (Name + Datum + RACI +
 Risiken). Kosten werden als Token-Budget je Agent geführt, nicht in Personentagen.
 """
 
@@ -19,12 +19,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
-# PVM-Originalcodes (docs/01): A führt aus · B beteiligt · E entscheidet ·
+# Verantwortungs-Codes (docs/01): A führt aus · B beteiligt · E entscheidet ·
 # e entscheidet mit · F steuert Fortschritt · L leitet+steuert · I informiert ·
-# V verfügbar.
-PVMCode = Literal["A", "B", "E", "e", "F", "L", "I", "V"]
+# V verfügbar. Für Anzeige/Export werden sie auf RACI (R/A/C/I) gemappt.
+ResponsibilityCode = Literal["A", "B", "E", "e", "F", "L", "I", "V"]
 
 # Risiko-Ampel. "gruen" statt "grün" — Code-Identifier bleiben ASCII.
 RiskAmpel = Literal["rot", "gelb", "gruen"]
@@ -33,10 +33,10 @@ ReviewerStatus = Literal["PASS", "NEEDS_REVISION", "HARD_FAIL"]
 
 
 class Responsibility(BaseModel):
-    """Eine PVM-Zelle: welche Rolle hat welchen Code an diesem Knoten."""
+    """Eine RACI-Zelle: welche Rolle hat welchen Verantwortungs-Code an diesem Knoten."""
 
     role: str
-    code: PVMCode
+    code: ResponsibilityCode
 
 
 class Risk(BaseModel):
@@ -56,7 +56,7 @@ class Milestone(BaseModel):
 
     v0.6 — kein `activities`-Feld mehr: die konkrete Arbeit übernehmen die Agenten
     autonom im Betrieb. Der Plan beschreibt nur noch den Ziel-Zustand, das Datum,
-    die Verantwortlichkeiten (PVM) und die Meilensteinrisiken (MRL).
+    die Verantwortlichkeiten (RACI) und die Meilensteinrisiken (MRL).
     """
 
     id: str
@@ -119,7 +119,7 @@ class EvidenceSource(BaseModel):
 
 # --- Schritt 7: Review-Patches (inline editierbarer Plan) --------------------
 # Editierbar ist die fachliche Substanz (Namen, Termine, Aufwände, Risikowerte),
-# nicht die PVM-Struktur — letztere bleibt den ZGPM-Regeln vorbehalten und wird
+# nicht die RACI-Struktur — letztere bleibt den ZGPM-Regeln vorbehalten und wird
 # vom Reviewer geprüft. Ampeln werden nach jeder Revision neu aus den Werten
 # abgeleitet, nicht vom Anwender gesetzt.
 
@@ -152,7 +152,7 @@ class PlanRevisionRequest(BaseModel):
 
 # --- Schritt 6a: geführte Edit-Operationen (Wizard) --------------------------
 # Der Anwender (oft Laie) bearbeitet *vorgeschlagene* Meilensteine: umbenennen,
-# löschen, hinzufügen, neu sortieren. PVM/Risiken bleiben den ZGPM-Regeln
+# löschen, hinzufügen, neu sortieren. RACI/Risiken bleiben den ZGPM-Regeln
 # vorbehalten und werden nach jeder Operation neu abgeleitet (recompute).
 
 EditOp = Literal["add", "update", "delete", "reorder"]
@@ -180,7 +180,8 @@ class Plan(BaseModel):
     milestones: list[Milestone]
     # Projektrisikoliste (PRL) — Gesamtprojekt.
     prl: list[Risk]
-    pvm_roles: list[str]
+    # RACI-Rollen-Roster (Anzeige/Matrix). Alias `pvm_roles` lädt Alt-Dokumente (v0.10).
+    raci_roles: list[str] = Field(validation_alias=AliasChoices("raci_roles", "pvm_roles"))
     token_budget: list[TokenBudgetEntry]
     # Aggregierte Projekt-Ampel (worst-of über alle Meilensteine).
     overall_ampel: RiskAmpel

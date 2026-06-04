@@ -79,9 +79,9 @@ FindingSeverity = Literal["info", "warn", "fail"]
 
 
 class AgentSpec(BaseModel):
-    """Ein Agent im Harness — abgeleitet aus einer PVM-Rolle.
+    """Ein Agent im Harness — abgeleitet aus einer RACI-Rolle.
 
-    `role` ist die PVM-Rolle aus dem Plan, `name` der Datei-Slug
+    `role` ist die RACI-Rolle aus dem Plan, `name` der Datei-Slug
     (`.claude/agents/<name>.md`). `hitl=True` markiert einen menschlichen
     Checkpoint statt eines autonomen Agenten.
     """

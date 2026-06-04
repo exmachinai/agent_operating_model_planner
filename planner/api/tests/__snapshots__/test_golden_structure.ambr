@@ -27,7 +27,7 @@
     '.claude/skills/pdf/SKILL.md',
     '.claude/skills/pptx/SKILL.md',
     '.claude/skills/prompting-best-practices/SKILL.md',
-    '.claude/skills/pvm-validate/SKILL.md',
+    '.claude/skills/raci-validate/SKILL.md',
     '.claude/skills/reset-milestone/SKILL.md',
     '.claude/skills/risk-traffic-light/SKILL.md',
     '.claude/skills/risk-view/SKILL.md',
@@ -65,7 +65,7 @@
     'plan/milestones/M05.yaml',
     'plan/msp.yaml',
     'plan/project.yaml',
-    'plan/pvm.yaml',
+    'plan/raci.yaml',
     'plan/risks.yaml',
   ])
 # ---

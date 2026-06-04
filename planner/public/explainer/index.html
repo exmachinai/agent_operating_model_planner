@@ -180,7 +180,6 @@ footer .muted{color:hsl(220 18% 78%)}
     <a class="btn btn-ghost" href="#planung">Durch die Journey klicken</a>
     <a class="btn btn-navy" href="/" target="_top" rel="noopener" onclick="try{sessionStorage.setItem('aegira.explainer.seen','1')}catch(e){}">Überspringen → direkt zur App</a>
   </div>
-  <div class="intern"><span>🔒</span><div class="t"><b>Interne Seite.</b> Dieser Explainer ist ausschließlich intern und liegt hinter dem 2FA-Login der AEGIRA-Plattform. Keine externe Vermarktung; kein Impressum/Datenschutz nötig.</div></div>
 </div></section>
 
 <!-- ============================================================
@@ -212,6 +211,29 @@ footer .muted{color:hsl(220 18% 78%)}
   </div>
 </div></section>
 
+<!-- ============================================================
+     USER-GUIDE · READER  (29 Slides) — weiter oben, direkt nach dem Video.
+     ============================================================ -->
+<section id="userguide" style="padding:var(--s12) 0;background:#fff;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+  <div class="wrap">
+    <div class="eyebrow">Vertiefung · Schritt für Schritt</div>
+    <h2 style="margin:8px 0 6px">User-Guide · Reader</h2>
+    <p class="muted prose" style="margin-bottom:22px">Der vollständige Schritt-für-Schritt-Guide (29 Slides) — aktualisiert auf den End-to-End-Workflow, die Begriffe (RACI-Standard, Gates&nbsp;1–3, Reifegrad) und das aktuelle Look&nbsp;&amp;&nbsp;Feel. Blättern mit ‹ ›, anklicken zum Vergrößern.</p>
+    <div style="display:flex;align-items:center;gap:14px">
+      <button class="btn btn-ghost ugnav" id="ug-prev" aria-label="Vorherige Slide" style="font-size:22px;line-height:1;padding:10px 16px">‹</button>
+      <figure class="shotframe" id="ug-frame" style="margin:0;flex:1"><div class="bar"><i></i><i></i><i></i><span class="z" id="ug-counter">Slide 1 / 29</span></div><img id="ug-main" src="assets/userguide/slides/slide-01.png" alt="User-Guide Slide 1"></figure>
+      <button class="btn btn-ghost ugnav" id="ug-next" aria-label="Nächste Slide" style="font-size:22px;line-height:1;padding:10px 16px">›</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:16px">
+      <div id="ug-strip" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;flex:1"></div>
+      <div style="display:flex;gap:10px;flex:none">
+        <a class="btn btn-ghost" href="assets/userguide/AEGIRA_Planner_User_Guide.pptx" download>↓ PPTX</a>
+        <a class="btn btn-ghost" href="assets/userguide/AEGIRA_Planner_User_Guide.pdf" target="_blank" rel="noopener">↓ PDF</a>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- 3 P -->
 <section style="padding:var(--s8) 0"><div class="wrap">
   <div class="eyebrow">Der Weg — die 3 P</div>
@@ -224,7 +246,7 @@ footer .muted{color:hsl(220 18% 78%)}
 
 <div class="mphase" id="mphase"><span class="tag" id="mphase-tag">Planung</span><span id="mphase-step">Schritt 0 · Projektübersicht</span></div>
 
-<section class="journey"><div class="wrap"><div class="j-grid">
+<section class="journey" id="planung"><div class="wrap"><div class="j-grid">
   <!-- side rail -->
   <nav class="rail" id="rail" aria-label="Journey-Navigation"></nav>
 
@@ -324,29 +346,6 @@ footer .muted{color:hsl(220 18% 78%)}
   </div>
 </div></div></section>
 
-<!-- ============================================================
-     USER-GUIDE · READER  (29 Slides, aktualisiert: E2E-Workflow,
-     Begriffe RACI/Gates, Look & Feel). Quelle: assets/userguide/
-     ============================================================ -->
-<section id="userguide" style="padding:var(--s16) 0;background:#fff;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
-  <div class="wrap">
-    <div class="eyebrow">Vertiefung</div>
-    <h2 style="margin:8px 0 6px">User-Guide · Reader</h2>
-    <p class="muted prose" style="margin-bottom:22px">Der vollständige Schritt-für-Schritt-Guide (29 Slides) — aktualisiert auf den End-to-End-Workflow, die Begriffe (RACI-Standard, Gates&nbsp;1–3, Reifegrad) und das aktuelle Look&nbsp;&amp;&nbsp;Feel. Blättern mit ‹ ›, anklicken zum Vergrößern.</p>
-    <div style="display:flex;align-items:center;gap:14px">
-      <button class="btn btn-ghost ugnav" id="ug-prev" aria-label="Vorherige Slide" style="font-size:22px;line-height:1;padding:10px 16px">‹</button>
-      <figure class="shotframe" id="ug-frame" style="margin:0;flex:1"><div class="bar"><i></i><i></i><i></i><span class="z" id="ug-counter">Slide 1 / 29</span></div><img id="ug-main" src="assets/userguide/slides/slide-01.png" alt="User-Guide Slide 1"></figure>
-      <button class="btn btn-ghost ugnav" id="ug-next" aria-label="Nächste Slide" style="font-size:22px;line-height:1;padding:10px 16px">›</button>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:16px">
-      <div id="ug-strip" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;flex:1"></div>
-      <div style="display:flex;gap:10px;flex:none">
-        <a class="btn btn-ghost" href="assets/userguide/AEGIRA_Planner_User_Guide.pptx" download>↓ PPTX</a>
-        <a class="btn btn-ghost" href="assets/userguide/AEGIRA_Planner_User_Guide.pdf" target="_blank" rel="noopener">↓ PDF</a>
-      </div>
-    </div>
-  </div>
-</section>
 
 </main>
 <footer><div class="wrap">

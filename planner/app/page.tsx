@@ -29,24 +29,8 @@ export default function Dashboard(): React.ReactElement {
   const [statusFilter, setStatusFilter] = React.useState<string>("");
   const [sort, setSort] = React.useState<"new" | "old" | "title">("new");
 
-  // Flow MFA → Explainer → Planner: Erstnutzer (noch ohne „gesehen"-Marke) werden
-  // einmalig aufs Explainer-Onboarding geleitet; danach direkt in den Planner.
-  const [onboardChecked, setOnboardChecked] = React.useState(false);
-  React.useEffect(() => {
-    try {
-      // Nur NACH MFA umleiten (Session vorhanden) — im gesperrten Zustand deckt der
-      // LockScreen die Seite ab; ein Redirect dorthin wäre sinnlos/fehlerträchtig.
-      const authed = !!window.sessionStorage.getItem("aegira.session");
-      const seen = window.localStorage.getItem("aegira.explainer.seen") === "1";
-      if (authed && !seen) {
-        router.replace("/explainer");
-        return;
-      }
-    } catch {
-      /* Storage nicht verfügbar → Planner direkt zeigen */
-    }
-    setOnboardChecked(true);
-  }, [router]);
+  // Hinweis: das Onboarding-Routing (MFA → Explainer → Planner) liegt zentral im
+  // LockProvider (am Unlock-Event), nicht hier — der Home-Mount läuft vor dem Login.
 
   const fmtDate = (iso: string): string =>
     new Date(iso).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -87,14 +71,6 @@ export default function Dashboard(): React.ReactElement {
     } finally {
       setBusy(false);
     }
-  }
-
-  if (!onboardChecked) {
-    return (
-      <PageShell subtitle="Projekte" helpTopic="overview">
-        <p style={mutedStyle}>Lade…</p>
-      </PageShell>
-    );
   }
 
   return (

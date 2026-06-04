@@ -4,8 +4,9 @@
  * Liegt hinter dem LockProvider (also hinter 2FA). Bettet den statischen
  * Explainer (`/explainer/index.html`, intern, noindex) ein und bietet den
  * Übergang zum Planner. „Weiter"/„nicht mehr anzeigen" merkt sich der Browser
- * (localStorage `aegira.explainer.seen`), damit Wiederkehrer direkt in den
- * Planner gelangen (die Home-Seite leitet Erstnutzer hierher um).
+ * (sessionStorage `aegira.explainer.seen` — pro MFA-Session, danach erscheint der
+ * Explainer beim nächsten Login erneut), damit man innerhalb der Session direkt in
+ * den Planner gelangt.
  */
 
 "use client";
@@ -21,7 +22,7 @@ export default function ExplainerPage(): React.ReactElement {
   const proceed = React.useCallback(
     (remember: boolean) => {
       try {
-        if (remember) window.localStorage.setItem(SEEN_KEY, "1");
+        if (remember) window.sessionStorage.setItem(SEEN_KEY, "1");
       } catch {
         /* localStorage nicht verfügbar */
       }

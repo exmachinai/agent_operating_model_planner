@@ -51,9 +51,15 @@ export default function PrintPage(): React.ReactElement {
         @media print {
           .aegira-no-print { display: none !important; }
           body { background: #fff; }
+          /* Volle Seitenbreite im Druck (überschreibt die 880px-Lesebreite vom Screen),
+             damit Tabellen und der Flow die Seite ausnutzen statt abzuschneiden. */
+          main { max-width: none !important; padding: 0 !important; }
           /* Flow-Ansicht auf eigener Querseite, groß. */
           @page flow { size: A4 landscape; margin: 12mm; }
           .aegira-flow-page { page: flow; break-before: page; }
+          /* Fit-to-width: das Flow-SVG skaliert immer komplett in die Seitenbreite
+             (kein Abschneiden, auch wenn die Named-Page-Querformat-Regel ignoriert wird). */
+          .aegira-flow-page svg { width: 100% !important; height: auto !important; }
         }
         /* Bildschirm: Flow-Block dezent abgesetzt. */
         .aegira-flow-page { margin-top: 24px; border-top: 1px dashed var(--c-border); padding-top: 16px; }
@@ -61,7 +67,7 @@ export default function PrintPage(): React.ReactElement {
 
       <div className="aegira-no-print" style={toolbar}>
         <Link href={`/projects/${id}/harness`} style={linkStyle}>← Zurück zum Harness</Link>
-        <button type="button" style={printBtn} onClick={() => window.print()}>🖨 Drucken / Als PDF</button>
+        <button type="button" style={printBtn} onClick={() => printWithName(project.title)}>🖨 Drucken / Als PDF</button>
       </div>
 
       <header style={{ borderBottom: "2px solid var(--c-navy)", paddingBottom: 12, marginBottom: 16 }}>
@@ -114,6 +120,39 @@ export default function PrintPage(): React.ReactElement {
         </Section>
       ) : null}
 
+      {/* RACI-Matrix (Rolle × Meilenstein) — knoten-genaue Verantwortlichkeiten. */}
+      {plan && plan.raci_roles.length > 0 ? (
+        <Section title="RACI-Matrix (Rolle × Meilenstein)">
+          <p style={{ ...meta, marginBottom: 6 }}>
+            R verantwortlich · A rechenschaftspflichtig · C konsultiert · I informiert.
+            Regel je Meilenstein: genau ein A, mindestens ein R.
+          </p>
+          <table style={table}>
+            <thead>
+              <tr>
+                <th style={th}>MS</th>
+                {plan.raci_roles.map((r) => <th key={r} style={th}>{r}</th>)}
+                <th style={th}>Regel</th>
+              </tr>
+            </thead>
+            <tbody>
+              {plan.milestones.map((m) => {
+                const byRole = new Map(m.responsibilities.map((x) => [x.role, CODE_TO_RACI[x.code] ?? "·"]));
+                const vals = [...byRole.values()];
+                const ok = vals.filter((v) => v === "A").length === 1 && vals.filter((v) => v === "R").length >= 1;
+                return (
+                  <tr key={m.id}>
+                    <td style={td}>{m.id}</td>
+                    {plan.raci_roles.map((r) => <td key={r} style={{ ...td, textAlign: "center" }}>{byRole.get(r) ?? "·"}</td>)}
+                    <td style={td}>{ok ? "✓ ok" : "⚠ prüfen"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </Section>
+      ) : null}
+
       {/* Harness */}
       {graph ? (
         <>
@@ -151,6 +190,22 @@ export default function PrintPage(): React.ReactElement {
             </Section>
           ) : null}
 
+          {/* Datei-Struktur — belegt, dass Agenten- und Skill-Dateien real enthalten sind
+              (sie liegen im versteckten .claude/-Ordner; im Finder mit ⌘⇧. einblendbar). */}
+          <Section title="Datei-Struktur (Auszug)">
+            <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", lineHeight: 1.6 }}>
+              <div><strong>.claude/agents/</strong> — {graph.agents.length} Agent-Dateien:</div>
+              {graph.agents.map((a) => <div key={a.id}>&nbsp;&nbsp;{a.name}.md</div>)}
+              <div style={{ marginTop: 4 }}>
+                <strong>.claude/skills/</strong> — {graph.catalog_skills?.length ?? 0} Katalog-SKILL.md + _manifest.json
+              </div>
+              <div style={{ marginTop: 4 }}>
+                <strong>plan/</strong> — project.yaml · raci.yaml · audit.yaml · cost.yaml · risks.yaml · msp.yaml · matrix.md · milestones/
+              </div>
+              <div>orchestration.yaml · guardrails.yaml · CLAUDE.md · settings.json · hooks/ · checksums.txt</div>
+            </div>
+          </Section>
+
           {graph.zip_sha256 ? (
             <p style={meta}>Harness-ZIP: <code>{graph.zip_name}</code> · {graph.zip_sha256}</p>
           ) : null}
@@ -174,6 +229,25 @@ export default function PrintPage(): React.ReactElement {
       </footer>
     </main>
   );
+}
+
+// Interne Verantwortungs-Codes → RACI (Anzeige/Export-Standard).
+const CODE_TO_RACI: Record<string, string> = {
+  A: "R", L: "A", F: "A", E: "C", e: "C", B: "C", I: "I", V: "I",
+};
+
+/** Dateiname-Nomenklatur YYMMDD_HHMM_Name: setzt document.title vor dem Druck
+ *  (Default-Dateiname im „Als PDF speichern"-Dialog) und stellt ihn danach zurück. */
+function printWithName(title: string): void {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  const stamp =
+    `${String(d.getFullYear()).slice(2)}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+  const slug = (title || "Projekt").trim().replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-");
+  const prev = document.title;
+  document.title = `${stamp}_${slug}`;
+  window.print();
+  setTimeout(() => { document.title = prev; }, 1000);
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }): React.ReactElement {

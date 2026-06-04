@@ -521,8 +521,8 @@ def compile_graph(project: Project, plan: Plan, *, harness_id: str | None = None
     findings = _detect_anti_patterns(agents, nodes, plan)
     findings += _skill_consistency_findings(agents, imported_skills, catalog_skills)
     slug = slugify(project.title)
-    short = plan.plan_hash.split(":")[-1][:6]
-    date = plan.planausgabedatum.strftime("%Y%m%d")
+    # v0.10.4 — Datei-Nomenklatur YYMMDD_HHMM_Name (Wunsch Product Owner).
+    date = plan.planausgabedatum.strftime("%y%m%d_%H%M")
 
     return HarnessGraph(
         projectId=project.id,
@@ -538,7 +538,7 @@ def compile_graph(project: Project, plan: Plan, *, harness_id: str | None = None
         hitl_points=_hitl_points(plan) + _irreversible_hitl_points(agents),
         artifacts=[],
         findings=findings,
-        zip_name=f"{slug}_{date}_{short}.harness.zip",
+        zip_name=f"{date}_{slug}.harness.zip",
         created_at=now,
     )
 

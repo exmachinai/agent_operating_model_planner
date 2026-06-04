@@ -66,7 +66,7 @@ export default function PrintPage(): React.ReactElement {
 
       <header style={{ borderBottom: "2px solid var(--c-navy)", paddingBottom: 12, marginBottom: 16 }}>
         <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, letterSpacing: "0.08em", color: "var(--c-navy)" }}>
-          AEGIRA · AI Trust Platform
+          AEGIRA
         </div>
         <h1 style={{ margin: "6px 0 2px", fontSize: 24 }}>{project.title}</h1>
         <div style={meta}>

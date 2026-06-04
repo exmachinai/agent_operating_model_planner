@@ -158,7 +158,6 @@ export function LockScreen({ isLocked, lockedAt, onUnlocked }: LockScreenProps):
           <img src={SIGNET_WHITE_DATA_URI} alt="" width={36} height={36} aria-hidden="true" style={styles.signet} />
           <div>
             <div style={styles.brandName}>AEGIRA</div>
-            <div style={styles.brandTagline}>AI Trust Platform</div>
           </div>
         </div>
 

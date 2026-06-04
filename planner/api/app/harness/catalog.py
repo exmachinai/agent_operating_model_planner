@@ -244,6 +244,36 @@ _CATALOG: list[CatalogAgent] = [
     ),
 ]
 
+# --- Feste Token-Budgets je Agent (SSOT für Cost) ----------------------------
+# Begründbare, stabile Werte je Rolle (Control > Implementierung/Architektur >
+# Evaluator > Konzept-Worker > leichte Recherche). Human-Rollen = 0. Werden auf
+# `_CATALOG` angewandt; der Composer summiert exakt die selektierten Team-Budgets.
+_AGENT_TOKEN_BUDGET: dict[str, int] = {
+    "pmo-orchestrator": 16000,
+    "router-triage": 4000,
+    "architecture-agent": 12000,
+    "data-agent": 12000,
+    "security-agent": 10000,
+    "integration-agent": 10000,
+    "devops-agent": 10000,
+    "implementation-agent": 14000,
+    "ux-agent": 10000,
+    "methodology-agent": 8000,
+    "compliance-agent": 9000,
+    "risk-agent": 6000,
+    "research-agent": 6000,
+    "process-agent": 9000,
+    "change-agent": 8000,
+    "doc-agent": 6000,
+    "reviewer-agent": 12000,
+    "test-agent": 10000,
+    "redteam-agent": 8000,
+    "hitl-projektleiter": 0,
+}
+for _a in _CATALOG:
+    _a.token_budget = _AGENT_TOKEN_BUDGET.get(_a.id, _a.token_budget)
+
+
 # --- Guardrails (Trust-Layer, Export guardrails.yaml) ------------------------
 
 GUARDRAILS: list[dict] = [
@@ -330,3 +360,13 @@ def defaults_for(project_type: str | None, project_subtype: str | None) -> list[
             seen.add(a.id)
             out.append(a)
     return out
+
+
+def nature_for(project_type: str | None, project_subtype: str | None = None) -> str:
+    """Leitet `project_nature` deterministisch aus Typ/Subtyp ab (eine Klassifikationsachse).
+
+    it → technical, non-it → concept. `hybrid-concept-tech` bleibt ein expliziter
+    Override am Projekt (selten). Seit v0.10 (SSOT) treibt `nature` NICHT mehr das
+    Roster — das selektierte Team ist die Single Source of Truth; der Wert ist deskriptiv.
+    """
+    return "technical" if (project_type or "non-it") == "it" else "concept"

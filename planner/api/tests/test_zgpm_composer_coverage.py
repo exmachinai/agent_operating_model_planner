@@ -138,7 +138,8 @@ def test_check_pvm_klein_e_ohne_grosses_E() -> None:
 
 
 def test_check_pvm_sauber() -> None:
-    resp = zc._default_ms_responsibilities("Worker")
+    roster = {"pmo": "PMO-Orchestrator", "lead": "Projektleiter (HITL)", "risk": "Risiko-Agent"}
+    resp = zc._default_ms_responsibilities("Worker", roster)
     assert zc._check_pvm("M01", resp) == []
 
 

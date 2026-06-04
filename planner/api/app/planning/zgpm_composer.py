@@ -110,22 +110,54 @@ _PHASE_AGENTS: dict[str, list[str]] = {
 }
 
 _PROJECT_LEAD = "Projektleiter (HITL)"
-_PMO = "PMO-Agent"
+_PMO = "PMO-Orchestrator"  # v0.10 SSOT: kanonischer Name (vorher Drift „PMO-Agent")
 
 
-def _phase_agents_unique(nature: str) -> list[str]:
-    """Ausführende Phasen-Spezialisten, dedupliziert in Phasenreihenfolge."""
+# --- v0.10 Single Source of Truth: Rollen aus dem realen Team -----------------
+# Das Agenten-Team wird EINMAL über catalog.defaults_for(type, subtype) bestimmt
+# (Pfad 2) und hier wiederverwendet — keine zweite, nature-basierte Roster-Quelle
+# mehr. So können RACI/Cost/Meilenstein-Accountable nie vom Harness-Team abweichen.
+
+
+def _team_for(project: Project, team: list | None) -> list:
+    """Liefert das selektierte Team (SSOT). Fällt — falls nicht übergeben —
+    deterministisch auf dieselbe Quelle zurück, die der Compiler nutzt."""
+    if team is not None:
+        return team
+    from ..harness import catalog  # lazy: vermeidet Importzyklen
+
+    return catalog.defaults_for(project.project_type, project.project_subtype)
+
+
+def _roster(team: list) -> dict:
+    """Leitet die kanonischen Rollen-Labels aus dem Team ab (Join-Key = catalog.id)."""
+    pmo = next((a.label for a in team if a.kind == "orchestrator"), _PMO)
+    lead = next((a.label for a in team if a.klass == "human"), _PROJECT_LEAD)
+    risk = next((a.label for a in team if a.id == "risk-agent"), None)
+    workers = [a.label for a in team if a.kind == "worker"]
+    evaluators = [a.label for a in team if a.kind == "evaluator"]
+    # Ausführende Worker für die Accountable-Rotation (Risiko-Agent zählt quer, nicht als A).
+    exec_workers = [w for w in workers if w != risk] or [pmo]
+    return {
+        "pmo": pmo,
+        "lead": lead,
+        "risk": risk,
+        "workers": workers,
+        "evaluators": evaluators,
+        "exec_workers": exec_workers,
+    }
+
+
+def _roles_for(team: list) -> list[str]:
+    """RACI-Rollen-Reihenfolge für die Matrix, dedupliziert: HITL + PMO, dann
+    ausführende Worker, Evaluatoren und der Risiko-Querschnitt — alle aus dem Team."""
+    r = _roster(team)
+    ordered = [r["lead"], r["pmo"], *r["workers"], *r["evaluators"]]
     seen: list[str] = []
-    for a in _PHASE_AGENTS[nature]:
-        if a not in seen:
-            seen.append(a)
+    for role in ordered:
+        if role not in seen:
+            seen.append(role)
     return seen
-
-
-def _roles_for(nature: str) -> list[str]:
-    """PVM-Rollen-Reihenfolge für die Matrix: HITL + PMO, dann die ausführenden
-    Phasen-Spezialisten, dann Querschnittsrollen (Risiko, Fachbereich)."""
-    return [_PROJECT_LEAD, _PMO, *_phase_agents_unique(nature), "Risiko-Agent", "Fachbereich"]
 
 
 def _ampel_for(score: int) -> RiskAmpel:
@@ -165,16 +197,17 @@ def _default_outline(project: Project) -> list[dict]:
 
 
 def _build_milestones_from_outline(
-    project: Project, anchor: datetime, outline: list[dict]
+    project: Project, anchor: datetime, outline: list[dict], team: list
 ) -> list[Milestone]:
     """Baut regelkonforme Meilensteine aus einer Gliederung (Namen + Phasen).
 
-    PVM, MRL, Termine und Streams werden hier deterministisch ergänzt — egal ob die
-    Gliederung vom LLM-Planner oder aus `_default_outline` stammt. v0.6 — keine
-    Aktivitäten mehr: der Plan endet auf Meilenstein-Ebene."""
+    RACI, MRL, Termine und Streams werden hier deterministisch ergänzt — egal ob die
+    Gliederung vom LLM-Planner oder aus `_default_outline` stammt. Der Accountable je
+    Meilenstein kommt aus den ausführenden Workern des **realen Teams** (SSOT)."""
     nature = _nature(project)
     streams = _STREAMS[nature]
-    phase_agents = _PHASE_AGENTS[nature]
+    roster = _roster(team)
+    exec_workers = roster["exec_workers"]
 
     milestones: list[Milestone] = []
     prev_id: str | None = None
@@ -185,8 +218,8 @@ def _build_milestones_from_outline(
         phase_id = f"PH{idx + 1:02d}"
         ms_id = f"M{idx + 1:02d}"
         stream = streams[idx % len(streams)]
-        # v0.4.1 — ausführender Spezialist dieser Phase (bekommt `A`).
-        lead = phase_agents[idx % len(phase_agents)]
+        # v0.10 — ausführender Worker dieser Phase aus dem realen Team (bekommt `A`).
+        lead = exec_workers[idx % len(exec_workers)]
         planned = anchor + timedelta(days=14 * (idx + 1))
 
         # MRL: ein Risiko je Meilenstein. Eintritt/Auswirkung variieren
@@ -205,9 +238,9 @@ def _build_milestones_from_outline(
             )
         ]
 
-        # PVM Meilenstein: genau ein L (PMO steuert), ein A (Lead-Worker),
+        # RACI Meilenstein: genau ein L (PMO steuert), ein A (Lead-Worker),
         # E beim Projektleiter (Entscheidung häufiger früh & auf MS-Ebene).
-        ms_resp = _default_ms_responsibilities(lead)
+        ms_resp = _default_ms_responsibilities(lead, roster)
 
         milestones.append(
             Milestone(
@@ -227,9 +260,9 @@ def _build_milestones_from_outline(
     return milestones
 
 
-def _build_milestones(project: Project, anchor: datetime) -> list[Milestone]:
+def _build_milestones(project: Project, anchor: datetime, team: list) -> list[Milestone]:
     """Regelbasierter Standardweg: Meilensteine aus der Default-Gliederung."""
-    return _build_milestones_from_outline(project, anchor, _default_outline(project))
+    return _build_milestones_from_outline(project, anchor, _default_outline(project), team)
 
 
 def _build_prl(project: Project) -> list[Risk]:
@@ -289,33 +322,20 @@ def _build_prl(project: Project) -> list[Risk]:
     return prl
 
 
-def _build_token_budget(nature: str, n_milestones: int) -> list[TokenBudgetEntry]:
-    """Kosten als Token-Budget je Agent & Knoten (grobe, deterministische Schätzung).
+_KIND_NODE = {"orchestrator": "orchestration", "evaluator": "evaluator"}
 
-    Ein Worker-Eintrag je ausführendem Phasen-Spezialisten (v0.4.1), plus
-    Orchestrierung (PMO), Risiko-Querschnitt und Evaluator (Reviewer/QA)."""
-    entries = [
-        TokenBudgetEntry(
-            agent=_PMO, node="orchestration", tokens_estimated=8000 + 1500 * n_milestones
-        )
-    ]
-    agents = _phase_agents_unique(nature)
-    entries += [
-        TokenBudgetEntry(agent=a, node="worker", tokens_estimated=2000 * n_milestones)
-        for a in agents
-    ]
-    entries.append(
-        TokenBudgetEntry(
-            agent="Risiko-Agent", node="worker", tokens_estimated=1200 * n_milestones
-        )
-    )
-    # Reviewer/QA nur als eigenen Evaluator-Knoten führen, wenn er nicht schon als
-    # ausführender Phasen-Agent gelistet ist (sonst Doppel-Eintrag im Budget).
-    if "Reviewer/QA-Agent" not in agents:
+
+def _build_token_budget(team: list) -> list[TokenBudgetEntry]:
+    """Token-Budget als Summe der **festen Katalog-Budgets** der real selektierten
+    Team-Agenten (v0.10 SSOT, Entscheidung #5). Genau ein Eintrag je nicht-menschlichem
+    Team-Agenten; Knotentyp aus `kind`. Keine nature-Formel, keine Geister-Agenten."""
+    entries: list[TokenBudgetEntry] = []
+    for a in team:
+        if a.klass == "human" or a.token_budget <= 0:
+            continue
+        node = _KIND_NODE.get(a.kind, "worker")
         entries.append(
-            TokenBudgetEntry(
-                agent="Reviewer/QA-Agent", node="evaluator", tokens_estimated=2500 * n_milestones
-            )
+            TokenBudgetEntry(agent=a.label, node=node, tokens_estimated=a.token_budget)
         )
     return entries
 
@@ -460,6 +480,7 @@ def compose(
     version: int,
     plan_id: str,
     *,
+    team: list | None = None,
     outline: list[dict] | None = None,
     risk_narrative_override: str | None = None,
 ) -> Plan:
@@ -471,9 +492,10 @@ def compose(
     LLM-Fassung des Gesamtrisiko-Texts; sonst greift die deterministische."""
     now = datetime.now(timezone.utc)
     nature = _nature(project)
+    team = _team_for(project, team)  # SSOT: dasselbe Team wie der Compiler
 
     if outline:
-        milestones = _build_milestones_from_outline(project, now, outline)
+        milestones = _build_milestones_from_outline(project, now, outline, team)
         phases = [
             Phase(
                 id=m.phase_id,
@@ -488,10 +510,10 @@ def compose(
             Phase(id=f"PH{i + 1:02d}", name=name, order=i + 1)
             for i, (name, _) in enumerate(phase_defs)
         ]
-        milestones = _build_milestones(project, now)
+        milestones = _build_milestones(project, now, team)
     streams = _STREAMS[nature]
     prl = _build_prl(project)
-    token_budget = _build_token_budget(nature, len(milestones))
+    token_budget = _build_token_budget(team)
 
     # Eingefrorene Quellen-Nachweise (Schritt 2a) als Evidenz in den Plan ziehen.
     evidence = [
@@ -536,7 +558,7 @@ def compose(
         streams=streams,
         milestones=milestones,
         prl=prl,
-        pvm_roles=_roles_for(nature),
+        pvm_roles=_roles_for(team),
         token_budget=token_budget,
         overall_ampel=overall,
         reviewer_status=status,
@@ -677,15 +699,18 @@ def revise(
 from ..schemas.plan import MilestoneOp  # noqa: E402  (zyklusfrei, am Ende)
 
 
-def _default_ms_responsibilities(lead: str) -> list[Responsibility]:
-    """Regelkonforme PVM für einen Meilenstein (genau ein L, ein A)."""
-    return [
-        Responsibility(role=_PMO, code="L"),
+def _default_ms_responsibilities(lead: str, roster: dict) -> list[Responsibility]:
+    """Regelkonforme RACI für einen Meilenstein (genau ein L, ein A) — alle Rollen
+    aus dem realen Team. „Fachbereich" entfällt (Entscheidung #2): der Stakeholder ist
+    der Projektleiter (HITL), der bereits die Entscheidung (E) trägt."""
+    resp = [
+        Responsibility(role=roster["pmo"], code="L"),
         Responsibility(role=lead, code="A"),
-        Responsibility(role=_PROJECT_LEAD, code="E"),
-        Responsibility(role="Risiko-Agent", code="B"),
-        Responsibility(role="Fachbereich", code="I"),
+        Responsibility(role=roster["lead"], code="E"),
     ]
+    if roster.get("risk"):
+        resp.append(Responsibility(role=roster["risk"], code="B"))
+    return resp
 
 
 def _next_ms_id(milestones: list[Milestone]) -> str:
@@ -728,10 +753,10 @@ def _rebuild_plan(
     Propagation neu, Risiko-Narrativ neu, Reviewer erneut. PRL/Phasen/Streams/
     Evidenz bleiben. Append-only."""
     now = datetime.now(timezone.utc)
-    nature = _nature(project)
+    team = _team_for(project, None)
     milestones = _regen_gantt(milestones, now)
     prl = previous.prl
-    token_budget = _build_token_budget(nature, len(milestones))
+    token_budget = _build_token_budget(team)
 
     overall = _worst([m.ampel for m in milestones] + [r.ampel for r in prl])
     risk_narrative = compose_risk_narrative(milestones, prl, overall)
@@ -760,7 +785,7 @@ def _rebuild_plan(
         streams=previous.streams,
         milestones=milestones,
         prl=prl,
-        pvm_roles=previous.pvm_roles,
+        pvm_roles=_roles_for(team),
         token_budget=token_budget,
         overall_ampel=overall,
         reviewer_status=status,
@@ -780,15 +805,16 @@ def apply_milestone_ops(
 ) -> Plan:
     """Wendet Meilenstein-Operationen an (add/update/delete/reorder) → neue Version."""
     milestones = list(previous.milestones)
-    nature = _nature(project)
-    phase_agents = _phase_agents_unique(nature)
+    team = _team_for(project, None)
+    roster = _roster(team)
+    exec_workers = roster["exec_workers"]
     notes: list[str] = []
 
     for op in ops:
         if op.op == "add":
             new_id = _next_ms_id(milestones)
             idx = len(milestones)
-            lead = phase_agents[idx % len(phase_agents)] if phase_agents else _PMO
+            lead = exec_workers[idx % len(exec_workers)]
             phase = previous.phases[min(idx, len(previous.phases) - 1)] if previous.phases else None
             stream = previous.streams[idx % len(previous.streams)] if previous.streams else None
             prob, impact = 3, 3
@@ -811,7 +837,7 @@ def apply_milestone_ops(
                     planned_date=op.planned_date or datetime.now(timezone.utc),
                     predecessors=[],
                     ampel=_worst([r.ampel for r in mrl]),
-                    responsibilities=_default_ms_responsibilities(lead),
+                    responsibilities=_default_ms_responsibilities(lead, roster),
                     mrl=mrl,
                 )
             )

@@ -143,6 +143,10 @@ class CatalogAgent(BaseModel):
     tools: list[ToolSpec] = Field(default_factory=list)
     applies: list[str] = Field(default_factory=list)
     subtypes: list[str] = Field(default_factory=list)
+    # v0.10 (SSOT) — fester, begründbarer Token-Aufwand je Agent. Single Source of
+    # Truth für die Cost-Schätzung: der Composer summiert exakt die Budgets der real
+    # selektierten Team-Agenten (keine nature-basierte Formel mehr). Human-Rollen = 0.
+    token_budget: int = 10_000
 
 
 class SkillImport(BaseModel):

@@ -366,10 +366,43 @@ def _irreversible_hitl_points(agents: list[AgentSpec]) -> list[str]:
 
 
 def _detect_anti_patterns(
-    agents: list[AgentSpec], nodes: list[HarnessNode]
+    agents: list[AgentSpec], nodes: list[HarnessNode], plan: Plan | None = None
 ) -> list[HarnessFinding]:
-    """Macht Anti-Muster aus docs/04 sichtbar (vage Delegation, Über-Spawning …)."""
+    """Macht Anti-Muster aus docs/04 sichtbar (vage Delegation, Über-Spawning …)
+    UND erzwingt die Cross-Layer-Konsistenz Plan↔Harness-Team (v0.10 SSOT)."""
     findings: list[HarnessFinding] = []
+
+    # v0.10 (SSOT, harter Gate-3-Block): jede RACI-Rolle und jeder budgetierte Agent
+    # MUSS als Agent im Harness-Team existieren — sonst Geister-Accountable/-Budget.
+    if plan is not None:
+        team_roles = {a.role for a in agents}
+        raci_roles = set(plan.pvm_roles) | {
+            r.role for m in plan.milestones for r in m.responsibilities
+        }
+        missing_roles = raci_roles - team_roles
+        if missing_roles:
+            findings.append(
+                HarnessFinding(
+                    severity="fail",
+                    rule="consistency.raci-rolle-ohne-agent",
+                    message=(
+                        "RACI verweist auf Rolle(n) ohne Agent im Harness-Team: "
+                        + ", ".join(sorted(missing_roles))
+                    ),
+                )
+            )
+        ghost_budget = {e.agent for e in plan.token_budget} - team_roles
+        if ghost_budget:
+            findings.append(
+                HarnessFinding(
+                    severity="fail",
+                    rule="consistency.budget-ohne-agent",
+                    message=(
+                        "Token-Budget für Agent(en) ohne Team-Mitgliedschaft: "
+                        + ", ".join(sorted(ghost_budget))
+                    ),
+                )
+            )
 
     workers = [n for n in nodes if n.kind == "worker"]
     # A5: höchstens 5 Worker parallel (Über-Spawning).
@@ -450,7 +483,7 @@ def compile_graph(project: Project, plan: Plan, *, harness_id: str | None = None
     agents = _derive_agents(plan, project)
     imported_skills, catalog_skills = _prepopulate_skills(agents)
     nodes = _build_nodes(agents, parallel=True)
-    findings = _detect_anti_patterns(agents, nodes)
+    findings = _detect_anti_patterns(agents, nodes, plan)
     slug = slugify(project.title)
     short = plan.plan_hash.split(":")[-1][:6]
     date = plan.planausgabedatum.strftime("%Y%m%d")

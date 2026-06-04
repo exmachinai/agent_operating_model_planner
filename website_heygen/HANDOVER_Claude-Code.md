@@ -1,7 +1,7 @@
 # HANDOVER → Claude Code · zgpm.aegira.ai — Interner Explainer + HeyGen-Paket
 
 **Ort:** `50_APPS/20_AGENT_OPERATING_MODEL_PLANNER/website_heygen/`
-**Datum:** 2026-06-03 · **Status:** funktionsfähig, 3 offene Punkte (P0/P1)
+**Datum:** 2026-06-04 · **Status:** Screenshots vollständig (0–13); 2 offene Punkte (HeyGen-Embed, Deploy)
 **Zweck:** Interner Explainer (hinter 2FA) für den AEGIRA Planner + HeyGen-Story. Thema:
 **Zielgeführtes Generatives Projekt Management** — methodisch konsistente Agenten-Harnesse planen & umsetzen:
 **Planung → Prototyp → Product**.
@@ -21,7 +21,7 @@ website_heygen/
 ├── README.md                          # Bedienung + Screenshot-Slot-Tabelle
 ├── assets/
 │   ├── logo/  aegira_zgpm_lockup_* + offizielle Lockups + Signet-SVG
-│   ├── screenshots/  01..14_*.png     # 14 Journey-Slots (3 echt, Rest Platzhalter — s. §3)
+│   ├── screenshots/  00..13 + 10-2 · archiv/   # 14 Schritte (0–13), alle echt; Detail-Crops in archiv/
 │   └── userguide/  *.pptx · *.pdf · slides/slide-01..29.png   # User-Guide-Reader (brand-gold, Stand 06/2026)
 └── heygen/  produkt_teaser_minianleitung.md · heygen_skript.md · heygen_storyboard.md · heygen_scene_sheet.csv
 ```
@@ -33,12 +33,12 @@ website_heygen/
 - **User-Guide-Reader** (29 Slides, Blättern/Zoom + PPTX/PDF-Download), Deck auf Brand-Gold + Gates/Begriffe aktualisiert.
 - HeyGen-Paket: Skript (~2:30 min), Storyboard, Scene-Sheet (selektive Screen-Zuordnung je Szene).
 
-## 3. Offene Tasks
-### P0 — Screenshots ersetzen
-Die Journey referenziert 14 Dateien in `assets/screenshots/`. **3 echte sind vom 2FA-Login-Overlay verdeckt, 11 sind beschriftete Platzhalter.** Saubere Screenshots (vom Anwender bereitgestellt) unter exakt diesem Namen ablegen — dann erscheinen sie automatisch in Explainer **und** HeyGen-Story:
-`01_projekte · 02_beschreiben · 03_interview · 04_verstaendnis · 05_leitplanken · 06_meilensteine · 07_plan · 08_plan_gantt_raci · 09_plan_heatmap_token · 10_review · 11_harness · 12_agenten_flow · 13_export · 14_ausdruck`
-**Mindestens neu/sauber:** `12_agenten_flow.png` (Vollbild-Canvas) und `14_ausdruck.png` (Druck/PDF).
-> Hinweis: Screenshots **nur bei aktiver, eingeloggter Session** aufnehmen (die App sperrt nach Idle per 2FA; das Overlay nicht per JS umgehen).
+## 3. Screenshots — Status: ✅ vollständig
+14 Schritte (Storyline 0–13), durchnummeriert; Harness-Schritt mit 2 Bildern (`10-1`, `10-2`). **Alle echt & sauber** (kein Login-Overlay, keine Platzhalter mehr). Reihenfolge:
+`00_projektuebersicht · 01_beschreiben · 02_interview · 03_verstaendnis · 04_leitplanken · 05_meilensteine · 06_plan · 07_gantt_raci · 08_heatmap_token · 09_review · 10-1_harness · 10-2_harness_agenten · 11_agenten_flow · 12_export · 13_ausdruck`
+Nicht genutzte Detail-Crops liegen benannt in `assets/screenshots/archiv/`. Beim Austausch eines Screens denselben Dateinamen verwenden — Explainer **und** HeyGen-Story ziehen automatisch nach.
+
+## 3b. Offene Tasks
 
 ### P0 — HeyGen-Video einbetten
 In `index.html` Abschnitt `#explainer` (Kommentar „EXPLAINER-VIDEO · DEFINIERTER PLATZ"): den `<div class="videoframe">…</div>` durch das Embed ersetzen — `<video controls poster …>` oder HeyGen-Share-`<iframe>` (16:9). Skript/Szenen siehe `heygen/`.

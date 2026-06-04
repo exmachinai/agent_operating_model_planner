@@ -80,26 +80,31 @@ export function LockProvider({
   const bypass = !!pathname && pathname.startsWith("/auth");
   const router = useRouter();
 
-  // MFA → Explainer → Planner: NACH dem Entsperren leiten wir Erstnutzer (ohne
-  // „gesehen"-Marke) aufs Onboarding. Muss am Unlock-Event hängen — der Seiten-Mount
-  // läuft VOR dem Login (Lock aktiv, keine Session) und würde den Redirect verpassen.
-  const onboardAfterUnlock = React.useCallback(() => {
+  // MFA → Explainer → Planner. `force` = nach echtem Login (onUnlocked): IMMER zum
+  // Explainer — auch wenn in dieser Tab-Session schon gesehen (Wunsch: nach jedem MFA).
+  // Ohne `force` (Reload mit gültiger Session): nur wenn noch nicht „gesehen", damit ein
+  // Reload im Planner nicht zurück auf den Explainer bounct.
+  const onboardAfterUnlock = React.useCallback((force?: boolean) => {
     try {
+      const seen = window.sessionStorage.getItem("aegira.explainer.seen") === "1";
       if (
-        window.sessionStorage.getItem("aegira.explainer.seen") !== "1" &&
+        (force || !seen) &&
         pathname !== "/explainer" &&
         !(pathname ?? "").startsWith("/auth")
       ) {
         router.replace("/explainer");
       }
     } catch {
-      /* localStorage nicht verfügbar → Planner direkt */
+      /* Storage nicht verfügbar → Planner direkt */
     }
   }, [pathname, router]);
 
   const lock = React.useCallback(() => {
     try {
       window.sessionStorage.removeItem(SESSION_KEY);
+      // Onboarding ist pro MFA-Session: beim Sperren zurücksetzen → nach Re-Login
+      // (z. B. nach Idle-Lock) erscheint der Explainer erneut.
+      window.sessionStorage.removeItem("aegira.explainer.seen");
     } catch {
       /* sessionStorage nicht verfügbar */
     }
@@ -175,7 +180,7 @@ export function LockProvider({
       lastActivity.current = Date.now();
       setIsAdmin(admin);
       setLocked(false);
-      onboardAfterUnlock();
+      onboardAfterUnlock(true); // echter Login → immer Explainer
     },
     [onboardAfterUnlock],
   );

@@ -20,7 +20,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { LockScreen } from "../components/LockScreen";
 import { api } from "./api";
 
@@ -78,6 +78,24 @@ export function LockProvider({
   // — sonst könnte niemand seine E-Mail bestätigen.
   const pathname = usePathname();
   const bypass = !!pathname && pathname.startsWith("/auth");
+  const router = useRouter();
+
+  // MFA → Explainer → Planner: NACH dem Entsperren leiten wir Erstnutzer (ohne
+  // „gesehen"-Marke) aufs Onboarding. Muss am Unlock-Event hängen — der Seiten-Mount
+  // läuft VOR dem Login (Lock aktiv, keine Session) und würde den Redirect verpassen.
+  const onboardAfterUnlock = React.useCallback(() => {
+    try {
+      if (
+        window.localStorage.getItem("aegira.explainer.seen") !== "1" &&
+        pathname !== "/explainer" &&
+        !(pathname ?? "").startsWith("/auth")
+      ) {
+        router.replace("/explainer");
+      }
+    } catch {
+      /* localStorage nicht verfügbar → Planner direkt */
+    }
+  }, [pathname, router]);
 
   const lock = React.useCallback(() => {
     try {
@@ -102,6 +120,7 @@ export function LockProvider({
           lastActivity.current = Date.now();
           setIsAdmin(res.is_admin);
           setLocked(false);
+          onboardAfterUnlock();
         } else {
           window.sessionStorage.removeItem(SESSION_KEY);
         }
@@ -156,8 +175,9 @@ export function LockProvider({
       lastActivity.current = Date.now();
       setIsAdmin(admin);
       setLocked(false);
+      onboardAfterUnlock();
     },
-    [],
+    [onboardAfterUnlock],
   );
 
   return (

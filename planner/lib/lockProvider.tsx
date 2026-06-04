@@ -86,7 +86,7 @@ export function LockProvider({
   const onboardAfterUnlock = React.useCallback(() => {
     try {
       if (
-        window.localStorage.getItem("aegira.explainer.seen") !== "1" &&
+        window.sessionStorage.getItem("aegira.explainer.seen") !== "1" &&
         pathname !== "/explainer" &&
         !(pathname ?? "").startsWith("/auth")
       ) {

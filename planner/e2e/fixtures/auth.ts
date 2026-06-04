@@ -138,7 +138,7 @@ export const test = base.extend<
             // Explainer-Onboarding (MFA → Explainer → Planner) für E2E überspringen:
             // die Specs prüfen den Planner, nicht das Onboarding. Echte Erstnutzer
             // sehen den Explainer; hier als „gesehen" markiert.
-            window.localStorage.setItem("aegira.explainer.seen", "1");
+            window.sessionStorage.setItem("aegira.explainer.seen", "1");
           } catch {
             /* Storage nicht verfügbar */
           }

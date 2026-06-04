@@ -10,7 +10,7 @@ import { test, expect } from "../fixtures/auth";
 test("MFA → Explainer: Erstnutzer landet auf dem Explainer-Onboarding", async ({ page, context }) => {
   // Die Auth-Fixture setzt die „gesehen"-Marke; hier für den Erstnutzer-Fall entfernen.
   await context.addInitScript(() => {
-    try { window.localStorage.removeItem("aegira.explainer.seen"); } catch {}
+    try { window.sessionStorage.removeItem("aegira.explainer.seen"); } catch {}
   });
   await page.goto("/");
   await expect(page).toHaveURL(/\/explainer$/);

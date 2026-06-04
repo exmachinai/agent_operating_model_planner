@@ -178,7 +178,20 @@ function HelpDrawer({
         </div>
 
         <div style={drawerFootStyle}>
-          <Link href="/guide" style={guideLinkStyle} onClick={onClose}>
+          <Link
+            href="/explainer"
+            data-testid="help-explainer-link"
+            style={footBtnSecondaryStyle}
+            onClick={onClose}
+          >
+            ← Zum Explainer
+          </Link>
+          <Link
+            href="/guide"
+            data-testid="help-guide-link"
+            style={footBtnPrimaryStyle}
+            onClick={onClose}
+          >
             Gesamten Leitfaden öffnen →
           </Link>
         </div>
@@ -242,14 +255,15 @@ const overlayStyle: React.CSSProperties = {
 };
 
 const drawerStyle: React.CSSProperties = {
-  width: "min(440px, 92vw)",
+  width: "min(640px, 96vw)",
   height: "100%",
   display: "flex",
   flexDirection: "column",
   backgroundColor: "var(--c-surface)",
   borderLeft: "1px solid var(--c-border)",
   boxShadow: "var(--sh-2)",
-  padding: "var(--sp-5)",
+  // Großzügiges, asymmetrisches Padding: Text sitzt nicht am linken Rand.
+  padding: "32px 40px",
   fontFamily: "var(--font-body)",
   color: "var(--c-text)",
 };
@@ -290,10 +304,10 @@ const closeBtnStyle: React.CSSProperties = {
 };
 
 const summaryStyle: React.CSSProperties = {
-  fontSize: 15,
-  lineHeight: 1.5,
+  fontSize: 16,
+  lineHeight: 1.6,
   color: "var(--c-text)",
-  margin: "var(--sp-3) 0 var(--sp-4)",
+  margin: "var(--sp-3) 0 var(--sp-5)",
   paddingBottom: "var(--sp-4)",
   borderBottom: "1px solid var(--c-border)",
 };
@@ -301,20 +315,23 @@ const summaryStyle: React.CSSProperties = {
 const bodyScrollStyle: React.CSSProperties = {
   flex: 1,
   overflowY: "auto",
+  paddingRight: "6px",
 };
 
 const sectionHeadStyle: React.CSSProperties = {
   fontSize: 13,
   fontWeight: 700,
-  letterSpacing: "0.04em",
+  letterSpacing: "0.06em",
   textTransform: "uppercase",
-  color: "var(--c-text-muted)",
+  color: "var(--c-navy)",
+  borderLeft: "3px solid var(--c-gold)",
+  paddingLeft: "10px",
   margin: "0 0 var(--sp-2)",
 };
 
 const paraStyle: React.CSSProperties = {
-  fontSize: 14,
-  lineHeight: 1.6,
+  fontSize: 15,
+  lineHeight: 1.7,
   color: "var(--c-text)",
   margin: "0 0 var(--sp-2)",
 };
@@ -340,14 +357,43 @@ const tipItemStyle: React.CSSProperties = {
 };
 
 const drawerFootStyle: React.CSSProperties = {
-  paddingTop: "var(--sp-4)",
-  marginTop: "var(--sp-3)",
+  display: "flex",
+  gap: "12px",
+  alignItems: "stretch",
+  paddingTop: "18px",
+  marginTop: "16px",
   borderTop: "1px solid var(--c-border)",
 };
 
-const guideLinkStyle: React.CSSProperties = {
+const footBtnPrimaryStyle: React.CSSProperties = {
+  flex: "1 1 auto",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: 48,
+  padding: "0 20px",
+  fontSize: 15,
+  fontWeight: 700,
+  color: "var(--c-vellum)",
+  backgroundColor: "var(--c-navy)",
+  border: "1px solid var(--c-navy)",
+  borderRadius: "var(--r-md)",
+  textDecoration: "none",
+  boxShadow: "var(--sh-1)",
+};
+
+const footBtnSecondaryStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: 48,
+  padding: "0 16px",
   fontSize: 14,
   fontWeight: 600,
   color: "var(--c-navy)",
+  backgroundColor: "transparent",
+  border: "1px solid var(--c-border-strong)",
+  borderRadius: "var(--r-md)",
   textDecoration: "none",
+  whiteSpace: "nowrap",
 };

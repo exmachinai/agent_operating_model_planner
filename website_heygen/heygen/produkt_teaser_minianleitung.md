@@ -13,24 +13,24 @@ Agenten-System. Du steuerst und gibst frei (Gates), die Agenten bauen. Jeder Sch
 ## End-to-End in 14 Screens (jeder Screen = ein Dashboard)
 
 ### P · Planung
-0. **Projekt-Dashboard** (`01_projekte`) — Überblick aller Vorhaben mit Status/Gates.
-1. **Beschreiben** (`02_beschreiben`) — Vorhaben formlos in eigenen Worten.
-2. **Schärfungs-Interview** (`03_interview`) — greift dein Gesagtes auf, eine Frage nach der anderen; optional Kontext-Quellen.
-3. **Verständnis & Klassifizierung** (`04_verstaendnis`) — IT/Non-IT, Zielplattform, Kernaussage → **Gate 1** friert ein.
-4. **Leitplanken** (`05_leitplanken`) — erlaubter Rahmen; verbotene Praktiken blockieren.
-5. **Meilensteine** (`06_meilensteine`) — Zielzustände bestätigen (DONE).
-6. **Plan** (`07_plan`) — Meilensteine, RACI, Risiken/Ampel, Reviewer-Befunde, Gesamtrisiko.
-7. **Gantt & RACI** (`08_plan_gantt_raci`) — Zeitplan + Verantwortlichkeitsmatrix mit Konsistenzprüfung.
-8. **Risiko-Heatmap & Token-Budget** (`09_plan_heatmap_token`) — Risiko (E×A) + Kosten je Agent.
-9. **Review & Freigabe** (`10_review`) — schärfen, versionieren → **Gate 2** friert die Bauvorlage ein.
+0. **Projekt-Dashboard** (`00_projektuebersicht`) — Überblick aller Vorhaben mit Status/Gates.
+1. **Beschreiben** (`01_beschreiben`) — Vorhaben formlos in eigenen Worten.
+2. **Schärfungs-Interview** (`02_interview`) — greift dein Gesagtes auf, eine Frage nach der anderen; optional Kontext-Quellen.
+3. **Verständnis & Klassifizierung** (`03_verstaendnis`) — IT/Non-IT, Zielplattform, Kernaussage → **Gate 1** friert ein.
+4. **Leitplanken** (`04_leitplanken`) — erlaubter Rahmen; verbotene Praktiken blockieren.
+5. **Meilensteine** (`05_meilensteine`) — Zielzustände bestätigen (DONE).
+6. **Plan** (`06_plan`) — Meilensteine, RACI, Risiken/Ampel, Reviewer-Befunde, Gesamtrisiko.
+7. **Gantt & RACI** (`07_gantt_raci`) — Zeitplan + Verantwortlichkeitsmatrix mit Konsistenzprüfung.
+8. **Risiko-Heatmap & Token-Budget** (`08_heatmap_token`) — Risiko (E×A) + Kosten je Agent.
+9. **Review & Freigabe** (`09_review`) — schärfen, versionieren → **Gate 2** friert die Bauvorlage ein.
 
 ### P · Prototyp
-10. **Agent-Harness** (`11_harness`) — Team aus Orchestrator/Worker/Reviewer/HITL; Reifegrad-Stufe & Orchestrierungs-Modus.
-11. **Interaktiver Agenten-Flow** (`12_agenten_flow`) — Canvas über Stages; Architektur-Check flaggt Anti-Muster.
+10. **Agent-Harness** (`10-1_harness`) — Team aus Orchestrator/Worker/Reviewer/HITL; Reifegrad-Stufe & Orchestrierungs-Modus.
+11. **Interaktiver Agenten-Flow** (`11_agenten_flow`) — Canvas über Stages; Architektur-Check flaggt Anti-Muster.
 
 ### P · Product
-12. **Export** (`13_export`) — **Gate 3**: signiertes, integritätsgeprüftes Zip für Claude Code / Cowork.
-13. **Ausdruck** (`14_ausdruck`) — vollständiger Projekt-Report als PDF (audit-tauglich).
+12. **Export** (`12_export`) — **Gate 3**: signiertes, integritätsgeprüftes Zip für Claude Code / Cowork.
+13. **Ausdruck** (`13_ausdruck`) — vollständiger Projekt-Report als PDF (audit-tauglich).
 
 ## Drei Gates (Human-in-the-Loop)
 - **Gate 1** — Verständnis freigeben (Schritt 3).

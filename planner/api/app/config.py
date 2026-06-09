@@ -15,8 +15,16 @@ class Settings(BaseSettings):
 
     # --- App ----------------------------------------------------------------
     app_env: Literal["prod", "staging", "dev"] = Field(default="dev", alias="APP_ENV")
-    app_version: str = Field(default="0.9.4", alias="APP_VERSION")
+    app_version: str = Field(default="0.10.4", alias="APP_VERSION")
     log_level: str = Field(default="info", alias="LOG_LEVEL")
+
+    # --- Provenance (Cycle-3, EARS-P2/P3, A-CH3-1/B1, A-CH3-4/B3) ----------
+    # Vorbehalt: Diese Felder bezeichnen ausschließlich die selbst-attestierte
+    # Code-/Image-Identität. Keine verifizierten/garantierten/fälschungssicheren
+    # Angaben. Image unsigniert. A2 (api.anthropic.com-Direktaufruf,
+    # Eckpfeiler-14) ist NICHT abgedeckt und bleibt unberührt/offen.
+    git_sha: str = Field(default="unknown", alias="GIT_SHA")
+    build_date: str = Field(default="unknown", alias="BUILD_DATE")
 
     # --- Cosmos -------------------------------------------------------------
     cosmos_endpoint: str = Field(default="", alias="COSMOS_ENDPOINT")

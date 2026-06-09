@@ -16,9 +16,9 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Sprechender Image-Tag-Präfix (z. B. v0.9.0). Pro Lauf wird intern '-<run_number>' angehängt, damit immer eine neue Revision rollt."
-        required: true
-        default: "v0.9.0"
+        description: "Optionaler Image-Tag-Präfix (leer lassen = automatisch aus planner/package.json version). Pro Lauf wird intern '-<run_number>' angehängt, damit immer eine neue Revision rollt (IMMUTABLE)."
+        required: false
+        default: ""
       api_base_url:
         description: "NEXT_PUBLIC_API_BASE_URL — wird ins Frontend gebacken! (API-Subdomain)"
         required: true
@@ -62,8 +62,20 @@ jobs:
       # der sowohl beim acr-build als auch beim containerapp-update verwendet wird.
       - name: Eindeutigen Image-Tag bestimmen
         run: |
-          echo "IMAGE_TAG=${{ inputs.image_tag }}-${{ github.run_number }}" >> "$GITHUB_ENV"
-          echo "Effektiver Image-Tag: ${{ inputs.image_tag }}-${{ github.run_number }}"
+          # Wenn image_tag-Input gesetzt, diesen verwenden; sonst Version aus package.json lesen.
+          # Form: <version>-<run_number> — IMMUTABLE pro Lauf (A-CH3-2/B5).
+          INPUT_TAG="${{ inputs.image_tag }}"
+          if [ -n "$INPUT_TAG" ]; then
+            VERSION_PREFIX="$INPUT_TAG"
+          else
+            VERSION_PREFIX="$(jq -r '.version' planner/package.json)"
+          fi
+          echo "IMAGE_TAG=${VERSION_PREFIX}-${{ github.run_number }}" >> "$GITHUB_ENV"
+          echo "Effektiver Image-Tag: ${VERSION_PREFIX}-${{ github.run_number }}"
+          # Provenance (Cycle-3, A-CH3-NEW1): BUILD_DATE fuer Dockerfile-LABEL + /health durchreichen.
+          # GIT_SHA = ${{ github.sha }} (direkt verfuegbar). Selbst-attestierte Code-/Image-Identitaet,
+          # KEINE verifizierte/garantierte Angabe; deckt NICHT die LLM-Pfad-Residenz (A2 offen).
+          echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
       - name: Azure Login (OIDC)
         uses: azure/login@v2
@@ -77,6 +89,8 @@ jobs:
         run: |
           az acr build --registry "$ACR" \
             --image "planner-api:$IMAGE_TAG" \
+            --build-arg GIT_SHA="${{ github.sha }}" \
+            --build-arg BUILD_DATE="$BUILD_DATE" \
             --file planner/api/Dockerfile planner/api
 
       # KRITISCH: NEXT_PUBLIC_API_BASE_URL wird zur Build-Zeit eingebacken → muss
@@ -106,7 +120,7 @@ jobs:
         run: |
           az containerapp update -g "$RG_PLANNER" -n "$APP_API" \
             --image "$ACR.azurecr.io/planner-api:$IMAGE_TAG" \
-            --set-env-vars "APP_VERSION=$IMAGE_TAG"
+            --set-env-vars "APP_VERSION=$IMAGE_TAG" "GIT_SHA=${{ github.sha }}" "BUILD_DATE=$BUILD_DATE"
           az containerapp update -g "$RG_PLANNER" -n "$APP_FRONTEND" \
             --image "$ACR.azurecr.io/planner-frontend:$IMAGE_TAG"
 

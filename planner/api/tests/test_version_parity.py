@@ -16,7 +16,7 @@ from app.config import get_settings
 from app.harness import compiler
 
 # Single Source of Truth für die erwartete Release-Version.
-EXPECTED_VERSION = "0.9.4"
+EXPECTED_VERSION = "0.10.4"
 
 # tests/ -> api/ -> planner/  (dort liegt die Frontend-package.json)
 _PACKAGE_JSON = Path(__file__).resolve().parents[2] / "package.json"

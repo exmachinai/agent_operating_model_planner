@@ -41,7 +41,7 @@ from . import catalog, skill_catalog, templates, yaml_emit
 
 # v0.9 — EINE Schema-Version als Single Source of Truth (P1.1/A4: keine Drift mehr).
 _SCHEMA_VERSION = "2.1.0-claude-native"
-_COMPILER_ID = "aegira-planner@0.9.4"
+_COMPILER_ID = "aegira-planner@0.10.4"
 
 
 # --- Slug / Ableitung ---------------------------------------------------------

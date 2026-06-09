@@ -3,6 +3,24 @@
 # Siehe docs/18_acr-artifact-cache.md.
 FROM mcr.microsoft.com/azurelinux/base/python:3.12
 
+# ---------------------------------------------------------------------------
+# Provenance-Build-ARGs (Cycle-3, EARS-P1/P2, A-CH3-1/B1, A-CH3-4/B3)
+#
+# Vorbehalt / Einschränkung (PFLICHTLEKTÜRE):
+#   Die nachfolgenden OCI-Labels bezeichnen ausschließlich die selbst-attestierte
+#   Code-/Image-Identität (Git-Commit-SHA, Quell-Repository, Image-Version).
+#   Sie stellen KEINE verifizierten, garantierten oder fälschungssicheren Angaben
+#   dar — das Image ist unsigniert (kein Notary/Sigstore).
+#   Die Labels decken NICHT die LLM-Pfad-Residenz ab:
+#   A2 (api.anthropic.com-Direktaufruf, Eckpfeiler-14) bleibt unberührt und offen.
+# ---------------------------------------------------------------------------
+ARG GIT_SHA=unknown
+ARG BUILD_DATE=unknown
+
+LABEL org.opencontainers.image.revision="${GIT_SHA}" \
+      org.opencontainers.image.source="https://github.com/exmachinai/agent_operating_model_planner" \
+      org.opencontainers.image.version="0.10.4"
+
 WORKDIR /app
 
 # OS-deps: curl ist im Base-Image vorhanden; ca-certificates + shadow-utils (useradd)

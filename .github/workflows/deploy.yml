@@ -50,7 +50,7 @@ jobs:
       # Deterministisch den auslösenden Commit auschecken (nicht den HEAD eines
       # später bewegten Branches). Sauberer, leerer Runner-Workspace → der
       # Build-Kontext ist exakt die main-Quelle dieses Commits.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.sha }}
           clean: true
@@ -78,7 +78,7 @@ jobs:
           echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
       - name: Azure Login (OIDC)
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}

@@ -14,7 +14,7 @@ python-multipart==0.0.27
 python-docx==1.1.2
 python-pptx==1.0.2
 openpyxl==3.1.5
-pypdf==6.10.2
+pypdf==6.12.0
 # Lockscreen-2FA — QR-Code (Core-Matrix, pure-python; kein PIL/lxml nötig).
 qrcode==7.4.2
 # Dev/Test — Harness-Compiler + Router-Tests (WP-1/4/5).

@@ -50,7 +50,7 @@ jobs:
       # Deterministisch den auslösenden Commit auschecken (nicht den HEAD eines
       # später bewegten Branches). Sauberer, leerer Runner-Workspace → der
       # Build-Kontext ist exakt die main-Quelle dieses Commits.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
           clean: true
